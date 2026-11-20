@@ -11,8 +11,7 @@
 - Title.
 
 ## LATER
-- Greenlight (game-greenlight skill), only after the Lethemoor slice (due Nov 28).
-- Milestone 0: Foundation checklist (game-repo-rules).
+- Code: follow docs/BUILD_SPEC.md from M0 (copy godot-game-starter). Duff greenlit it Nov 20 for Nov 21.
 
 ## IDEAS
 - (Nov 20) Lair raids, trophy-wall skill tree, MO-as-build, case board rival. See docs/DESIGN.md.
