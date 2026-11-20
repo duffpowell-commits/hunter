@@ -35,6 +35,14 @@ Read this, then docs/DESIGN.md (story and content), then docs/style-guide.md (ar
 - Combos: a special swiped within 0.35 s of a landed light or heavy hit "cancels" into it and gets +25% damage. Show the combo count on screen (it does not feed corruption: that was cut).
 - No quarter-circle motions, no buttons smaller than `UI.MIN_TOUCH`.
 
+## Pipeline rules (lessons from another AI-built 3D jam game, Nov 20)
+- **Motion comes from the animation library, never hand-written.** Don't animate limbs in code (tweens, sine bobs): Duff rejected that look, and so did the other team. Give each character personality by tuning the shared clips (playback speed, stride, a 5-10% scale on specific bones, extra idle fidgets), not by keying new ones.
+- **Every imported model is normalised on import.** 1 unit = 1 m. Transforms applied. Root/armature scale 1 (watch for 100x cm-scale roots: the CC0 test robot came in about 149 units tall). Feet at y=0, facing -Z. Rest pose checked. A test in `tests/run_tests.gd` loads every `assets/models/*.glb`, plays idle, run and an attack, and asserts the height is within 10% of the target and the feet stay within 5 cm of the floor through each clip. CI fails otherwise.
+- **Texture import settings are explicit.** Colour maps are sRGB, never flagged as normal maps; mobile-friendly compression (ETC2/ASTC via the Compatibility renderer defaults). A test checks every albedo's `.import` file.
+- **Never ask a generator for a "seamless tile".** Generate one large surface and make the seams in code (offset and blend), or use flat ink colours with drawn crack decals, which suits the style better anyway.
+- **Controls legend on screen.** A small panel (toggle in pause and settings, on by default for the first hour) shows the swipe pad gestures: tap = light, hold = heavy, swipe = special, double-tap = dodge, plus the equipped voices' swipe directions with their icons.
+- **Directing, not grinding.** One milestone at a time, merged with a green CI and an autoplay PASS before the next starts. No parallel coding sessions on the same files.
+
 ## Core loop
 Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, stalk -> fight the target -> finisher choice -> scavenge the scene -> portal home -> lair: craft, place trophy, talk to voices and Furfur -> next target.
 
