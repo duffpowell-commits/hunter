@@ -1,7 +1,7 @@
 # Queue
 
 ## NOW
-- Lock the art style. Duff picks from docs/art/explore-20261120/sheet-vesper-styles.png (pixel vs ink vs puppet). Then rerender the five bosses + hero in that style and write docs/style-guide.md.
+- Hero name (asked Nov 20), then the rest of NEXT. Art is locked: ink on 3D (docs/style-guide.md).
 
 ## NEXT (design, no code)
 - Protagonist: name, look, day life.
