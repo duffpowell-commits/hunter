@@ -51,7 +51,8 @@ Milestone 0, already in the template (every game must keep all of it working):
    Pause and save when the app loses focus (phone call, home button). Android back pauses, never quits.
 7. Autosave + CONTINUE: save at checkpoints and on pause; game over clears the save.
 8. Settings: music, SFX, brightness, vibration, text size, subtitles, high contrast, colorblind
-   colours, left-handed, invert look, sensitivity, low graphics, share anonymous stats, CONTROLS.
+   colours, left-handed, invert look, sensitivity, low graphics, controls legend, share anonymous
+   stats, CONTROLS.
 9. Touch: buttons at least 72 base units tall (~56 dp), 18 apart; left-handed mirrors the controls.
 10. Audio buses Music + SFX that exist at boot.
 11. Subtitles + sound captions, high-contrast theme, colourblind-safe colours plus shape cues.
@@ -65,8 +66,9 @@ Milestone 0, already in the template (every game must keep all of it working):
 
 **Rule:** characters use the full range of movement the current engine supports: real skeletons,
 real animation clips, real physics. **Never fake movement** by bobbing, tilting, squashing or
-sliding a still image. A move with no animation clip doesn't exist yet; placeholder = the stand-in
-mannequin doing the real clip.
+sliding a still image. **Motion comes only from animation clips** (a CC0 library on the shared
+skeleton): no hand-coded limb tweens, no sine waves on bones or meshes. A move with no animation
+clip doesn't exist yet; placeholder = the stand-in mannequin doing the real clip.
 
 Keep it portable so it survives an engine change:
 - One **standard humanoid skeleton** for every character: UE5 mannequin bone names (`pelvis`,
@@ -76,6 +78,9 @@ Keep it portable so it survives an engine change:
 - Movement numbers (speeds, jump height, timings) live as plain constants at the top of the
   character script.
 - Characters under ~5k triangles each so several fit on a phone.
+- **Normalise every imported model:** 1 unit = 1 metre, root scale 1 (watch for 100x centimetre
+  roots), feet on y = 0, facing the same way as the template mannequin (glTF +Z forward; the
+  character script turns it). Check: `test_models_portable` asserts height, feet and facing.
 
 What "full range" means today (all must work for any game that has 3D characters):
 - Locomotion: idle, walk, jog, sprint in any direction; stick length = speed.
@@ -120,7 +125,10 @@ Each is engine-agnostic. Each has a bot check in the template; keep it passing.
    good. No text walls, no tutorial screens. Godot today: `Coach.teach()`. Checks: `BOOT`, `COACH PASS`.
 8. **Portable assets.** Standard humanoid skeleton, glTF, sources listed with licences. Source art
    lives in Foxboard (Duff's art app; finished art arrives in `grok_art/<date>-foxboard/` via its
-   Send to game button). Check: `test_models_portable`.
+   Send to game button). Texture imports are set by hand, never "detect": colour maps sRGB with
+   normal map OFF; only `*_n` / `*_normal` files are normal maps (Import dock -> Normal Map).
+   Never ask an image generator for a "seamless tile": use one big painted surface and make the
+   seams/repeats in code. Checks: `test_models_portable`, `test_texture_imports_explicit`.
 9. **Analytics and crash hooks.** Log key events locally; detect a run that didn't close cleanly and
    report it next launch (offer REPORT A BUG). Data leaves the phone only if the player turned on
    "share anonymous stats" AND the game has an endpoint set. Random install id only, nothing
@@ -129,7 +137,10 @@ Each is engine-agnostic. Each has a bot check in the template; keep it passing.
 11. **Controller support + remapping.** Every action works on touch, keyboard and gamepad. Games read
     named actions (`move_left`, `jump`, `attack`, `dodge`, `crouch`, `aim`, `pause`), never raw keys.
     Players remap keys and pad buttons in Settings -> CONTROLS; saved; reset to defaults.
-    Godot today: `Controls` autoload. Checks: `PAD`, `REMAP PASS`, `test_controls_*`.
+    A **controls legend** panel lists each action and its current key/button: on by default, shows
+    once a key or pad is used (touch players already see labelled buttons), follows remaps,
+    Settings -> CONTROLS LEGEND turns it off. Godot today: `Controls` autoload,
+    `ControlsLegend.make([...])`. Checks: `PAD`, `REMAP`, `LEGEND PASS`, `test_controls_*`.
 12. **Offline-first, no forced login.** The whole game plays with no network and no account. Network
     features (updater, stats) fail silently and never block play.
 
