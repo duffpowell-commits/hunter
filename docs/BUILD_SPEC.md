@@ -17,7 +17,7 @@ Read this, then docs/DESIGN.md (story and content), then docs/style-guide.md (ar
 
 ## Camera, view and animation (Duff, Nov 20: "full range of movement")
 - **Characters are real-time 3D, not 2D sprites.** Duff rejected stills that bob and tilt. Every character needs real limb animation: walk and run in any direction (360°, not 4 or 8 facings), plus attacks, specials, dodge, hit, knockdown and death.
-- Look (leading candidate, Duff hasn't locked it yet): the "ink and blood" style on 3D models. Use a toon shader (2 or 3 hard light bands, no gradients) plus a thick black outline (inverted hull or a screen-space outline that keeps the same width on screen), flat colours, and an orange demon rim light on the hero. Reference clip: Project Files hunter-art/full_movement_3d_ink_test.mp4. It's a stand-in robot model; the technique is what counts.
+- Look (LOCKED by Duff, Nov 20): the "ink and blood" style on 3D models. Details: docs/style-guide.md. Use a toon shader (2 or 3 hard light bands, no gradients) plus a thick black outline (inverted hull or a screen-space outline that keeps the same width on screen), flat colours, and an orange demon rim light on the hero. Reference clip: docs/art/ink-3d/full_movement_3d_ink_test.mp4 (Duff: "Excellent"). It's a stand-in robot model; the technique is what counts.
 - Engine: Godot 4.5 Compatibility renderer: `CharacterBody3D` + `AnimationTree` (blend space for idle/walk/run by speed, one-shots for attacks), low-poly skinned meshes (under ~5k tris each), one directional light + ambient. The world is 3D too (simple floor and props) so the camera angle stays consistent.
 - Animations: start from a CC0 humanoid animation library (for example Quaternius "Universal Animation Library", CC0, glTF) retargeted in Godot to every humanoid, so walk/run/punch/kick/dodge/hit/death come free. Boss specials get extra clips on the same skeleton. No paid assets without Duff's OK.
 - Models: start with CC0 low-poly humanoids recoloured per character (hoodie hero, robed zealots, suited Gus). Later, swap in models made from the Foxboard concept art (image-to-3D pipeline in the Chaos/DuffQuest repos) on the same skeleton. Never block gameplay on final models.
@@ -104,7 +104,6 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 - `assets/models/<id>.glb` (skinned, shared humanoid skeleton), `assets/anims/` (the shared animation library), `shaders/toon.gdshader`, `shaders/outline.gdshader`. 2D art (`assets/art/`) only for UI, portraits in the voice dialogue boxes, and the trophy wall.
 
 ## Still open (Duff decides; use the placeholder until then)
-- Art style: leading candidate is ink and blood on 3D models (see Camera, view and animation). Not locked: Duff decides.
 - Protagonist name: TBD. Placeholder `HUNTER`.
 - Mom's name and past: TBD. Placeholder `MOM`.
 - The rival hunter/detective: TBD (not before M5).

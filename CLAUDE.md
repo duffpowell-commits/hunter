@@ -6,13 +6,14 @@ Top-down action RPG: you're a half-demon serial killer of demons. Stalk, kill, s
 - Phase: design done enough to build. Duff greenlit coding on Nov 20 (another coding AI starts Nov 21). **Coding starts at docs/BUILD_SPEC.md**: hard rules, controls, systems with numbers, milestones M0-M5+.
 - Build spec: docs/BUILD_SPEC.md. Full design: docs/DESIGN.md. Pitch: docs/PITCH.md. Queue: QUEUE.md. Art: docs/style-guide.md + docs/ART_LOG.md.
 - Done: core concept, combat rules, story spine (Mom, Samael Price, Furfur Kemp), 5 bosses/voices, 6 realms. First sprite exploration rendered (docs/art/explore-20261120/).
-- Next: Duff picks the art style from the Vesper comparison (pixel vs ink vs puppet, docs/art/explore-20261120/sheet-vesper-styles.png). Then: the protagonist (name, look, day life), Mom's name and hunter past, the hunter/detective on your tail, endings, title.
+- Art LOCKED Nov 20: ink and blood on real-time 3D, full range of movement (docs/style-guide.md, docs/art/ink-3d/).
+- Next: the protagonist (name, look, day life), Mom's name and hunter past, the hunter/detective on your tail, endings, title.
 
 ## Layout
 - docs/BUILD_SPEC.md: how to build it, milestone by milestone. Start here for code.
 - docs/DESIGN.md: every locked decision.
 - docs/PITCH.md: one-page pitch + pillars + not-in-this-game.
-- docs/style-guide.md: art style candidates (not locked yet).
+- docs/style-guide.md: the locked art style (ink on 3D).
 - docs/ART_LOG.md: every render with prompt, seed, verdict.
 - docs/art/: renders. Art is made in Foxboard Forge (repo duffpowell-commits/Foxboard, forge/jobs, job ids `dh-*`), Canva as fallback (art-director skill).
 - tasks/todo.md, tasks/lessons.md.
