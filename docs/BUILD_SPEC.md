@@ -12,12 +12,17 @@ Read this, then docs/DESIGN.md (story and content), then docs/style-guide.md (ar
 - Save at every checkpoint with `Save.write(state())`. Bump `Save.VERSION` and migrate when the format changes.
 - Extend `scripts/autoplay.gd` with one PASS line per feature below. CI must stay green: parse check, `tests/run_tests.gd`, autoplay.
 - Content is data, not code: enemies, bosses, specials, loot, realms and trophies live in `data/*.json` (or `.tres` Resources). Adding a boss should mean adding data plus art, with no new engine code.
-- Placeholder art drawn in code until real sprites land in `assets/art/`. Never block gameplay work on art.
+- Placeholder: CC0 low-poly models with the toon shader until the real models land in `assets/models/`. Never block gameplay work on art.
 - Push after every chunk. Merge to main at the end of every milestone. Green PRs merge themselves.
 
-## Camera and view
-- Top-down, high three-quarter angle, same in and out of combat. Camera follows the player with slight look-ahead in the move direction.
-- Characters are 2D sprites about 96-128 px tall on screen at base resolution. Y-sort everything.
+## Camera, view and animation (Duff, Nov 20: "full range of movement")
+- **Characters are real-time 3D, not 2D sprites.** Duff rejected stills that bob and tilt. Every character needs real limb animation: walk and run in any direction (360°, not 4 or 8 facings), plus attacks, specials, dodge, hit, knockdown and death.
+- Look (leading candidate, Duff hasn't locked it yet): the "ink and blood" style on 3D models. Use a toon shader (2 or 3 hard light bands, no gradients) plus a thick black outline (inverted hull or a screen-space outline that keeps the same width on screen), flat colours, and an orange demon rim light on the hero. Reference clip: Project Files hunter-art/full_movement_3d_ink_test.mp4. It's a stand-in robot model; the technique is what counts.
+- Engine: Godot 4.5 Compatibility renderer: `CharacterBody3D` + `AnimationTree` (blend space for idle/walk/run by speed, one-shots for attacks), low-poly skinned meshes (under ~5k tris each), one directional light + ambient. The world is 3D too (simple floor and props) so the camera angle stays consistent.
+- Animations: start from a CC0 humanoid animation library (for example Quaternius "Universal Animation Library", CC0, glTF) retargeted in Godot to every humanoid, so walk/run/punch/kick/dodge/hit/death come free. Boss specials get extra clips on the same skeleton. No paid assets without Duff's OK.
+- Models: start with CC0 low-poly humanoids recoloured per character (hoodie hero, robed zealots, suited Gus). Later, swap in models made from the Foxboard concept art (image-to-3D pipeline in the Chaos/DuffQuest repos) on the same skeleton. Never block gameplay on final models.
+- Camera: a fixed high three-quarter angle (about 50° down), following the player with slight look-ahead. Same angle in and out of combat. No player camera rotation.
+- Hit feel: 60 ms hit-stop, a white flash on the victim, small camera shake, spark particles.
 
 ## Controls (portrait, one thumb each side)
 - Left half of the screen: floating virtual stick for moving. Left-handed setting mirrors the halves.
@@ -73,7 +78,7 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 
 ### Corruption
 - 0-100. Rises with brutal finishers, eating bosses (+10 each) and venting on Furfur. Falls only through story choices (TBD with endings).
-- It visibly changes the lair (3 looks: 0-33, 34-66, 67-100) and the player's sprite tint/horns.
+- It visibly changes the lair (3 looks: 0-33, 34-66, 67-100) and the player model's tint and horns.
 - It decides the ending band (see Endings, TBD).
 
 ### Lair (hub)
@@ -86,7 +91,7 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 
 ## Milestones (one at a time, each ends merged to main with a working APK)
 - **M0 Foundation**: copy the starter as above, rename, CI green, the APK installs, the autoplay passes. Title shows "HUNTER" (working title).
-- **M1 Movement and combat feel**: one test arena. Player, virtual stick, the light/heavy/dodge/special swipe pad, 1 dummy enemy type, 1 improvised weapon with breaking, combo counter, hit-stop (60 ms) and screen shake. Autoplay: move, light string, special, weapon break.
+- **M1 Movement and combat feel**: one 3D test arena with the toon/outline shader. Player model with full 360° walk/run blend and real attack animations, virtual stick, the light/heavy/dodge/special swipe pad, 1 dummy enemy type, 1 improvised weapon with breaking, combo counter, hit-stop (60 ms) and screen shake. Autoplay: move, light string, special, weapon break.
 - **M2 The Pews and Vesper (vertical slice)**: the Pews realm (one map), zealots plus a choir buff enemy, collection-plate hazard, scavenging, Vesper boss (2 phases, Sermon/Flock/Laying of Hands), stalking/ambush, CLEAN vs BRUTAL finisher, EAT, Vesper as the first voice with dialogue boxes. Portal home.
 - **M3 The lair**: hub with the trophy wall, workshop crafting, map room, voice equip, Heat, a lair raid, Corruption tint. Save and resume all of it.
 - **M4 Furfur**: the lost-hunt intro, the home-invasion fight, the cage, the talk menu, VENT gated on real failures.
@@ -96,10 +101,10 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 - `scenes/` boot, intro, title, game (starter) + `lair.tscn`, `realm.tscn` (one scene, loads realm data), `combat/`.
 - `scripts/` starter autoloads + `player.gd`, `enemy.gd`, `boss.gd`, `voice.gd`, `inventory.gd`, `crafting.gd`, `lair.gd`, `realm.gd`, `heat.gd`, `corruption.gd`, `swipe_pad.gd`, `virtual_stick.gd`.
 - `data/` `realms.json`, `enemies.json`, `bosses.json`, `specials.json`, `loot.json`, `recipes.json`, `trophies.json`, `voices/*.json`.
-- `assets/art/` sprites per character: `<id>/idle.png`, `walk.png`, `attack.png`, … on a transparent background (keyed from #00FF00).
+- `assets/models/<id>.glb` (skinned, shared humanoid skeleton), `assets/anims/` (the shared animation library), `shaders/toon.gdshader`, `shaders/outline.gdshader`. 2D art (`assets/art/`) only for UI, portraits in the voice dialogue boxes, and the trophy wall.
 
 ## Still open (Duff decides; use the placeholder until then)
-- Art style: TBD. Placeholder: shapes drawn in code.
+- Art style: leading candidate is ink and blood on 3D models (see Camera, view and animation). Not locked: Duff decides.
 - Protagonist name: TBD. Placeholder `HUNTER`.
 - Mom's name and past: TBD. Placeholder `MOM`.
 - The rival hunter/detective: TBD (not before M5).
