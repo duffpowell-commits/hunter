@@ -20,7 +20,7 @@ Top-down action RPG: you're a half-demon serial killer of demons. Stalk, kill, s
 
 ## Guards (enforced, Nov 21)
 - `.claude/hooks/guard.py` blocks force push, direct push to main, writing/generating signing keys and committing
-  secrets. When code starts: copy `.claude/hooks/guard.cfg` + `tools/test.sh` from godot-game-starter for the test gate.
+  secret files (.env, keystores, secrets.*; names only). When code starts: copy `.claude/hooks/guard.cfg` + `tools/test.sh` from godot-game-starter for the test gate.
 - PRs: the `fresh-eyes` status stays pending until a fresh-context review posts `FRESH-EYES REVIEW: PASS` on the head
   commit (`docs/FRESH_EYES.md`). Pending is not green: sessions check the combined status and don't merge
   (GitHub itself doesn't block it).
