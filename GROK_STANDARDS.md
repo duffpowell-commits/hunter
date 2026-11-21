@@ -1,7 +1,10 @@
 # Game Standards: the index (for any coding AI: Grok, Claude, Copilot, anyone)
 
 Owner: Duff. The rules for every Duff game repo, split into small files so you load only what a
-task needs. **Always read `standards/00-core.md`.** Then read only the files your task touches.
+task needs. **Start at the repo's AGENTS.md**: it is the source of truth for that repo's commands,
+standing rules and first-step setup (`git config core.hooksPath .githooks`), and it points here.
+Why (Nov 21): one rulebook every agent loads, instead of rules split across files only some agents read.
+**Always read `standards/00-core.md`.** Then read only the files your task touches.
 
 | Read this | When the task is about |
 |---|---|
@@ -19,7 +22,7 @@ task needs. **Always read `standards/00-core.md`.** Then read only the files you
 | [standards/11-build-release.md](standards/11-build-release.md) | CI, signing key, APK, dev release, engine version |
 | [standards/12-testing.md](standards/12-testing.md) | The autoplay bot, rule tests, before-push checks |
 
-If a repo's own README/CLAUDE.md/AGENTS.md says something more specific, that wins for that repo.
+If a repo's AGENTS.md (or README/CLAUDE.md) says something more specific, that wins for that repo.
 
 **Copying:** copy this file and the whole `standards/` folder, unchanged, into any game repo. The
 master copy lives in `duffpowell-commits/godot-game-starter`. Change rules there, then re-sync.

@@ -1,34 +1,20 @@
+@AGENTS.md
+
 # Hunter (working title)
 
-Top-down action RPG: you're a half-demon serial killer of demons. Stalk, kill, scavenge, build your lair, eat the bosses and wear their movesets. Street Fighter-style combos in combat, Westland Survival-style scavenging outside it. Owner: Duff. Read this first; it is the handoff between sessions.
+Top-down action RPG: you're a half-demon serial killer of demons. Stalk, kill, scavenge, build your lair, eat the bosses and wear their movesets. Street Fighter-style combos in combat, Westland Survival-style scavenging outside it. Owner: Duff. Read this first; it is the handoff between sessions. Commands, standing rules, guards and layout: AGENTS.md (imported above), shared by every coding AI.
+Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unless it's imported. Catch-up log: docs/DECISIONS.md.
 
 ## Where things stand (Nov 20, 2026)
 - Phase: design done enough to build. Duff greenlit coding on Nov 20 (another coding AI starts Nov 21). **Coding starts at docs/BUILD_SPEC.md**: hard rules, controls, systems with numbers, milestones M0-M5+.
 - Build spec: docs/BUILD_SPEC.md. Full design: docs/DESIGN.md. Pitch: docs/PITCH.md. Queue: QUEUE.md. Art: docs/style-guide.md + docs/ART_LOG.md.
 - Done: core concept, combat rules, story spine (Mom, Samael Price, Furfur Kemp), 5 bosses/voices, 6 realms. First sprite exploration rendered (docs/art/explore-20261120/).
 - Art LOCKED Nov 20: ink and blood on real-time 3D, full range of movement (docs/style-guide.md, docs/art/ink-3d/).
+- Nov 21 (Grok): Git pre-push hook for every agent (`.githooks/pre-push`); rules moved into AGENTS.md. Open questions for Duff (Godot version, active game) are in QUEUE.md.
 - Next: the protagonist (name, look, day life), Mom's name and hunter past, the hunter/detective on your tail, endings, title.
 
-## Layout
-- docs/BUILD_SPEC.md: how to build it, milestone by milestone. Start here for code.
-- docs/DESIGN.md: every locked decision.
-- docs/PITCH.md: one-page pitch + pillars + not-in-this-game.
-- docs/style-guide.md: the locked art style (ink on 3D).
-- docs/ART_LOG.md: every render with prompt, seed, verdict.
-- docs/art/: renders. Art is made in Foxboard Forge (repo duffpowell-commits/Foxboard, forge/jobs, job ids `dh-*`), Canva as fallback (art-director skill).
-- tasks/todo.md, tasks/lessons.md.
-
-## Guards (enforced, Nov 21)
-- `.claude/hooks/guard.py` blocks force push, direct push to main, writing/generating signing keys and committing
-  secret files (.env, keystores, secrets.*; names only). When code starts: copy `.claude/hooks/guard.cfg` + `tools/test.sh` from godot-game-starter for the test gate.
-- PRs: the `fresh-eyes` status stays pending until a fresh-context review posts `FRESH-EYES REVIEW: PASS` on the head
-  commit (`docs/FRESH_EYES.md`). Pending is not green: sessions check the combined status and don't merge
-  (GitHub itself doesn't block it).
-
-## House rules
-- Duff works phone-only (Android, Godot Android editor). No desktop-only tools. GDScript only once code starts.
-- Push after every chunk of work; merge to main at the end of every milestone.
-- Up to three milestones per session, merged and handed off after each. Save renders to files, not chat.
-- Visual decisions need real engine renders once there is an engine build.
-- When code starts, Milestone 0 is the game-repo-rules Foundation checklist.
-- Prompts in Forge are public: never put Duff's likeness or private info in them.
+## Claude-only notes
+- `.claude/settings.json` runs `.claude/hooks/guard.py` before every Bash/Write/Edit call. A blocked
+  call comes back with the reason; fix the cause, don't work around it.
+- In that hook `--force-with-lease` is allowed; the Git pre-push hook still blocks any push that
+  rewrites the remote branch, so plan on merging, not rewriting.
