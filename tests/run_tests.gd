@@ -7,6 +7,11 @@ const Config = preload("res://scripts/config.gd")
 const UI = preload("res://scripts/ui.gd")
 const Updater = preload("res://scripts/updater.gd")
 const BugReport = preload("res://scripts/bug_report.gd")
+const Combat = preload("res://scripts/combat.gd")
+const GameData = preload("res://scripts/game_data.gd")
+const SwipePad = preload("res://scripts/swipe_pad.gd")
+const VirtualStick = preload("res://scripts/virtual_stick.gd")
+const Arena = preload("res://scripts/arena.gd")
 
 var n := 0
 var bad := 0
@@ -351,3 +356,137 @@ func test_tune_saves_applies_and_reports() -> void:
 	Tune.clear()
 	feel.shake_scale = 1.0
 	check(Tune.saved("feel", "shake_scale") == null, "reset clears saved values")
+
+
+# ---------------------------------------------------------------- Hunter M1 (docs/BUILD_SPEC.md)
+# Why (Nov 21): one rule test per M1 feature; the autoplay bot proves the same features in play.
+
+func _combat() -> Combat:
+	return Combat.new(GameData.load_json("moves"), GameData.load_json("weapons"))
+
+
+## Tap, tap, tap = the L, L, L string; only the third knocks back (power >= 0.5).
+func test_light_string() -> void:
+	var c := _combat()
+	var a := c.light()
+	var b := c.light()
+	var h := c.light()
+	check(a.index == 0 and b.index == 1 and h.index == 2, "three taps walk the string")
+	check(float(a.power) < 0.5 and float(b.power) < 0.5 and float(h.power) >= 0.5, "third hit knocks back")
+	check(float(a.damage) == 8.0, "light = 8 damage")
+	c.tick(c.string_gap + 0.1)
+	check(c.light().index == 0, "a slow tap restarts the string")
+
+
+## Hold and release = heavy: 20 damage, guard break.
+func test_heavy() -> void:
+	var h := _combat().heavy()
+	check(float(h.damage) == 20.0 and h.get("guard_break", false) and h.kind == "heavy", "heavy = 20, guard break")
+
+
+## A special swiped within 0.35 s of a landed hit cancels into it for +25 %; specials cool down.
+func test_special_cancel() -> void:
+	var c := _combat()
+	c.land(c.light())
+	var s := c.special("toward")
+	check(s.cancel and is_equal_approx(float(s.damage), 20.0 * 1.25), "cancel bonus inside the window")
+	check(c.special("toward").is_empty(), "cooldown blocks a repeat")
+	c.tick(1.0)
+	var u := c.special("up")
+	check(not u.cancel and float(u.damage) == 25.0, "no bonus outside the window")
+	for d in ["up", "down", "toward", "away"]:
+		check(c.moves.specials.has(d), "special for swipe " + d)
+
+
+## Every landed hit counts; the counter drops after the gap or when the hero is hit.
+func test_combo_counter() -> void:
+	var c := _combat()
+	for i in 3:
+		c.land(c.light())
+	check(c.combo == 3, "three hits = 3")
+	c.tick(c.combo_gap + 0.05)
+	check(c.combo == 0, "resets after the gap")
+	c.land(c.light())
+	c.drop_combo()
+	check(c.combo == 0, "getting hit drops it")
+
+
+## The pipe: 4 durability, each hit costs 1, the next hit at 0 breaks it for x2.5 and a big knockback.
+func test_weapon_breaks() -> void:
+	var c := _combat()
+	check(c.pick_up("pipe") and c.weapon == "pipe", "picked up")
+	var w: Dictionary = c.weapons.pipe
+	check(int(w.durability) >= 3 and int(w.durability) <= 5, "durability 3-5 (spec)")
+	check(c.light().action == "slash_a", "armed swings use the weapon clips")
+	for i in int(w.durability):
+		var r := c.land({"kind": "light", "damage": 8, "power": 0.3})
+		check(not r.broke and float(r.damage) == 8.0 + float(w.damage_bonus), "hit %d spends durability" % (i + 1))
+	check(c.durability == 0 and c.weapon == "pipe", "spent, still held")
+	var last := c.land({"kind": "light", "damage": 8, "power": 0.3})
+	check(last.broke and is_equal_approx(float(last.damage), (8.0 + float(w.damage_bonus)) * 2.5) and float(last.power) >= 1.0, "break = x2.5, big knockback")
+	check(c.weapon == "", "unarmed after the break")
+
+
+## Pad gestures and swipe directions, without a screen.
+func test_pad_gestures() -> void:
+	check(SwipePad.classify(0.1, Vector2(5, 0), 9.0) == "light", "tap = light")
+	check(SwipePad.classify(0.1, Vector2.ZERO, 0.15) == "dodge", "double-tap = dodge")
+	check(SwipePad.classify(0.4, Vector2(10, 0), 9.0) == "heavy", "hold 0.3 s = heavy")
+	check(SwipePad.classify(0.15, Vector2(0, -90), 9.0) == "swipe", "drag = swipe")
+	var to := Vector2(0, -200)          # dummy straight up the screen
+	check(Combat.swipe_dir(Vector2(0, -80), to) == "toward", "swipe at the target = toward")
+	check(Combat.swipe_dir(Vector2(0, 80), to) == "away", "swipe from it = away")
+	var side := Vector2(200, 0)         # dummy to the right
+	check(Combat.swipe_dir(Vector2(0, -80), side) == "up" and Combat.swipe_dir(Vector2(0, 80), side) == "down", "up / down")
+
+
+func test_virtual_stick() -> void:
+	check(VirtualStick.stick_vector(Vector2(100, 100), Vector2(145, 100)).is_equal_approx(Vector2(0.5, 0)), "half push = 0.5")
+	check(is_equal_approx(VirtualStick.stick_vector(Vector2.ZERO, Vector2(0, 500)).length(), 1.0), "capped at 1")
+
+
+## Content is data, and the data ships in the APK.
+func test_data_files_ship() -> void:
+	for f in ["moves", "enemies", "weapons"]:
+		check(not GameData.load_json(f).is_empty(), "data/%s.json loads" % f)
+	var e: Dictionary = GameData.load_json("enemies").dummy
+	check(float(e.telegraph) >= 0.5, "enemy telegraph >= 0.5 s (spec)")
+	check(int(GameData.load_json("moves").player.hp) == 100, "player HP 100")
+	var cfg := ConfigFile.new()
+	cfg.load("res://export_presets.cfg")
+	check("data/*.json" in str(cfg.get_value("preset.0", "include_filter", "")), "export includes data/*.json")
+
+
+## Save v1 (Orb Catch) still loads as v2.
+func test_save_migrates_v1() -> void:
+	var save: Node = root.get_node("Save")
+	save.path = "user://test_v1.json"
+	var f := FileAccess.open(save.path, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"level": 3, "score": 7, "lives": 2, "_version": 1}))
+	f.close()
+	var d: Dictionary = save.read()
+	check(save.VERSION == 2 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3, "v1 -> v2")
+	save.clear()
+	save.path = "user://run.json"
+
+
+## The arena: ink look on every surface, the 50-degree camera, the hero's rim, tunable.
+func test_arena_setup() -> void:
+	var a := Arena.new()
+	root.add_child(a)
+	await process_frame
+	check(is_equal_approx(a.rig.pitch_deg, 50.0), "camera 50 degrees down")
+	check(a.hero.rim > 0.0 and a.dummy.rim == 0.0, "orange rim on the hero only")
+	var inked := 0
+	var all := 0
+	for m in a.find_children("*", "MeshInstance3D", true, false):
+		if m.get_parent() is StaticBody3D:
+			all += 1
+			var mat := (m as MeshInstance3D).material_override as ShaderMaterial
+			if mat != null and mat.shader.resource_path.ends_with("toon.gdshader") and mat.next_pass != null:
+				inked += 1
+	check(all > 0 and inked == all, "toon + outline on every arena surface (%d/%d)" % [inked, all])
+	check(a.is_in_group("tunable") and a.TUNE.has("enemy_telegraph"), "arena numbers are TUNE sliders")
+	check(a.hero.actions.has("heavy") and a.hero.actions.has("lunge"), "Hunter clips added to Character3D")
+	a.queue_free()
+	await process_frame

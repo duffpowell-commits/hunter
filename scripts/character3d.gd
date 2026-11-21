@@ -71,6 +71,11 @@ var move_input := Vector2.ZERO          # x = right, y = toward the camera is +;
 var aim_target: Node3D = null           # set = strafe mode (chest faces it, 8-way legs)
 var look_target: Node3D = null          # head turns to it (defaults to aim_target)
 var mode := "ground"
+## Extra one-shot actions a game adds before add_child(): {"heavy": "Sword_Attack"} (clip names as in
+## ACTIONS). Why (Hunter M1, Nov 21): Hunter needs heavy, specials and weapon swings from the same
+## CC0 clip library without editing ACTIONS for every game.
+var extra_actions := {}
+var actions := {}                       # ACTIONS + extra_actions, built in _ready
 var dead := false
 var crouching := false
 var model: Node3D
@@ -102,6 +107,8 @@ var _foot_up := [false, false]
 
 func _ready() -> void:
 	add_to_group("characters")
+	actions = ACTIONS.duplicate()
+	actions.merge(extra_actions, true)
 	_col = CollisionShape3D.new()
 	_cap = CapsuleShape3D.new()
 	_cap.radius = 0.3
@@ -251,11 +258,11 @@ func _build_tree() -> void:
 	bt.connect_node("mode", 4, "climb_speed")
 	var prev := "mode"
 	var x := 550
-	for act_name in ACTIONS:
+	for act_name in actions:
 		var shot := AnimationNodeOneShot.new()
 		shot.fadein_time = 0.08
 		shot.fadeout_time = 0.15
-		bt.add_node("clip_" + act_name, _clip(ACTIONS[act_name]), Vector2(x, 200))
+		bt.add_node("clip_" + act_name, _clip(actions[act_name]), Vector2(x, 200))
 		bt.add_node("shot_" + act_name, shot, Vector2(x, 0))
 		bt.connect_node("shot_" + act_name, 0, prev)
 		bt.connect_node("shot_" + act_name, 1, "clip_" + act_name)
@@ -584,14 +591,14 @@ func _do_swim(dt: float) -> void:
 # ---------------------------------------------------------------- actions, hits, death
 
 func act(what: String) -> void:
-	if dead or not ACTIONS.has(what):
+	if dead or not actions.has(what):
 		return
 	if mode == "climb" or (_stunned() and what != "dodge"):
 		_buffer[what] = BUFFER                 # queued: fires the moment you're free
 		return
 	if what == "dodge":
 		# Every action cancels into a dodge: stop whatever is playing, roll now.
-		for a in ACTIONS:
+		for a in actions:
 			if a != "dodge" and is_acting(a):
 				tree.set("parameters/shot_%s/request" % a, AnimationNodeOneShot.ONE_SHOT_REQUEST_ABORT)
 		if crouching:
@@ -612,13 +619,13 @@ func _flush_buffer() -> void:
 			if is_on_floor() or _coyote > 0.0:
 				_buffer.erase(a)
 				_jump_now()
-		elif ACTIONS.has(a):
+		elif actions.has(a):
 			_buffer.erase(a)
 			act(a)
 
 
 func is_acting(what: String) -> bool:
-	return bool(tree.get("parameters/shot_%s/active" % what)) if tree != null else false
+	return bool(tree.get("parameters/shot_%s/active" % what)) if tree != null and actions.has(what) else false
 
 
 func _root_motion_action() -> String:
