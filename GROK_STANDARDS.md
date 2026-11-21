@@ -3,6 +3,7 @@
 Owner: Duff. The rules for every Duff game repo, split into small files so you load only what a
 task needs. **Start at the repo's AGENTS.md**: it is the source of truth for that repo's commands,
 standing rules and first-step setup (`git config core.hooksPath .githooks`), and it points here.
+Why (Nov 21): one rulebook every agent loads, instead of rules split across files only some agents read.
 **Always read `standards/00-core.md`.** Then read only the files your task touches.
 
 | Read this | When the task is about |

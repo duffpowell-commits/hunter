@@ -18,6 +18,8 @@ The same rules also run as a plain Git pre-push hook for every agent, not just C
 `git config core.hooksPath .githooks`). There a force push is any push that rewrites the remote
 branch (git can't see the flags), so --force-with-lease is blocked too. `git push --no-verify`
 skips the hook; CI and the fresh-eyes gate stay the backstop.
+Why the Git hook (Nov 21, 2026): this file's PreToolUse mode only fires inside Claude Code, so Grok
+and other agents could skip every rule. Sharing this one script keeps the rules from drifting.
 """
 import json, os, re, subprocess, sys
 
@@ -185,7 +187,9 @@ def is_ancestor(repo, old, new):
 
 def check_pre_push(repo, remote, lines):
     """Git pre-push hook (.githooks/pre-push). Git gives one stdin line per ref being pushed:
-    <local ref> <local sha> <remote ref> <remote sha> (all zeros = the ref doesn't exist there)."""
+    <local ref> <local sha> <remote ref> <remote sha> (all zeros = the ref doesn't exist there).
+    Why: the same rules as check_bash, for agents that aren't Claude Code. Git hides the push flags
+    from hooks, so a force push is spotted by what it does (rewrites the remote branch)."""
     c = cfg(repo)
     pat = re.compile(c.get("code_files", CODE_DEFAULT))
     for line in lines:

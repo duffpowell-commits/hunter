@@ -2,6 +2,8 @@
 # Tests the Git pre-push hook (.githooks/pre-push -> .claude/hooks/guard.py --pre-push) against a
 # throwaway local bare remote. Never touches GitHub or this repo's own remote.
 # Usage: tools/test_push_guard.sh   -> last line PUSH GUARD PASS (or PUSH GUARD FAIL)
+# Why: a guard nobody has seen block anything can't be trusted, and testing against GitHub could
+# push to the real main. A local bare remote proves each rule safely (docs/DECISIONS.md, Nov 21).
 SRC=$(cd "$(git rev-parse --show-toplevel)" && pwd) || exit 1
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 FAILS=0
