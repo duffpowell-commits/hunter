@@ -704,7 +704,7 @@ func _shot(name: String) -> void:
 	get_viewport().get_texture().get_image().save_png(shots.path_join("flow_%s.png" % name))
 
 
-## The visible, enabled button whose text starts with `prefix` (topmost sheet wins).
+# Why here (Nov 21 review): above `_find`'s doc comment, not between it and `func _find`.
 ## True when a visible Label shows exactly this text (Hunter M0: the title check).
 func _has_label(text: String) -> bool:
 	for l in get_tree().root.find_children("*", "Label", true, false):
@@ -713,6 +713,7 @@ func _has_label(text: String) -> bool:
 	return false
 
 
+## The visible, enabled button whose text starts with `prefix` (topmost sheet wins).
 func _find(prefix: String) -> Button:
 	var found: Button = null
 	for b in get_tree().root.find_children("*", "Button", true, false):

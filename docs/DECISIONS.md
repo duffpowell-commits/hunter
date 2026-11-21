@@ -9,9 +9,14 @@ Game-design decisions themselves live in docs/DESIGN.md; this file is the "why" 
 **Decisions (Duff, Nov 21)**
 - Hunter is greenlit for building. Duff: "lets move forward to building a small sample of hunter".
   docs/PITCH.md now says so. This settles the open question about PITCH.md vs QUEUE.md and CLAUDE.md.
-- Engine: Godot 4.6.3-stable, not 4.5-stable. Duff asked which version gives him the capabilities
-  he wants. 4.6.3 is newer, it matches godot-game-starter and its CI (`GODOT_VERSION`), and it
-  matches the latest Godot Android editor he edits on. docs/BUILD_SPEC.md and QUEUE.md are updated.
+- Engine: Godot 4.6.3-stable, not 4.5-stable. How it was chosen: Duff asked which version better
+  fits what he wants ("Which will provide the capabilities i want better"). Grok recommended 4.6.3:
+  it's newer, it matches godot-game-starter and its CI (`GODOT_VERSION`), and it matches the latest
+  Godot Android editor he edits on. Duff then confirmed it outright on 2026-11-21: "Yes, lock in
+  4.6.3". docs/BUILD_SPEC.md and QUEUE.md are updated.
+  Why this wording (fresh-eyes note on 34850aa): the first version of this entry blurred "Duff
+  asked" and "Duff picked". QUEUE.md's rule is that only Duff settles open questions, so the
+  record shows he confirmed it.
 
 **What changed (Milestone 0)**
 - Copied all of godot-game-starter except `.git`, from the head of starter PR #11 (4da9d15), so the
@@ -29,7 +34,9 @@ Game-design decisions themselves live in docs/DESIGN.md; this file is the "why" 
   README.md and tasks/todo.md now say M0 is done and M1 is next.
 - project.godot: `config/name="Hunter"`, base canvas 720x1280 (it was 540x960), with `canvas_items`
   stretch, `expand` aspect, the Compatibility renderer and `config/features` 4.6.
-  - `stretch/scale` 1.3333 was added. Why: the starter's UI and its touch rule (72 units >= 48 dp) were
+  - `stretch/scale` 1.3333 was added. **This is Grok's choice, waiting on Duff's review, not a hard
+    rule he set.** It means the UI still lays out on about 540x960 logical units: the 720x1280
+    base gives the UI no extra density, only 3D benefits. Why: the starter's UI and its touch rule (72 units >= 48 dp) were
     tuned for a 540-wide canvas. Without the scale every screen and button would shrink to 75% on
     the phone and drop under 48 dp.
   - 3D still renders at full window resolution. To make the UI denser later, lower the scale and
@@ -41,13 +48,20 @@ Game-design decisions themselves live in docs/DESIGN.md; this file is the "why" 
   settings, then pass), and the autoplay line `HUNTER PASS` (the title shows HUNTER on a
   720x1280 canvas).
 
+- docs/renders/ is committed: the 720x1280 autoplay screenshots (`flow_*.png`), the same way the
+  starter commits its own. Why (fresh-eyes note on 34850aa): standards/00-core.md says visual work
+  needs screenshots in `docs/renders/` ("Show, don't describe", "Done means"). The first push had
+  dropped the starter's 540x960 shots and called renders "not committed" in AGENTS.md, which
+  contradicted that standard. The clip `gameplay.mp4` stays ignored (CI posts it to the dev release).
+- Signing: Duff added the `KEYSTONE_PASS` Actions secret to this repo on 2026-11-21, so CI APKs are
+  signed with the shared keystone (docs/SIGNING.md) and update in place.
+
 **Verified locally (Godot 4.6.3 headless):** SCRIPTS OK, ALL PASS (22), TESTS PASS, AUTOPLAY PASS
 with every starter line plus HUNTER PASS, PUSH GUARD PASS, and an Android debug APK export (see
 the PR for details). One flaky `CAMERA SMOOTH` failure on a slow sandbox (tasks/lessons.md).
 
 **Still open**
-- Duff: add the `KEYSTONE_PASS` Actions secret if it isn't there yet. Without it CI signs with a
-  throwaway key and APKs can't update in place (docs/SIGNING.md).
+- Duff: confirm or drop `stretch/scale` 1.3333 (above). Until he does it's a Grok default.
 - Merge hunter #11 (and starter #11) before this PR. This PR is built on #11.
 
 ## 2026-11-21: Pre-push hook for every agent; AGENTS.md is the one rulebook; art-lock docs fixed (PR #11)

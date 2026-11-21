@@ -8,7 +8,8 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
 ## Where things stand (Nov 21, 2026)
 - **Nov 21: Milestone 0 built** (Grok, PR "Milestone 0"): godot-game-starter copied in, renamed
   Hunter, base canvas 720x1280, Godot 4.6.3. Tests, autoplay and the APK export pass. Duff greenlit
-  Hunter and picked 4.6.3 on Nov 21 (docs/DECISIONS.md). **Next: Milestone 1** (docs/BUILD_SPEC.md):
+  Hunter on Nov 21, asked which version fits his goals, Grok recommended 4.6.3, and he confirmed
+  "lock in 4.6.3" the same day (docs/DECISIONS.md). KEYSTONE_PASS is set, so CI APKs update in place. **Next: Milestone 1** (docs/BUILD_SPEC.md):
   the 3D test arena slice. `scripts/game.gd` is still the starter's "Orb Catch" placeholder.
 - Phase: design done enough to build. Duff greenlit coding on Nov 20 (another coding AI starts Nov 21). **Coding starts at docs/BUILD_SPEC.md**: hard rules, controls, systems with numbers, milestones M0-M5+.
 - Build spec: docs/BUILD_SPEC.md. Full design: docs/DESIGN.md. Pitch: docs/PITCH.md. Queue: QUEUE.md. Art: docs/style-guide.md + docs/ART_LOG.md.

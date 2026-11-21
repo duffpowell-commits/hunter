@@ -18,8 +18,8 @@ Why: Claude Code hooks only fire inside Claude Code, so Grok and other agents co
 ## Commands
 Merged from godot-game-starter's AGENTS.md at Milestone 0 (Nov 21, 2026). Why: Hunter is now a copy
 of the starter, so its commands apply here; this file stays the one rulebook (docs/DECISIONS.md).
-- Engine: Godot 4.6.3-stable (Duff, Nov 21: same as the starter, its CI and the latest Android
-  editor). Version lives in `GODOT_VERSION` (`.github/workflows/build.yml`) + `config/features`.
+- Engine: Godot 4.6.3-stable (Grok recommended it to match the starter, its CI and the latest
+  Android editor, and Duff confirmed "lock in 4.6.3" on Nov 21). Version lives in `GODOT_VERSION` (`.github/workflows/build.yml`) + `config/features`.
 - Godot in a cloud sandbox: 4.6.3-stable Linux zip from GitHub releases -> `/usr/local/bin/godot`.
   Fresh clone: `godot --headless --path . --import`.
 - Tests: `tools/test.sh` -> `TESTS PASS` (runs `test_cmd` from `.claude/hooks/guard.cfg`: parse
@@ -57,8 +57,8 @@ replace its PLAY section, keep the rest.
 - Every gameplay number gets a TUNE slider (`standards/03`). Every new feature gets an autoplay PASS line.
 - Renderer is Compatibility everywhere. Visual decisions need real engine renders, saved to files.
 - Base canvas 720x1280 with `stretch/scale` 1.3333, so UI code still lays out on a 540-wide canvas
-  and the touch rule in `ui.gd` holds. Why (Nov 21): BUILD_SPEC asks for 720x1280; the starter's
-  UI was tuned for 540 wide (docs/DECISIONS.md).
+  and the touch rule in `ui.gd` holds. The scale is Grok's choice waiting on Duff's review, not his
+  rule. Why (Nov 21): BUILD_SPEC asks for 720x1280; the starter's UI was tuned for 540 wide (docs/DECISIONS.md).
 - Push after every chunk of work; merge to main at the end of every milestone.
 - Up to three milestones per session, merged and handed off after each. Save renders to files, not chat.
 - After an engine upgrade delete `.godot/imported/` (stale cache = T-pose).
@@ -97,7 +97,10 @@ replace its PLAY section, keep the rest.
   `character3d.gd` (+ foot_ik, aim_twist, ragdoll). `shaders/` toon + outline (the ink look).
 - `tests/run_tests.gd` rule tests. `tools/` check_scripts.gd, test.sh, autoplay.sh, gen_audio.py.
 - `assets/audio/` (list every clip in SOURCES.md), `assets/art/`, `assets/models/`. `grok_art/` never ships.
-- `signing/` keystone (encrypted) + `unlock.sh`. `docs/renders/` autoplay screenshots (not committed).
+- `signing/` keystone (encrypted) + `unlock.sh`. `docs/renders/` autoplay screenshots, committed at
+  720x1280 (standards/00-core.md "Show, don't describe"; refresh them with `tools/autoplay.sh` after
+  visual changes). Only `gameplay.mp4` is ignored. Why (Nov 21 review): this line used to say they
+  weren't committed, which contradicted that standard.
 - Starter docs that came along: docs/MILESTONE0.md (what the foundation does), docs/MOVEMENT_3D.md,
   docs/SIGNING.md and the rest of docs/ not listed above.
 - `.claude/` Claude Code hooks + guard rules; `.githooks/` the Git pre-push hook for every agent; `tools/` test.sh, test_push_guard.sh.
