@@ -1,0 +1,57 @@
+# Decisions log (catch-up file for Claude, Grok and any agent)
+
+Newest first. Dates are America/Chicago. Each entry: what changed, why, where the idea came from,
+what review found, and what is still open. Add an entry whenever a session changes how agents
+work here or settles a design question. AGENTS.md lists this file in its reading order.
+Game-design decisions themselves live in docs/DESIGN.md; this file is the "why" and the history.
+
+## 2026-11-21: Pre-push hook for every agent; AGENTS.md is the one rulebook; art-lock docs fixed (PR #11)
+Approved by Duff on Nov 21 ("Build the pre-push hook", "Build the shared rulebook and fix the docs").
+Same hook and rulebook change as godot-game-starter PR #11 (that repo's docs/DECISIONS.md has the same entry).
+
+**What changed**
+- `.githooks/pre-push` runs `.claude/hooks/guard.py --pre-push` (guard.py is the same file as the
+  starter's). It blocks force pushes (any push that rewrites a remote branch), pushes to or deleting
+  main/master, and secret or plain key files in the pushed commits. The test gate stays off while
+  `guard.cfg` `test_cmd` is empty (no code yet). Setup per clone: `git config core.hooksPath .githooks`.
+  `tools/test_push_guard.sh` tests it against a local bare remote (14 checks, `PUSH GUARD PASS`).
+- AGENTS.md now holds the commands, reading order, Milestone 0 note, house rules, guards and layout.
+  CLAUDE.md starts with `@AGENTS.md` and keeps only where things stand plus Claude-only notes.
+- docs/DESIGN.md and docs/ART_LOG.md now show the art style as locked: ink and blood on real-time 3D.
+- docs/BUILD_SPEC.md Milestone 0: AGENTS.md and docs/DECISIONS.md are on the list of files this repo
+  keeps when copying the starter. Take the starter's guard.cfg on purpose to turn on the test gate.
+- QUEUE.md: OPEN QUESTIONS section for the two things Duff hasn't decided (below).
+- Short "Why" notes were added in every changed file (Duff: "write why in all files for better memory").
+
+**Why**
+- Claude Code hooks only fire inside Claude Code. Grok and other agents could push to main or
+  force-push without anything stopping them. A Git hook binds every agent. `--no-verify` still
+  skips it, so CI and the fresh-eyes gate stay the backstop.
+- Claude Code skips AGENTS.md when a CLAUDE.md exists unless CLAUDE.md imports it with `@AGENTS.md`.
+  Rules were split between files only some agents read. Now there's one source.
+- Art: Duff locked ink and blood on 3D on Nov 20 (docs/style-guide.md; he called the 3D ink test
+  "Excellent"). style-guide.md, QUEUE.md, CLAUDE.md and BUILD_SPEC.md already said so, but DESIGN.md
+  still listed "Art style lock" as open and ART_LOG.md said no style was picked. Only the stale notes changed.
+
+**Research behind it** (Grok, Nov 21: X, Reddit, dev blogs on AI coding setups)
+- Rules that keep getting broken become hooks, not prose (r/ClaudeCode, "corrected twice = a hook").
+- AGENTS.md as the shared file, CLAUDE.md importing it:
+  https://codexguild.com/blog/claude-md-agents-md-best-practices and Claude Code memory docs
+  https://code.claude.com/docs/en/memory (the `@path` import syntax).
+- Keep always-loaded files short (under about 200 lines) and point to topic files instead of copying them.
+- Skipped: live Godot-editor connectors for AIs. They need a desktop editor, and Duff is phone-only.
+- Later, once Hunter has code: a parse check after every script edit, and screenshot comparison in CI.
+
+**Review findings** (fresh-eyes on 49e239a: changes requested)
+- Blocking, fixed: BUILD_SPEC's Milestone 0 step kept only CLAUDE.md, QUEUE.md, PITCH.md and
+  style-guide.md when copying the starter. Hunter's rules now live in AGENTS.md, so copying the
+  starter over it would have lost them. AGENTS.md is now on the keep list (plus DECISIONS.md).
+- Non-blocking: merge godot-game-starter #11 first, because BUILD_SPEC now points to the starter's
+  AGENTS.md sections. In Claude Code's mode `--force-with-lease` still gets through. AGENTS.md now
+  says so, and the Git hook blocks it. Delete-only code pushes skip the test gate (moot while
+  `test_cmd` is empty), and the hook lets pushes through if guard.py is missing (on purpose).
+
+**Still open (Duff decides; also in QUEUE.md; don't change until he says)**
+- Godot version: docs/BUILD_SPEC.md says 4.5-stable, while standards/00-core.md and the starter use 4.6.3.
+- Is Hunter greenlit and the active game? docs/PITCH.md says "Not greenlit for building; Lethemoor
+  is the active game", but QUEUE.md and CLAUDE.md say Duff greenlit coding on Nov 20 for Nov 21.
