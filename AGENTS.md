@@ -16,14 +16,21 @@ This turns on `.githooks/pre-push` for every agent, not just Claude Code (detail
 Why: Claude Code hooks only fire inside Claude Code, so Grok and other agents could skip them.
 
 ## Commands
-- No game code yet (design repo), so there is no test gate: `test_cmd` in `.claude/hooks/guard.cfg`
-  is empty and `tools/test.sh` just prints `no test_cmd`.
+Merged from godot-game-starter's AGENTS.md at Milestone 0 (Nov 21, 2026). Why: Hunter is now a copy
+of the starter, so its commands apply here; this file stays the one rulebook (docs/DECISIONS.md).
+- Engine: Godot 4.6.3-stable (Duff, Nov 21: same as the starter, its CI and the latest Android
+  editor). Version lives in `GODOT_VERSION` (`.github/workflows/build.yml`) + `config/features`.
+- Godot in a cloud sandbox: 4.6.3-stable Linux zip from GitHub releases -> `/usr/local/bin/godot`.
+  Fresh clone: `godot --headless --path . --import`.
+- Tests: `tools/test.sh` -> `TESTS PASS` (runs `test_cmd` from `.claude/hooks/guard.cfg`: parse
+  check `tools/check_scripts.gd` + rule tests `tests/run_tests.gd` -> `ALL PASS`; records the
+  passing tree for the push guard).
+- Flow + screenshots: `tools/autoplay.sh` -> last line `AUTOPLAY PASS` (also writes `docs/renders/gameplay.mp4`).
 - Push guard self-test: `tools/test_push_guard.sh` -> `PUSH GUARD PASS` (local bare remote, never GitHub).
-- When code starts (Milestone 0): copy `.claude/hooks/guard.cfg` + `tools/test.sh` from godot-game-starter
-  for the test gate, and merge the starter's AGENTS.md Commands section into this one. Then before
-  every push: `tools/test.sh` -> `TESTS PASS`, `tools/autoplay.sh` -> `AUTOPLAY PASS`
-  (`standards/12-testing.md`).
-- Before any merge: a fresh-eyes review (docs/FRESH_EYES.md); CI keeps the PR pending until then.
+- CI: `gh api repos/duffpowell-commits/hunter/actions/runs?per_page=3` (gh GraphQL is blocked in sessions).
+
+Before every push: `tools/test.sh` prints `TESTS PASS`, then `tools/autoplay.sh` prints `AUTOPLAY PASS`.
+Before any merge: a fresh-eyes review (docs/FRESH_EYES.md); CI keeps the PR pending until then.
 
 ## Read first, in order
 1. **GROK_STANDARDS.md**: the index of the rulebook for Duff's games. Always read
@@ -34,19 +41,30 @@ Why: Claude Code hooks only fire inside Claude Code, so Grok and other agents co
 4. **docs/BUILD_SPEC.md**: what to build for Hunter. QUEUE.md: what to work on now.
 
 ## Starting the code
-Milestone 0 means **copying the godot-game-starter template** into this repo (scenes, scripts,
-autoloads, CI, signing, tests, autoplay bot), not rebuilding it. Then build Hunter's Milestone 1 on
-top. Hunter is a 3D game: use the template's `Character3D` and keep every movement and standards
-PASS line green (`standards/02-movement.md`, `standards/12-testing.md`).
+Milestone 0 is done (Nov 21): the godot-game-starter template was copied in (scenes, scripts,
+autoloads, CI, signing, tests, autoplay bot) and renamed Hunter, base canvas 720x1280. Next is
+Hunter's Milestone 1 on top (docs/BUILD_SPEC.md). Hunter is a 3D game: use the template's
+`Character3D` and keep every movement and standards PASS line green (`standards/02-movement.md`,
+`standards/12-testing.md`). `scripts/game.gd` is still the starter's placeholder "Orb Catch":
+replace its PLAY section, keep the rest.
 
 ## Standing rules
-- Duff works phone-only (Android, Godot Android editor). No desktop-only tools. GDScript only once code starts.
+- Duff works phone-only (Android, Godot Android editor). No desktop-only tools. GDScript only.
+- UI through `ui.gd` helpers. Sounds a player must notice: `Subs.cue`. Gameplay colours: `UI.key()` + a shape cue.
+- Gameplay scenes handle focus-out (pause + save) and the back button, deferred, like `game.gd`.
+  Save at checkpoints; bump `Save.VERSION` + migrate when the format changes.
+- 3D characters: `Character3D` on the shared skeleton, real clips only (docs/MOVEMENT_3D.md).
+- Every gameplay number gets a TUNE slider (`standards/03`). Every new feature gets an autoplay PASS line.
+- Renderer is Compatibility everywhere. Visual decisions need real engine renders, saved to files.
+- Base canvas 720x1280 with `stretch/scale` 1.3333, so UI code still lays out on a 540-wide canvas
+  and the touch rule in `ui.gd` holds. Why (Nov 21): BUILD_SPEC asks for 720x1280; the starter's
+  UI was tuned for 540 wide (docs/DECISIONS.md).
 - Push after every chunk of work; merge to main at the end of every milestone.
 - Up to three milestones per session, merged and handed off after each. Save renders to files, not chat.
-- Visual decisions need real engine renders once there is an engine build.
-- When code starts, Milestone 0 is the game-repo-rules Foundation checklist.
+- After an engine upgrade delete `.godot/imported/` (stale cache = T-pose).
 - Prompts in Forge are public: never put Duff's likeness or private info in them.
 - Never put secrets in the repo, commits, logs or chat. Duff adds secrets himself.
+- Signing: one keystone for every game except Lethemoor (docs/SIGNING.md). Never make another key.
 
 ## Guards (enforced, Nov 21)
 - One rule script, two triggers: `.claude/hooks/guard.py`. Settings: `.claude/hooks/guard.cfg`.
@@ -54,8 +72,8 @@ PASS line green (`standards/02-movement.md`, `standards/12-testing.md`).
   - Every agent runs it on `git push` through `.githooks/pre-push`, once `core.hooksPath` is set (above).
 - It blocks force push (caveat: in Claude Code's mode `--force-with-lease` still gets through; the
   Git hook blocks it), direct push to main, writing/generating signing keys and committing secret
-  files (.env, keystores, secrets.*; names only), and (once `test_cmd` is set) pushing code the tests
-  didn't pass on.
+  files (.env, keystores, secrets.*; names only), and pushing code the tests didn't pass on
+  (`test_cmd` is set since Milestone 0, Nov 21: the starter's guard.cfg, taken on purpose).
 - The Git hook sees what a push does, not its flags: any push that rewrites the remote branch counts
   as a force push (so `--force-with-lease` is blocked there too), and deleting main is blocked.
 - `git push --no-verify` skips the Git hook. Don't use it; CI and the fresh-eyes gate stay the backstop.
@@ -72,4 +90,14 @@ PASS line green (`standards/02-movement.md`, `standards/12-testing.md`).
 - docs/DECISIONS.md: dated catch-up log (what changed, why, open questions).
 - docs/art/: renders. Art is made in Foxboard Forge (repo duffpowell-commits/Foxboard, forge/jobs, job ids `dh-*`), Canva as fallback (art-director skill).
 - tasks/todo.md, tasks/lessons.md.
+- Code (from the starter, Nov 21): `scenes/` boot, intro, title, game, character_test (Control +
+  script; UI built in code). `scripts/` autoloads: Controls, Settings, Save, Audio, Subs, Feel,
+  Telemetry, Loader, Battery, Updater, DebugMenu, Autoplay. Helpers: `ui.gd`, `config.gd`,
+  `bug_report.gd`, `settings_sheet.gd`, `tune_panel.gd`, `camera_rig.gd`, `coach.gd`,
+  `character3d.gd` (+ foot_ik, aim_twist, ragdoll). `shaders/` toon + outline (the ink look).
+- `tests/run_tests.gd` rule tests. `tools/` check_scripts.gd, test.sh, autoplay.sh, gen_audio.py.
+- `assets/audio/` (list every clip in SOURCES.md), `assets/art/`, `assets/models/`. `grok_art/` never ships.
+- `signing/` keystone (encrypted) + `unlock.sh`. `docs/renders/` autoplay screenshots (not committed).
+- Starter docs that came along: docs/MILESTONE0.md (what the foundation does), docs/MOVEMENT_3D.md,
+  docs/SIGNING.md and the rest of docs/ not listed above.
 - `.claude/` Claude Code hooks + guard rules; `.githooks/` the Git pre-push hook for every agent; `tools/` test.sh, test_push_guard.sh.

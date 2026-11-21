@@ -15,4 +15,6 @@ Platform: Android phone first, portrait, top-down action RPG.
 - First-person view (that was a different idea).
 
 ## Status
-Design only. Not greenlit for building; Lethemoor is the active game.
+Greenlit for building (Duff, Nov 21, 2026). Milestone 0 built Nov 21; Milestone 1 is next.
+Why the change (Nov 21): Duff said "lets move forward to building a small sample of hunter"; the
+old line ("Not greenlit; Lethemoor is the active game") contradicted QUEUE.md and CLAUDE.md.
