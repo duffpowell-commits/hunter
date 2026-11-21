@@ -1,8 +1,24 @@
 {
   "_why": "Hunter M1 (Nov 21, 2026): enemy types are data (docs/BUILD_SPEC.md). M1 has one: a training dummy that swings back slowly so dodging and game over can be tested.",
   "dummy": {
-    "name": "DUMMY", "hp": 60, "tint": [0.75, 0.35, 0.35],
-    "attack_damage": 10, "attack_reach": 1.7, "attack_every": 2.5, "telegraph": 0.6,
-    "respawn": 1.5, "spawn": [0.0, 0.0, -2.5]
+    "name": "DUMMY",
+    "hp": 60,
+    "tint": [
+      0.75,
+      0.35,
+      0.35
+    ],
+    "attack_damage": 10,
+    "attack_reach": 1.7,
+    "attack_every": 2.5,
+    "telegraph": 0.6,
+    "respawn": 1.5,
+    "spawn": [
+      0.0,
+      0.0,
+      -2.5
+    ],
+    "approach_margin": 0.8,
+    "hit_power": 0.3
   }
 }

@@ -4,7 +4,8 @@ extends RefCounted
 ##   light()        next hit of the L, L, L string (the third knocks back)
 ##   heavy()        hold-and-release guard break
 ##   special(dir)   swipe "up" / "down" / "toward" / "away"; within cancel_window of a landed
-##                  light/heavy hit it cancels into it for +cancel_bonus damage
+##                  light/heavy hit it cancels into it for +cancel_bonus damage (first one only).
+##                  It only looks: commit(m) spends the cooldown once the move really starts.
 ##   land(move)     the move connected: counts the combo, spends weapon durability, returns damage
 ## Every number comes from data/moves.json and data/weapons.json.
 ## Why (Hunter M1, Nov 21): rules in one testable place; the scene only reads what it returns.
@@ -16,6 +17,9 @@ var combo_gap := 1.2            # a hit within this many seconds keeps the combo
 var cancel_window := 0.35
 var cancel_bonus := 0.25
 var string_gap := 0.8           # taps further apart restart the L, L, L string
+var damage_scale := 1.0         # TUNE: every move's damage x this
+var durability_max := -1        # TUNE: pipe durability on pick-up (-1 = the weapon's data)
+var break_mult := -1.0          # TUNE: break hit multiplier (-1 = the weapon's data)
 var weapon := ""                # "" = unarmed
 var durability := 0
 var cooldowns := {}             # special id -> seconds left
@@ -23,6 +27,7 @@ var _combo_t := 0.0
 var _string_i := 0
 var _string_t := 0.0
 var _since_hit := INF           # since the last landed light/heavy (cancel window)
+var _cancel_used := true        # one +25 % cancel per landed hit (review of 95847e0)
 
 
 func _init(moves_data: Dictionary, weapons_data: Dictionary) -> void:
@@ -67,7 +72,8 @@ func heavy() -> Dictionary:
 	return m
 
 
-## {} when that special is still cooling down.
+## {} when that special is still cooling down. Spends nothing: call commit(m) when it starts.
+## Why (review of 95847e0): a refused move (hero dead) used to burn the cooldown.
 func special(dir: String) -> Dictionary:
 	if not moves.specials.has(dir):
 		return {}
@@ -76,12 +82,20 @@ func special(dir: String) -> Dictionary:
 		return {}
 	m["kind"] = "special"
 	m["dir"] = dir
-	m["cancel"] = _since_hit <= cancel_window
+	m["cancel"] = _since_hit <= cancel_window and not _cancel_used
 	if m.cancel:
 		m["damage"] = float(m.damage) * (1.0 + cancel_bonus)
-	cooldowns[m.id] = float(m.get("cooldown", 1.0))
-	_string_i = 0
 	return m
+
+
+## The special really started: spend its cooldown and the cancel bonus, restart the string.
+func commit(m: Dictionary) -> void:
+	if m.get("kind", "") != "special":
+		return
+	cooldowns[m.id] = float(m.get("cooldown", 1.0))
+	if m.get("cancel", false):
+		_cancel_used = true
+	_string_i = 0
 
 
 ## How far the move reaches, with the weapon's extra length.
@@ -94,7 +108,7 @@ func reach(m: Dictionary) -> float:
 
 ## The move hit. Returns {"damage", "power", "broke"}.
 func land(m: Dictionary) -> Dictionary:
-	var dmg := float(m.get("damage", 0))
+	var dmg := float(m.get("damage", 0)) * damage_scale
 	var power := float(m.get("power", 0.3))
 	var broke := false
 	if weapon != "":
@@ -102,7 +116,8 @@ func land(m: Dictionary) -> Dictionary:
 		if durability <= 0:
 			# Spent weapon: this hit snaps it, a combo ender (x2.5 and a big knockback).
 			broke = true
-			dmg = (dmg + float(w.get("damage_bonus", 0))) * float(w.get("break_mult", 2.5))
+			var mult := break_mult if break_mult > 0.0 else float(w.get("break_mult", 2.5))
+			dmg = (dmg + float(w.get("damage_bonus", 0))) * mult
 			power = maxf(power, float(w.get("break_power", 1.0)))
 			weapon = ""
 		else:
@@ -112,6 +127,7 @@ func land(m: Dictionary) -> Dictionary:
 	_combo_t = combo_gap
 	if m.get("kind", "") in ["light", "heavy"]:
 		_since_hit = 0.0
+		_cancel_used = false
 	return {"damage": dmg, "power": power, "broke": broke}
 
 
@@ -125,7 +141,7 @@ func pick_up(id: String) -> bool:
 	if not weapons.has(id):
 		return false
 	weapon = id
-	durability = int(weapons[id].get("durability", 4))
+	durability = durability_max if durability_max > 0 else int(weapons[id].get("durability", 4))
 	return true
 
 

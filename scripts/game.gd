@@ -6,8 +6,9 @@ extends Control
 ## the background, pause menu, GAME OVER -> try again / title, checkpoint autosave + CONTINUE,
 ## left-handed layout (mirrors stick and pad), subtitles for sound cues, vibration.
 ##   Knock the dummy out = next round = checkpoint (autosave). Hero HP 0 = GAME OVER.
-## Keyboard / pad: move, ATTACK = light, CROUCH = heavy, AIM = special toward, JUMP = special up,
-## DODGE = dodge (actions, so remaps work).
+## Keyboard / pad: move, ATTACK = light, HEAVY = heavy, SPECIAL + stick direction = the special
+## (no direction = toward), DODGE = dodge. Actions, so remaps work (review of 95847e0: SPIN and
+## SWEEP couldn't be reached without touch).
 
 const UI = preload("res://scripts/ui.gd")
 const SettingsSheet = preload("res://scripts/settings_sheet.gd")
@@ -34,6 +35,7 @@ var sheet_box: VBoxContainer
 var _settings: Node
 var _save: Node
 var _saved_hp := -1
+var dying := false           # the hero is down: no more saves; GAME OVER follows (review of 95847e0)
 
 
 func _ready() -> void:
@@ -41,6 +43,10 @@ func _ready() -> void:
 	_save = get_node("/root/Save")
 	_settings.changed.connect(_on_setting)
 	var d: Dictionary = _save.read()
+	if not d.is_empty() and int(d.get("hp", 1)) <= 0:
+		# A save written at 0 HP is a run that already ended: start fresh, never revive it.
+		_save.clear()
+		d = {}
 	if not d.is_empty():
 		level = int(d.get("level", 1))
 		score = int(d.get("score", 0))
@@ -64,7 +70,10 @@ func state() -> Dictionary:
 	return {"level": level, "score": score, "hp": arena.hp if arena != null else 100}
 
 
+## Never saves a dead hero: dying escaped GAME OVER through PAUSE -> QUIT -> CONTINUE (review of 95847e0).
 func checkpoint() -> void:
+	if dying or over or (arena != null and (arena.hp <= 0 or arena.hero.dead)):
+		return
 	_save.write(state())
 
 
@@ -120,7 +129,7 @@ func _build() -> void:
 	weapon_label.offset_bottom = 250
 	weapon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(weapon_label)
-	var legend := ControlsLegend.make(["move_up", "attack", "dodge", "pause"])
+	var legend := ControlsLegend.make(["move_up", "attack", "heavy", "special", "dodge", "pause"])
 	legend.name = "Legend"
 	legend.top = 30 + UI.MIN_TOUCH + 12
 	add_child(legend)
@@ -181,6 +190,10 @@ func _process(_dt: float) -> void:
 	if paused or over or arena == null:
 		return
 	arena.stick = stick.vec if stick != null else Vector2.ZERO
+	if pad != null:                  # live TUNE sliders reach the pad every frame
+		pad.hold_time = arena.hold_time
+		pad.swipe_min = arena.swipe_min
+		pad.double_tap = arena.double_tap
 	_refresh_hud()
 
 
@@ -190,7 +203,7 @@ func _on_gesture(kind: String, v: Vector2) -> void:
 	match kind:
 		"light": arena.light()
 		"heavy": arena.heavy()
-		"dodge": arena.dodge()
+		"dodge": arena.double_tap_input()
 		"swipe": arena.swipe(v)
 
 
@@ -200,12 +213,11 @@ func _unhandled_input(e: InputEvent) -> void:
 	# Actions, not keys: keyboard, gamepad and remaps (Controls autoload).
 	if e.is_action_pressed("attack"):
 		arena.light()
-	elif e.is_action_pressed("crouch"):
+	elif e.is_action_pressed("heavy"):
 		arena.heavy()
-	elif e.is_action_pressed("aim"):
-		arena.special("toward")
-	elif e.is_action_pressed("jump"):
-		arena.special("up")
+	elif e.is_action_pressed("special"):
+		var v := stick.vec if stick != null and stick.held() else Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		arena.stick_special(v)
 	elif e.is_action_pressed("dodge"):
 		arena.dodge()
 
@@ -220,6 +232,8 @@ func _on_ko(_count: int) -> void:
 
 
 func _on_hero_died() -> void:
+	dying = true                     # from this moment nothing saves, and the run is over
+	_save.clear()
 	get_tree().create_timer(1.2).timeout.connect(func():
 		if not over:
 			game_over())
@@ -254,9 +268,13 @@ func resume() -> void:
 
 
 func quit_to_title() -> void:
-	if not over:
-		checkpoint()
+	save_for_quit()
 	get_tree().change_scene_to_file("res://scenes/title.tscn")
+
+
+## What QUIT TO TITLE saves (a rule test calls this): nothing once the hero is down.
+func save_for_quit() -> void:
+	checkpoint()
 
 
 func game_over() -> void:

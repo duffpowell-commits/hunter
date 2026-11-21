@@ -5,6 +5,49 @@ what review found, and what is still open. Add an entry whenever a session chang
 work here or settles a design question. AGENTS.md lists this file in its reading order.
 Game-design decisions themselves live in docs/DESIGN.md; this file is the "why" and the history.
 
+## 2026-11-21: Milestone 1 review fixes (fresh-eyes CHANGES REQUESTED on 95847e0)
+Grok, same branch, no force-push. Every item below has a rule test that I saw fail by breaking the
+code on purpose before it passed.
+
+**Blockers**
+1. Pad sliders: `game.gd` copies hold_time, swipe_min and double_tap into the pad every frame.
+   Before, it copied them once at build time, so dragging the slider did nothing
+   (`test_keyboard_reaches_every_special`, "pad sliders act live").
+2. Missing TUNE sliders: arena.TUNE now also has dodge_iframes, dodge_cooldown, double_tap,
+   string_gap, cancel_bonus, damage_scale (x every move's damage), dummy_max_hp, pipe_durability
+   and break_mult. `arena.push_tune()` pushes them into combat every frame (`test_arena_tune_live`).
+3. Death escaped through the save. `_on_hero_died` now sets `dying` and clears the save at once.
+   `checkpoint()` never writes while the hero is dying, dead, at 0 HP or over. A loaded save with
+   hp <= 0 starts a new run. Test: `test_death_cannot_escape_through_save` dies, then runs PAUSE, then QUIT
+   (`save_for_quit`), and no save survives. It then plants a 0 HP save and gets a fresh run.
+4. Keyboard and pad reach every special: there are new Controls actions HEAVY (I / RB) and SPECIAL (O / RT).
+   SPECIAL uses the stick direction through the same `Combat.swipe_dir` as a swipe, so SPIN (away) and
+   SWEEP (down) work too. The legend lists HEAVY and SPECIAL (`test_keyboard_reaches_every_special`).
+
+**Non-blocking, also fixed**
+- Hit timing: every move has `hit_at` and `recover` in data/moves.json, in seconds of hero time
+  (hit-stop pauses them). Contact lands at hit_at, not on the first frame. A new input waits until
+  the swing has recovered. One input is buffered, newest wins, if pressed within `arena.input_buffer`
+  (0.3 s) of recovery. Earlier presses are dropped, so mashing can't restart swings. A special may still
+  cancel a swing that has landed (`test_hit_timing_and_buffer`).
+- A special out of a roll gives up the roll's i-frames. A special during a stagger (knockback,
+  hit_chest, hit_head) is queued until the stagger ends instead of aborting it (`test_special_rules_in_arena`).
+- combat.gd: `special()` only looks. `commit()` spends the cooldown when the move really starts, so a
+  refused move costs nothing. The +25 % goes to the first special after each landed light/heavy only
+  (`test_special_cancel`).
+- Double-tap (judgment call, for Duff): a double-tap is a dodge, unless the tap before it was a light
+  that connected. Then it's another light. Why: mashing light in a fight used to alternate light, dodge,
+  light, dodge, which threw the hero out of range. A double-tap on empty air (or after a whiff) is still the
+  dodge the spec asks for. The window is 0.2 s and is a TUNE slider (`test_double_tap_resolves`).
+- Numbers moved to data: pickup radius, auto-face distance, KO knockback, input buffer
+  (moves.json `arena`), and the dummy's approach margin and hit power on the hero (enemies.json).
+- Autoplay: SPECIAL PASS now requires the cancel and exactly +25 % damage. DODGE PASS uses the dummy's own
+  telegraphed swing (hero 1.62 m away: out of jab reach, inside the dummy's) instead of calling `_swing()`.
+
+**Left alone on purpose**
+- Judgment call 4 (up/down when the dummy is straight up the screen) stays as it is. The reviewer
+  flagged it as Duff's call, and it's in tasks/todo.md.
+
 ## 2026-11-21: Milestone 1 built: the 3D test arena (movement and combat feel)
 Built by Grok on branch `grok/milestone-1-arena`, on top of PR #13 (M0). docs/BUILD_SPEC.md M1.
 
@@ -47,8 +90,9 @@ Built by Grok on branch `grok/milestone-1-arena`, on top of PR #13 (M0). docs/BU
 6. Weapon durability is spent by every hit, specials included. After the pipe breaks, a new one
    appears at its spawn so the test arena can be replayed.
 7. Attacks snap the hero to face the dummy when it's within 3 m (touch players can't aim a swing).
-8. Keyboard/gamepad: ATTACK = light, CROUCH = heavy, AIM = special toward, JUMP = special up, DODGE =
-   dodge. No new actions were added to Controls.
+8. Keyboard/gamepad: ATTACK = light, HEAVY (I / RB) = heavy, SPECIAL (O / RT) + stick direction =
+   the special, read like a swipe (no direction = toward), DODGE = dodge. Changed in the review fixes
+   below. The first version reached only LUNGE and LAUNCHER.
 9. Look: dark charcoal floor with ink crack lines and dried-blood splats (#6E1212, darker than
    the palette's #B01818 so characters read first). The hero is still the yellow UAL mannequin with
    the orange rim. A black-hoodie model is later work (BUILD_SPEC: never block on models).

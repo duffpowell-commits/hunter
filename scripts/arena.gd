@@ -21,17 +21,31 @@ const TOON = preload("res://shaders/toon.gdshader")
 const OUTLINE = preload("res://shaders/outline.gdshader")
 const SIZE := 12.0                     # half-width of the arena floor (m)
 
-## Live sliders in DEV MENU -> TUNE. Hit-stop, shake and sparks are Feel's sliders.
+## Live sliders in DEV MENU -> TUNE. Hit-stop, shake and sparks are Feel's sliders. push_tune()
+## copies these into combat and the dummy every frame; game.gd copies the pad ones every frame.
+## Why (review of 95847e0): every number you feel gets a live slider (AGENTS.md, standards/03).
 const TUNE := {"enemy_attack_every": [0.5, 8.0], "enemy_telegraph": [0.2, 1.5], "enemy_damage": [0.0, 40.0],
-	"combo_gap": [0.4, 3.0], "cancel_window": [0.1, 1.0], "hold_time": [0.15, 0.8], "swipe_min": [20.0, 160.0]}
+	"combo_gap": [0.4, 3.0], "cancel_window": [0.1, 1.0], "cancel_bonus": [0.0, 1.0], "string_gap": [0.3, 2.0],
+	"hold_time": [0.15, 0.8], "swipe_min": [20.0, 160.0], "double_tap": [0.0, 0.4],
+	"dodge_iframes": [0.0, 0.6], "dodge_cooldown": [0.1, 2.0], "damage_scale": [0.25, 4.0],
+	"dummy_max_hp": [10.0, 300.0], "pipe_durability": [1.0, 10.0], "break_mult": [1.0, 5.0]}
 
 var enemy_attack_every := 2.5
 var enemy_telegraph := 0.6
 var enemy_damage := 10.0
 var combo_gap := 1.2
 var cancel_window := 0.35
+var cancel_bonus := 0.25
+var string_gap := 0.8
 var hold_time := 0.3
 var swipe_min := 60.0
+var double_tap := 0.2
+var dodge_iframes := 0.25
+var dodge_cooldown := 0.6
+var damage_scale := 1.0
+var dummy_max_hp := 60.0
+var pipe_durability := 4.0
+var break_mult := 2.5
 
 var moves: Dictionary
 var enemy: Dictionary
@@ -55,7 +69,9 @@ var telegraphing := false
 var can_pick_up := false
 var _move := {}                        # the swing in progress
 var _landed := false
-var _move_age := 0.0                   # the clip starts on the next physics step: don't drop the swing before
+var _move_age := 0.0                   # seconds of hero time since the swing started (hit_at, recover)
+var _queued := {}                      # one buffered input while a swing recovers or the hero staggers
+var _last_light_landed := false        # the previous tap's light connected (double-tap rule)
 var _dodge_cd := 0.0
 var _iframes := 0.0
 var _enemy_t := 2.5
@@ -79,10 +95,18 @@ func _ready() -> void:
 	enemy_damage = float(enemy.attack_damage)
 	combo_gap = combat.combo_gap
 	cancel_window = combat.cancel_window
+	cancel_bonus = combat.cancel_bonus
+	string_gap = combat.string_gap
 	hold_time = float(moves.pad.hold_time)
 	swipe_min = float(moves.pad.swipe_min)
+	double_tap = float(moves.pad.double_tap)
+	dodge_iframes = float(moves.player.dodge_iframes)
+	dodge_cooldown = float(moves.player.dodge_cooldown)
+	dummy_max_hp = float(enemy.hp)
+	pipe_durability = float(weapon_data.pipe.durability)
+	break_mult = float(weapon_data.pipe.break_mult)
 	_enemy_t = enemy_attack_every
-	dummy_hp = float(enemy.hp)
+	dummy_hp = dummy_max_hp
 	_build_world()
 	var clips: Dictionary = moves.clips.duplicate()
 	clips.erase("_why")
@@ -237,9 +261,20 @@ func _spawn_pickup(id: String) -> void:
 
 # ---------------------------------------------------------------- frame
 
-func _process(dt: float) -> void:
+## TUNE values -> the rules, every frame, so a dragged slider acts at once.
+func push_tune() -> void:
 	combat.combo_gap = combo_gap
 	combat.cancel_window = cancel_window
+	combat.cancel_bonus = cancel_bonus
+	combat.string_gap = string_gap
+	combat.damage_scale = damage_scale
+	combat.durability_max = int(round(pipe_durability))
+	combat.break_mult = break_mult
+	dummy_hp = minf(dummy_hp, dummy_max_hp)
+
+
+func _process(dt: float) -> void:
+	push_tune()
 	combat.tick(dt)
 	_dodge_cd -= dt
 	_iframes -= dt
@@ -248,8 +283,15 @@ func _process(dt: float) -> void:
 		v = Input.get_vector("move_left", "move_right", "move_up", "move_down")   # keys + pad
 	hero.move_input = v.limit_length(1.0) if not hero.dead else Vector2.ZERO
 	can_pick_up = _pickup != null and not hero.dead and combat.weapon == "" \
-		and hero.global_position.distance_to(_pickup.global_position) < 1.4
+		and hero.global_position.distance_to(_pickup.global_position) < float(moves.arena.pickup_radius)
+	_move_age += dt * hero.time_scale        # hero time: hit-stop pauses the swing's clock too
 	_check_hit()
+	if not _queued.is_empty() and hero.dead:
+		_queued = {}
+	elif not _queued.is_empty() and _free():
+		var q: Dictionary = _queued
+		_queued = {}
+		_input_move(q)
 	_enemy(dt)
 	var near := not dummy.dead and hero.global_position.distance_to(dummy.global_position) < 5.0
 	get_node("/root/Audio").set_intensity(1.0 if near else 0.0)
@@ -260,11 +302,12 @@ func _process(dt: float) -> void:
 func _check_hit() -> void:
 	if _move.is_empty() or _landed or dummy.dead:
 		return
-	_move_age += get_process_delta_time()
 	if not hero.is_acting(_move.action):
-		if _move_age > 0.2:
+		if _move_age > 0.2:                  # the clip starts on the next physics step: allow for it
 			_move = {}
 		return
+	if _move_age < float(_move.get("hit_at", 0.0)):
+		return                               # contact lands mid-swing, not on the first frame
 	var to := dummy.global_position - hero.global_position
 	to.y = 0.0
 	var fwd := Vector3(sin(hero.heading), 0, cos(hero.heading))
@@ -283,6 +326,8 @@ func _check_hit() -> void:
 	dummy.hit(hero.global_position + Vector3(0, 1.2, 0), float(r.power))    # victim: flash + 60 ms stop
 	hero.hit_stop(0.06 * feel.stop_scale)                                  # attacker freezes too
 	feel.impact(dummy.global_position + Vector3(0, 1.3, 0), float(r.power), self)
+	if r.kind == "light":
+		_last_light_landed = true
 	if r.broke:
 		_break_weapon()
 	else:
@@ -293,7 +338,7 @@ func _check_hit() -> void:
 
 func _ko(r: Dictionary) -> void:
 	var away := (dummy.global_position - hero.global_position).normalized()
-	dummy.die(away * (4.0 + 6.0 * float(r.power)) + Vector3(0, 2, 0))
+	dummy.die(away * (float(moves.arena.ko_knockback) + float(moves.arena.ko_knockback_per_power) * float(r.power)) + Vector3(0, 2, 0))
 	_warn.visible = false
 	telegraphing = false
 	kos += 1
@@ -329,7 +374,7 @@ func _enemy(dt: float) -> void:
 		if _tele_t <= 0.0:
 			_swing(d)
 		return
-	if d < float(enemy.attack_reach) + 0.8:
+	if d < float(enemy.attack_reach) + float(enemy.approach_margin):
 		_enemy_t -= dt
 		if _enemy_t <= 0.0:
 			# Telegraph >= 0.5 s: red "!" (colour + shape) and a whoosh with a caption.
@@ -358,8 +403,8 @@ func _swing(d: float) -> void:
 	hp = maxi(0, hp - int(enemy_damage))
 	hero_hits_taken += 1
 	combat.drop_combo()
-	hero.hit(dummy.global_position + Vector3(0, 1.2, 0), 0.3)
-	get_node("/root/Feel").impact(hero.global_position + Vector3(0, 1.3, 0), 0.3, self)
+	hero.hit(dummy.global_position + Vector3(0, 1.2, 0), float(enemy.hit_power))
+	get_node("/root/Feel").impact(hero.global_position + Vector3(0, 1.3, 0), float(enemy.hit_power), self)
 	hero_hurt.emit(hp)
 	if hp <= 0:
 		hero.die(-to.normalized() * 3.0 + Vector3(0, 1.5, 0))
@@ -370,48 +415,113 @@ func reset_dummy() -> void:
 	dummy.revive()
 	dummy.global_position = GameData.vec3(enemy.spawn)
 	dummy.velocity = Vector3.ZERO
-	dummy_hp = float(enemy.hp)
+	dummy_hp = dummy_max_hp
 	_enemy_t = enemy_attack_every
 
 
 # ---------------------------------------------------------------- the player's moves
+# Inputs go through _input_move: a move starts when the hero is free (the last swing recovered
+# and no stagger). Otherwise it waits in a one-slot buffer (newest wins) if the swing is within
+# input_buffer seconds of recovering, or until a stagger ends; earlier presses are dropped.
+# Why (review of 95847e0): mashing used to restart swings every tap, and a special could break
+# out of a stagger. A special still cancels a swing that has landed (the combo cancel).
+
+const STAGGER := ["knockback", "hit_chest", "hit_head"]
+
 
 func light() -> void:
-	_start(combat.light())
+	_input_move({"kind": "light"})
 
 
 func heavy() -> void:
-	_start(combat.heavy())
+	_input_move({"kind": "heavy"})
 
 
 ## dir: "up", "down", "toward" or "away" (see Combat.swipe_dir).
 func special(dir: String) -> void:
-	var m := combat.special(dir)
-	if m.is_empty():
+	_input_move({"kind": "special", "dir": dir})
+
+
+## A double-tap on the pad. It's a dodge, unless the tap before it was a light that connected:
+## then it's another light, so mashing light in a fight stays a string (DECISIONS, Nov 21).
+func double_tap_input() -> void:
+	if _last_light_landed:
+		light()
+	else:
+		dodge()
+
+
+func _staggered() -> bool:
+	for a in STAGGER:
+		if hero.is_acting(a):
+			return true
+	return false
+
+
+## Free to start a new swing: no stagger, and the current swing has recovered.
+func _free() -> bool:
+	if hero.dead or _staggered():
+		return false
+	return _move.is_empty() or _move_age >= float(_move.get("recover", 0.0))
+
+
+func _input_move(q: Dictionary) -> void:
+	if hero.dead:
 		return
-	last_special = m
-	# A special cancels whatever swing is playing (that's the combo cancel).
-	for a in hero.actions:
-		if a != m.action and hero.is_acting(a):
-			hero.tree.set("parameters/shot_%s/request" % a, AnimationNodeOneShot.ONE_SHOT_REQUEST_ABORT)
+	var can_cancel: bool = q.kind == "special" and _landed and not _move.is_empty() and not _staggered()
+	if not (_free() or can_cancel):
+		var left := float(_move.get("recover", 0.0)) - _move_age if not _move.is_empty() else 0.0
+		if _staggered() or left <= float(moves.arena.input_buffer) + 0.001:
+			_queued = q
+		return
+	var m := {}
+	match q.kind:
+		"light": m = combat.light()
+		"heavy": m = combat.heavy()
+		"special": m = combat.special(q.dir)
+	if m.is_empty():
+		return                                # special on cooldown: nothing spent
+	if m.kind != "light":
+		_last_light_landed = false
+	if m.kind == "special":
+		last_special = m
+		if hero.is_acting("dodge"):
+			_iframes = 0.0                    # cancelling the roll gives up its i-frames
+		for a in hero.actions:
+			if a != m.action and not a in STAGGER and hero.is_acting(a):
+				hero.tree.set("parameters/shot_%s/request" % a, AnimationNodeOneShot.ONE_SHOT_REQUEST_ABORT)
+		combat.commit(m)
+	elif m.kind == "light":
+		_last_light_landed = false
 	_start(m)
 
 
 ## A swipe on the pad (canvas vector) -> the special it means, relative to the dummy on screen.
 func swipe(v: Vector2) -> void:
+	special(Combat.swipe_dir(v, target_screen_dir()))
+
+
+## Keyboard / gamepad special: the stick direction picks it (no stick = toward). Same rule as a swipe.
+func stick_special(v: Vector2) -> void:
+	special(Combat.swipe_dir(v, target_screen_dir()) if v.length() >= 0.3 else "toward")
+
+
+## From the hero to the dummy on screen (canvas units, y down); zero when the dummy is down.
+func target_screen_dir() -> Vector2:
 	var cam := rig.cam
-	var to := Vector2.ZERO
-	if cam != null and not dummy.dead:
-		to = cam.unproject_position(dummy.global_position) - cam.unproject_position(hero.global_position)
-	special(Combat.swipe_dir(v, to))
+	if cam == null or dummy.dead:
+		return Vector2.ZERO
+	return cam.unproject_position(dummy.global_position) - cam.unproject_position(hero.global_position)
 
 
 func dodge() -> void:
 	if _dodge_cd > 0.0 or hero.dead:
 		return
-	_dodge_cd = float(moves.player.dodge_cooldown)
-	_iframes = float(moves.player.dodge_iframes)
+	_dodge_cd = dodge_cooldown
+	_iframes = dodge_iframes
 	_move = {}
+	_queued = {}
+	_last_light_landed = false
 	hero.act("dodge")
 
 
@@ -441,7 +551,7 @@ func _start(m: Dictionary) -> void:
 	# Snap to face the dummy when it's close: touch players can't aim a swing precisely.
 	if not dummy.dead:
 		var to := dummy.global_position - hero.global_position
-		if Vector2(to.x, to.z).length() < 3.0:
+		if Vector2(to.x, to.z).length() < float(moves.arena.auto_face):
 			hero.heading = atan2(to.x, to.z)
 			hero.model.rotation.y = hero.heading
 	_move = m

@@ -1,7 +1,9 @@
 # Queue
 
 ## NOW
-- Code: Milestone 1 (the 3D test arena) was built Nov 21 and is waiting on review and merge. Next is
+- Code: Milestone 1 (the 3D test arena) was built Nov 21 (PR #14). The review fixes were pushed Nov 21
+  and are waiting on the next fresh-eyes review, then merge. Actions minutes are nearly out until the
+  monthly reset: batch into one push after all local checks pass, and never push docs-only commits. Next is
   Milestone 2 (docs/BUILD_SPEC.md): The Pews and Vesper. Duff should first review M1's judgment
   calls (docs/DECISIONS.md).
 - Design, in parallel: hero name (asked Nov 20), then the rest of NEXT. Art is locked: ink on 3D (docs/style-guide.md).

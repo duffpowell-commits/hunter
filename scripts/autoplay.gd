@@ -492,10 +492,12 @@ func _arena_checks(game: Node) -> void:
 	_check(a.last_hit.get("kind", "") == "heavy" and is_equal_approx(hp0 - a.dummy_hp, 20.0),
 		"HEAVY PASS (hold and release: %.0f damage)" % (hp0 - a.dummy_hp))
 	# Special: a light, then a swipe toward the dummy inside the cancel window.
+	# Let the heavy's knockback clip finish first: it slides the dummy, and with contact at hit_at
+	# (not the first frame) a drifting dummy walks out of jab reach (Nov 21 review fixes).
 	a.reset_dummy()
-	await _physics(5)
+	await _secs(1.0)
 	await _face_dummy(a)
-	await _secs(0.3)
+	await _secs(0.1)
 	var hit_ok := await _pad_tap(game)
 	var to: Vector2 = a.rig.cam.unproject_position(dummy.global_position) - a.rig.cam.unproject_position(hero.global_position)
 	var sw := pp + to.normalized() * 120.0
@@ -507,13 +509,31 @@ func _arena_checks(game: Node) -> void:
 	await _secs(0.7)
 	_shot("arena_special")
 	var sp: Dictionary = a.last_special
-	_check(hit_ok and sp.get("dir", "") == "toward" and a.last_hit.get("kind", "") == "special",
-		"SPECIAL PASS (swipe toward = %s, landed for %.0f%s)" % [sp.get("name", "?"), float(a.last_hit.get("damage", 0)),
-		", cancelled from the light +25%" if sp.get("cancel", false) else ""])
-	# Dodge: double-tap; an enemy swing during the i-frames misses.
-	await _face_dummy(a)
-	await _secs(0.7)
+	# Review of 95847e0: the cancel is the point of this check, so it's required, with its +25 %.
+	var base := float(a.moves.specials.toward.damage)
+	_check(hit_ok and sp.get("dir", "") == "toward" and sp.get("cancel", false) and a.last_hit.get("kind", "") == "special"
+		and is_equal_approx(float(a.last_hit.get("damage", 0)), base * (1.0 + a.cancel_bonus)),
+		"SPECIAL PASS (light, then swipe toward = %s inside the cancel window: %.0f damage, +25%%)" % [sp.get("name", "?"),
+		float(a.last_hit.get("damage", 0))])
+	# Dodge: a real enemy swing (review of 95847e0: no calling _swing by hand). The hero stands 1.62 m
+	# off: past the jab's 1.5 m reach, inside the dummy's 1.7 m. Double-tap late in the telegraph.
+	# The i-frames slider goes to 0.5 s for this check only: a slow CI frame can be 0.1 s, and the
+	# two taps take three frames.
+	a.reset_dummy()
+	await _secs(1.0)
+	_place(hero, dummy.global_position + Vector3(0, 0.05, 1.62), PI)
+	a.rig.snap()
+	await _secs(0.3)
 	var hp_before: int = a.hp
+	var dodged0: int = a.dodged
+	a.dodge_iframes = 0.5
+	a.enemy_telegraph = 1.0
+	a.enemy_attack_every = 0.2
+	a._enemy_t = 0.2
+	var rolling := false
+	var wait_until := Time.get_ticks_msec() + 4000
+	while not (a.telegraphing and a._tele_t < 0.3) and Time.get_ticks_msec() < wait_until:
+		await get_tree().process_frame
 	_mouse(pp, true)
 	await _frames(1)
 	_mouse(pp, false)
@@ -521,10 +541,18 @@ func _arena_checks(game: Node) -> void:
 	_mouse(pp, true)
 	await _frames(1)
 	_mouse(pp, false)
+	wait_until = Time.get_ticks_msec() + 2000
+	while a.telegraphing and Time.get_ticks_msec() < wait_until:
+		rolling = rolling or hero.is_acting("dodge")
+		await get_tree().process_frame
 	await _physics(2)
-	var rolling: bool = hero.is_acting("dodge")
-	a._swing(0.5)
-	_check(rolling and a.dodged >= 1 and a.hp == hp_before, "DODGE PASS (double-tap rolled, the swing missed in the i-frames)")
+	rolling = rolling or hero.is_acting("dodge")
+	a.enemy_attack_every = 999.0
+	a._enemy_t = 999.0
+	a.enemy_telegraph = float(a.enemy.telegraph)
+	a.dodge_iframes = float(a.moves.player.dodge_iframes)
+	_check(rolling and a.dodged > dodged0 and a.hp == hp_before,
+		"DODGE PASS (double-tap rolled through the dummy's own swing: missed in the i-frames, HP %d)" % a.hp)
 	await _secs(0.8)
 	# Weapon: pick up the pipe, 4 hits spend it, the 5th snaps it (x2.5, big knockback) and KOs.
 	a.reset_dummy()

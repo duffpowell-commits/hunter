@@ -11,7 +11,10 @@ const DEADZONE := 0.25
 const ACTIONS := {
 	"move_left": "MOVE LEFT", "move_right": "MOVE RIGHT", "move_up": "MOVE UP", "move_down": "MOVE DOWN",
 	"jump": "JUMP", "attack": "ATTACK", "dodge": "DODGE", "crouch": "CROUCH", "aim": "AIM", "pause": "PAUSE",
+	"heavy": "HEAVY", "special": "SPECIAL",
 }
+## Why heavy + special (Hunter M1, Nov 21 review): every Hunter move must work on keyboard and pad
+## (standards/06). SPECIAL + stick direction picks toward / away / up / down, like a swipe.
 
 const PAD_NAMES := {
 	JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y",
@@ -62,6 +65,8 @@ static func defaults(action: String) -> Array:
 		"crouch": return [_key(KEY_C), _btn(JOY_BUTTON_Y)]
 		"aim": return [_key(KEY_L), _axis(JOY_AXIS_TRIGGER_LEFT, 1.0)]
 		"pause": return [_key(KEY_ESCAPE), _btn(JOY_BUTTON_START)]
+		"heavy": return [_key(KEY_I), _btn(JOY_BUTTON_RIGHT_SHOULDER)]
+		"special": return [_key(KEY_O), _axis(JOY_AXIS_TRIGGER_RIGHT, 1.0)]
 	return []
 
 

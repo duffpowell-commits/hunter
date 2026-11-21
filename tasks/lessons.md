@@ -21,3 +21,10 @@
   checks `is_acting()` right after `act()` must allow a short grace period (arena.gd `_move_age`).
 - Nov 21 (M1 CI): don't sample a 60 ms effect from the bot; a slow CI frame is longer than that.
   Count it instead (Character3D `stops` / `last_stop`, used by HITSTOP PASS).
+- Nov 21 (M1 review): a save point must check that the player is alive. Dying, then PAUSE, then
+  QUIT, then CONTINUE brought a dead run back. Guard `checkpoint()`, clear the save on death, and treat a
+  0 HP save as a new run.
+- Nov 21 (M1 review): a TUNE slider that's copied once in `_build`/`_ready` isn't live. Push every
+  slider each frame (arena `push_tune()`, the pad in game.gd `_process`).
+- Nov 21 (M1 review): once contact waits for `hit_at`, a target still sliding from the last knockback
+  walks out of reach. Autoplay must let the knockback finish before it sets up the next hit.
