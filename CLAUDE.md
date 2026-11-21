@@ -18,6 +18,13 @@ Top-down action RPG: you're a half-demon serial killer of demons. Stalk, kill, s
 - docs/art/: renders. Art is made in Foxboard Forge (repo duffpowell-commits/Foxboard, forge/jobs, job ids `dh-*`), Canva as fallback (art-director skill).
 - tasks/todo.md, tasks/lessons.md.
 
+## Guards (enforced, Nov 21)
+- `.claude/hooks/guard.py` blocks force push, direct push to main, writing/generating signing keys and committing
+  secret files (.env, keystores, secrets.*; names only). When code starts: copy `.claude/hooks/guard.cfg` + `tools/test.sh` from godot-game-starter for the test gate.
+- PRs: the `fresh-eyes` status stays pending until a fresh-context review posts `FRESH-EYES REVIEW: PASS` on the head
+  commit (`docs/FRESH_EYES.md`). Pending is not green: sessions check the combined status and don't merge
+  (GitHub itself doesn't block it).
+
 ## House rules
 - Duff works phone-only (Android, Godot Android editor). No desktop-only tools. GDScript only once code starts.
 - Push after every chunk of work; merge to main at the end of every milestone.
