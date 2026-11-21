@@ -66,7 +66,7 @@ Order: Pews -> Casino -> Quarry and Ballroom (either order) -> Nursery -> Price 
 - Price & Partners (finale): high-rise law office in hell. Clerks, paralegals, security, all under contract. Hazard: "fine print" floors that void specials in zones. No loot; you're there to collect.
 
 ## OPEN (next design topics, in suggested order)
-1. Art style lock (see docs/style-guide.md).
+1. ~~Art style lock~~ DONE: LOCKED by Duff Nov 20, ink and blood on real-time 3D (docs/style-guide.md).
 2. The protagonist: name, look, what you do by day.
 3. Mom's name and hunter past.
 4. The hunter/detective on your tail.

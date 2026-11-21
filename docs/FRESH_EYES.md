@@ -9,11 +9,11 @@ every session checks the PR's combined status, not just the check runs.
 
 ## Steps (the session that opened the PR does this, once CI is green)
 1. Start a reviewer with no history: a subagent, or the `code-review` skill. Give it ONLY the PR
-   number/diff, this repo's CLAUDE.md (and GROK_STANDARDS.md if present). Never your summary of the change.
+   number/diff, this repo's AGENTS.md (the rules), CLAUDE.md (and GROK_STANDARDS.md if present). Never your summary of the change.
 2. It checks, and reports with file:line:
    - Does the diff do what the PR title says, and nothing else? Files touched that shouldn't be?
    - Bugs: wrong logic, nulls, a freed node, a missed `await`, save format changed without a `Save.VERSION` bump.
-   - House rules: everything CLAUDE.md marks as a rule (and GROK_STANDARDS.md if the repo has it).
+   - House rules: everything AGENTS.md (or CLAUDE.md) marks as a rule (and GROK_STANDARDS.md if the repo has it).
    - Trust the diff, not the claim: tests and autoplay were actually run (CI logs), not just said.
 3. Blocking findings: fix them, push, and review again (new commit = new review).
 4. No blockers: post a PR review (event COMMENT) on the head commit whose body starts with
