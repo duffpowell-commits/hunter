@@ -456,13 +456,13 @@ func _arena_checks(game: Node) -> void:
 	# Light string: three taps in rhythm; the third (hook) knocks back. Hit-stop, shake, counter.
 	await _face_dummy(a)
 	var shakes0: int = feel.shakes
+	var hero_stops0: int = hero.stops
+	var dummy_stops0: int = dummy.stops
 	var landed := 0
-	var stopped := false
 	var trauma := 0.0
 	for i in 3:
 		if await _pad_tap(game):
 			landed += 1
-			stopped = stopped or hero.time_scale < 1.0 or dummy.time_scale < 1.0
 			trauma = maxf(trauma, a.rig.trauma)
 		if i < 2:
 			await _secs(0.35)
@@ -475,7 +475,11 @@ func _arena_checks(game: Node) -> void:
 	_check(landed == 3 and float(hook.get("power", 0)) >= 0.5 and dummy.global_position.distance_to(d0) > 0.3,
 		"LIGHT STRING PASS (L, L, L landed %d, the third knocked the dummy %.1f m)" % [landed, dummy.global_position.distance_to(d0)])
 	_check(combo_seen, "COMBO PASS (counter showed 3 HITS)")
-	_check(stopped, "HITSTOP PASS (attacker and victim froze on impact, 60 ms x Feel.stop_scale)")
+	# Counted, not sampled: on a slow CI box 60 ms is shorter than a frame (Nov 21: it flaked).
+	var want: float = 0.06 * feel.stop_scale
+	_check(hero.stops - hero_stops0 >= 3 and dummy.stops - dummy_stops0 >= 3
+		and is_equal_approx(hero.last_stop, want) and is_equal_approx(dummy.last_stop, want),
+		"HITSTOP PASS (attacker and victim froze %d / %d times, %.0f ms each)" % [hero.stops - hero_stops0, dummy.stops - dummy_stops0, want * 1000.0])
 	_check(feel.shakes > shakes0 and trauma > 0.0, "SHAKE PASS (camera trauma %.2f per hit)" % trauma)
 	# Heavy: hold 0.3 s, release.
 	await _face_dummy(a)

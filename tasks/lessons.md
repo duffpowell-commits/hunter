@@ -19,3 +19,5 @@
   Fixed in M1 (Nov 21): it now measures over >= 0.1 s of real time (a real cut still fails it).
 - Nov 21 (M1): a Character3D one-shot isn't "acting" until the next physics step, so code that
   checks `is_acting()` right after `act()` must allow a short grace period (arena.gd `_move_age`).
+- Nov 21 (M1 CI): don't sample a 60 ms effect from the bot; a slow CI frame is longer than that.
+  Count it instead (Character3D `stops` / `last_stop`, used by HITSTOP PASS).

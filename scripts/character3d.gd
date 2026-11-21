@@ -92,6 +92,10 @@ var backpedal := false
 var turning_in_place := false
 var air_phase := "fall"
 var time_scale := 1.0                   # hit-stop sets 0 for a few frames
+## Hit-stops so far and the last one's length. Why (Hunter M1, Nov 21): a 60 ms freeze is shorter
+## than one frame on a slow CI box, so tests count freezes instead of catching one mid-frame.
+var stops := 0
+var last_stop := 0.0
 var last_ledge := {}                    # what jump() found last (tests read this)
 var _col: CollisionShape3D
 var _cap: CapsuleShape3D
@@ -656,6 +660,8 @@ func hit(from_pos: Vector3, power := 0.3) -> void:
 func hit_stop(sec: float) -> void:
 	time_scale = 0.0
 	_stop_t = sec
+	stops += 1
+	last_stop = sec
 
 
 func die(impulse := Vector3.ZERO) -> void:
