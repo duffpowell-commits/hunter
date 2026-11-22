@@ -520,20 +520,22 @@ func _arena_checks(game: Node) -> void:
 	var dummy_stops0: int = dummy.stops
 	var landed := 0
 	var trauma := 0.0
+	var before_hook: Vector3 = dummy.global_position
 	for i in 3:
+		if i == 2:
+			before_hook = dummy.global_position
 		if await _pad_tap(game):
 			landed += 1
 			trauma = maxf(trauma, a.rig.trauma)
 		if i < 2:
 			await _secs(0.35)
-	var d0: Vector3 = dummy.global_position
 	var hook: Dictionary = a.last_hit
 	await _frames(2)
 	_shot("arena_combo")
 	var combo_seen := _has_label("3 HITS")
 	await _secs(0.8)
-	_check(landed == 3 and float(hook.get("power", 0)) >= 0.5 and dummy.global_position.distance_to(d0) > 0.3,
-		"LIGHT STRING PASS (L, L, L landed %d, the third knocked the dummy %.1f m)" % [landed, dummy.global_position.distance_to(d0)])
+	_check(landed == 3 and float(hook.get("power", 0)) >= 0.5 and dummy.global_position.distance_to(before_hook) > 0.3,
+		"LIGHT STRING PASS (L, L, L landed %d, the third knocked the dummy %.1f m)" % [landed, dummy.global_position.distance_to(before_hook)])
 	_check(combo_seen, "COMBO PASS (counter showed 3 HITS)")
 	# Counted, not sampled: on a slow CI box 60 ms is shorter than a frame (Nov 21: it flaked).
 	var want: float = 0.06 * feel.stop_scale
