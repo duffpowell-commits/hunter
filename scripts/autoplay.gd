@@ -586,13 +586,15 @@ func _arena_checks(game: Node) -> void:
 	await _secs(0.3)
 	var hp_before: int = a.hp
 	var dodged0: int = a.dodged
+	var double_tap_before: float = a.double_tap
+	a.double_tap = 0.5                  # two input frames can exceed 0.2 s on a slow CI renderer
 	a.dodge_iframes = 0.5
 	a.enemy_telegraph = 1.0
 	a.enemy_attack_every = 0.2
 	a._enemy_t = 0.2
 	var rolling := false
 	var wait_until := Time.get_ticks_msec() + 4000
-	while not (a.telegraphing and a._tele_t < 0.3) and Time.get_ticks_msec() < wait_until:
+	while not (a.telegraphing and a._tele_t < 0.6) and Time.get_ticks_msec() < wait_until:
 		await get_tree().process_frame
 	_mouse(pp, true)
 	await _frames(1)
@@ -646,16 +648,17 @@ func _arena_checks(game: Node) -> void:
 	a._enemy_t = 0.3
 	a.enemy_telegraph = float(a.enemy.telegraph)
 	var hp1: int = a.hp
+	var hits_before_enemy: int = a.hero_hits_taken
 	var tele_seen := false
 	var until := Time.get_ticks_msec() + 6000
-	while a.hero_hits_taken == 0 and Time.get_ticks_msec() < until:
+	while a.hero_hits_taken == hits_before_enemy and Time.get_ticks_msec() < until:
 		_place(hero, dummy.global_position + Vector3(0, 0.05, 1.0), PI)
 		if a.telegraphing and a._warn.visible:
 			if not tele_seen:
 				_shot("arena_telegraph")
 			tele_seen = true
 		await _frames(2)
-	_check(tele_seen and a.hp < hp1, "ENEMY PASS (red ! telegraph, then the swing took %d HP)" % (hp1 - a.hp))
+	_check(tele_seen and a.hero_hits_taken > hits_before_enemy and a.hp < hp1, "ENEMY PASS (red ! telegraph, then the swing took %d HP)" % (hp1 - a.hp))
 	a.enemy_attack_every = float(a.enemy.attack_every)
 	a._enemy_t = a.enemy_attack_every
 
