@@ -679,9 +679,9 @@ func test_pews_stalking_rules() -> void:
 	var Pews = preload("res://scripts/pews_rules.gd")
 	var p = Pews.new()
 	var studied := 0.0
-	studied = p.tick_stalking(studied, 4.0, 0.0, false, false, 1.0)
-	check(studied > 0.0 and studied < 100.0, "visible target inside 6m but outside 60-degree cone studies")
-	var sneaking := p.tick_stalking(0.0, 4.0, 0.0, true, false, 1.0)
+	studied = p.tick_stalking(studied, 4.0, PI, false, false, 1.0)
+	check(studied > 0.0 and studied < 100.0, "target behind the enemy inside 6m and outside its 60-degree view cone studies")
+	var sneaking := p.tick_stalking(0.0, 4.0, PI, true, false, 1.0)
 	check(sneaking > studied, "sneaking studies faster")
 	var reset := p.tick_stalking(80.0, 4.0, 0.0, false, true, 0.1)
 	check(reset == 0.0, "being seen resets stalking")
