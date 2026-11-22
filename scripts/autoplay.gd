@@ -211,21 +211,21 @@ func _pews_checks() -> void:
 		"PEWS BOSS PASS (Vesper only falls after phase two)")
 	_shot("pews_boss")
 
-	var finish_requested := false
-	arena.finish_requested.connect(func(): finish_requested = true)
+	var finish_requested := [false]
+	arena.finish_requested.connect(func(): finish_requested[0] = true)
 	arena.context_action()
 	var clean: Dictionary = arena.choose_finisher("CLEAN")
-	_check(finish_requested and clean.get("trophy", false) and clean.get("corruption", 0) == 5,
+	_check(finish_requested[0] and clean.get("trophy", false) and clean.get("corruption", 0) == 5,
 		"PEWS FINISH PASS (CLEAN choice awards intact trophy and +5 corruption)")
-	var voice_unlocked := false
-	arena.voice_unlocked.connect(func(): voice_unlocked = true)
+	var voice_unlocked := [false]
+	arena.voice_unlocked.connect(func(): voice_unlocked[0] = true)
 	arena.context_action()
-	_check(voice_unlocked and arena.rules.eaten and arena.portal_ready,
+	_check(voice_unlocked[0] and arena.rules.eaten and arena.portal_ready,
 		"PEWS EAT PASS (EAT unlocks Vesper as the first voice)")
-	var portal_opened := false
-	arena.portal_opened.connect(func(): portal_opened = true)
+	var portal_opened := [false]
+	arena.portal_opened.connect(func(): portal_opened[0] = true)
 	arena.context_action()
-	_check(portal_opened, "PEWS PORTAL PASS (return-home action opens the portal)")
+	_check(portal_opened[0], "PEWS PORTAL PASS (return-home action opens the portal)")
 
 	var plate: Dictionary = arena.rules.collect_plate()
 	var loot: Dictionary = arena.rules.scavenge("stained_glass")
