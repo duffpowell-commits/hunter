@@ -177,10 +177,64 @@ func _run() -> void:
 	await _tune_checks(get_tree().current_scene)
 	if clip != "":
 		await _record_clip(get_tree().current_scene)
+	await _pews_checks()
 
 	if not failed:
 		print("AUTOPLAY PASS")
 	get_tree().quit(1 if failed else 0)
+
+
+# ---------------------------------------------------------------- Hunter M2: The Pews vertical slice
+
+func _pews_checks() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var arena = PewsArena.new()
+	get_tree().root.add_child(arena)
+	await _frames(25)
+	arena.rig.cam.make_current()
+	_check(arena.dummy.name == "Vesper" and arena.get_node_or_null("Pews/Altar") != null
+		and arena._foes.size() == 2, "PEWS MAP PASS (church altar, Vesper, Zealot and Choir)")
+	_shot("pews_map")
+
+	var studied: float = arena.rules.tick_stalking(0.0, 4.0, PI, false, false, 12.5)
+	_check(studied == 100.0 and arena.context_label() == "AMBUSH",
+		"PEWS STALK PASS (outside the 60-degree view cone, full study opens ambush)")
+	arena.context_action()
+	_check(arena.encounter_started and arena._ambush_free_special,
+		"PEWS AMBUSH PASS (Vesper staggered, first special free)")
+
+	arena._ko({"damage": 999.0})
+	_check(arena.rules.boss_phase == 2 and not arena.boss_defeated,
+		"PEWS PHASE PASS (phase one transitions to phase two)")
+	arena._ko({"damage": 999.0})
+	_check(arena.boss_defeated and arena.rules.boss_defeated,
+		"PEWS BOSS PASS (Vesper only falls after phase two)")
+	_shot("pews_boss")
+
+	var finish_requested := false
+	arena.finish_requested.connect(func(): finish_requested = true)
+	arena.context_action()
+	var clean: Dictionary = arena.choose_finisher("CLEAN")
+	_check(finish_requested and clean.get("trophy", false) and clean.get("corruption", 0) == 5,
+		"PEWS FINISH PASS (CLEAN choice awards intact trophy and +5 corruption)")
+	var voice_unlocked := false
+	arena.voice_unlocked.connect(func(): voice_unlocked = true)
+	arena.context_action()
+	_check(voice_unlocked and arena.rules.eaten and arena.portal_ready,
+		"PEWS EAT PASS (EAT unlocks Vesper as the first voice)")
+	var portal_opened := false
+	arena.portal_opened.connect(func(): portal_opened = true)
+	arena.context_action()
+	_check(portal_opened, "PEWS PORTAL PASS (return-home action opens the portal)")
+
+	var plate: Dictionary = arena.rules.collect_plate()
+	var loot: Dictionary = arena.rules.scavenge("stained_glass")
+	_check(plate.get("cash", 0) > 0 and plate.get("heat", 0) > 0
+		and loot.get("item", "") == "stained_glass",
+		"PEWS SCAVENGE PASS (collection plate tradeoff and realm loot)")
+	_shot("pews_finish")
+	arena.queue_free()
+	await _frames(5)
 
 
 # ---------------------------------------------------------------- 3D movement checks
