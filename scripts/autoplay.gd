@@ -208,11 +208,12 @@ func _pews_checks() -> void:
 	arena._ko({"damage": 999.0})
 	_check(arena.rules.boss_phase == 2 and not arena.boss_defeated,
 		"PEWS PHASE PASS (phase one transitions to phase two)")
+	arena.rig.cam.make_current()
+	await _frames(3)
+	_shot("pews_boss")
 	arena._ko({"damage": 999.0})
 	_check(arena.boss_defeated and arena.rules.boss_defeated,
 		"PEWS BOSS PASS (Vesper only falls after phase two)")
-	_shot("pews_boss")
-
 	var finish_requested := [false]
 	arena.finish_requested.connect(func(): finish_requested[0] = true)
 	arena.context_action()
@@ -234,7 +235,6 @@ func _pews_checks() -> void:
 	_check(plate.get("cash", 0) > 0 and plate.get("heat", 0) > 0
 		and loot.get("item", "") == "stained_glass",
 		"PEWS SCAVENGE PASS (collection plate tradeoff and realm loot)")
-	_shot("pews_finish")
 	arena.queue_free()
 	await _frames(5)
 
