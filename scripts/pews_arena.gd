@@ -142,6 +142,13 @@ func _enemy(dt: float) -> void:
 	if hero.dead or boss_defeated:
 		return
 	_foe_ai(dt)
+	if _flock_time > 0.0:
+		_flock_time = maxf(0.0, _flock_time - dt)
+		_flock_cd -= dt
+		if _flock_cd <= 0.0:
+			_flock_cd = 1.25
+			if hero.global_position.distance_to(dummy.global_position) < 2.4:
+				_damage_hero(5, dummy.global_position)
 	if not encounter_started:
 		var to_hero := hero.global_position - dummy.global_position
 		to_hero.y = 0.0
@@ -180,7 +187,7 @@ func _foe_ai(dt: float) -> void:
 		var to := hero.global_position - actor.global_position
 		to.y = 0.0
 		var d := to.length()
-		if d > 1.4:
+		if d > 1.4 and d < 5.0:
 			actor.heading = atan2(to.x, to.z)
 			actor.model.rotation.y = actor.heading
 			actor.move_input = Vector2(0, 0.7)
@@ -366,16 +373,42 @@ func choose_finisher(method: String) -> Dictionary:
 	return rules.finish(method)
 
 
+func status_text() -> String:
+	if rules == null:
+		return ""
+	if not encounter_started:
+		return "STUDY %d%%" % int(round(rules.studied))
+	return "VESPER  PHASE %d  %d HP" % [rules.boss_phase, int(round(rules.boss_hp))]
+
+
 func save_state() -> Dictionary:
-	return {"studied": rules.studied, "phase": rules.boss_phase, "cash": rules.cash, "heat": rules.heat,
-		"parts": rules.parts, "inventory": rules.inventory.duplicate(), "finisher": rules.finisher, "eaten": rules.eaten}
+	return {"studied": rules.studied, "phase": rules.boss_phase, "boss_hp": rules.boss_hp,
+		"boss_defeated": rules.boss_defeated, "engaged": rules.engaged, "ambush_started": rules.ambush_started,
+		"cash": rules.cash, "heat": rules.heat, "parts": rules.parts, "corruption": rules.corruption,
+		"inventory": rules.inventory.duplicate(), "finisher": rules.finisher, "eaten": rules.eaten,
+		"plates_collected": rules.plates_collected}
 
 
 func restore_state(state: Dictionary) -> void:
 	if state.is_empty():
 		return
 	rules.studied = float(state.get("studied", 0.0))
+	rules.boss_phase = clampi(int(state.get("phase", 1)), 1, 2)
+	rules.boss_hp = float(state.get("boss_hp", rules.boss_hp))
+	rules.boss_defeated = bool(state.get("boss_defeated", false))
+	rules.engaged = bool(state.get("engaged", false))
+	rules.ambush_started = bool(state.get("ambush_started", false))
 	rules.cash = int(state.get("cash", 0))
 	rules.heat = int(state.get("heat", 0))
 	rules.parts = int(state.get("parts", 0))
+	rules.corruption = int(state.get("corruption", 0))
 	rules.inventory = state.get("inventory", {}).duplicate()
+	rules.finisher = str(state.get("finisher", ""))
+	rules.eaten = bool(state.get("eaten", false))
+	rules.plates_collected = int(state.get("plates_collected", 0))
+	encounter_started = rules.engaged
+	boss_defeated = rules.boss_defeated
+	portal_ready = rules.eaten
+	dummy_hp = rules.boss_hp
+	if boss_defeated:
+		dummy.die(Vector3.ZERO)
