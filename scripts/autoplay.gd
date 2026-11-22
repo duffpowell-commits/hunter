@@ -187,6 +187,12 @@ func _run() -> void:
 # ---------------------------------------------------------------- Hunter M2: The Pews vertical slice
 
 func _pews_checks() -> void:
+	# The movement suite leaves CharacterTest as current_scene. Remove it so the Pews
+	# screenshots show the actual realm instead of the previous test's UI and camera.
+	var previous_scene := get_tree().current_scene
+	if previous_scene != null:
+		previous_scene.queue_free()
+		await _frames(3)
 	var PewsArena = preload("res://scripts/pews_arena.gd")
 	var arena = PewsArena.new()
 	get_tree().root.add_child(arena)
