@@ -17,6 +17,9 @@ var cash := 0
 var heat := 0
 var plates_collected := 0
 var inventory := {}
+var trophies: Array[String] = []
+var unlocked_voices: Array[String] = []
+var extra_special_slots: Dictionary = {}
 var engaged := false
 var ambush_started := false
 
@@ -72,12 +75,21 @@ func finish(method: String) -> Dictionary:
 	var outcome: Dictionary = rules.get(method.to_lower(), {})
 	corruption += int(outcome.get("corruption", 0))
 	parts += int(outcome.get("parts", 0))
+	var trophy_id := str(config.get("boss", {}).get("id", "vesper"))
+	var trophy_awarded := bool(outcome.get("trophy", false))
+	if trophy_awarded and not trophies.has(trophy_id):
+		trophies.append(trophy_id)
+	var voice_id := str(config.get("voice", {}).get("id", trophy_id))
+	var slot_reward := int(outcome.get("extra_special_slots", 0))
+	if slot_reward > 0:
+		extra_special_slots[voice_id] = int(extra_special_slots.get(voice_id, 0)) + slot_reward
 	return {
 		"method": method,
 		"corruption": int(outcome.get("corruption", 0)),
 		"parts": int(outcome.get("parts", 0)),
-		"trophy": bool(outcome.get("trophy", false)),
-		"extra_special_slots": int(outcome.get("extra_special_slots", 0))
+		"trophy": trophy_awarded,
+		"trophy_id": trophy_id if trophy_awarded else "",
+		"extra_special_slots": slot_reward
 	}
 
 
@@ -86,7 +98,10 @@ func eat() -> Dictionary:
 	if finisher.is_empty() or eaten:
 		return {"voice_unlocked": false}
 	eaten = true
-	return {"voice_unlocked": true, "voice_id": "vesper"}
+	var voice_id := str(config.get("voice", {}).get("id", "vesper"))
+	if not unlocked_voices.has(voice_id):
+		unlocked_voices.append(voice_id)
+	return {"voice_unlocked": true, "voice_id": voice_id}
 
 
 ## Collection plates trade cash for heat. Repeated plates are allowed; each has a real cost.
