@@ -302,6 +302,10 @@ func _damage_hero(amount: int, from_pos: Vector3) -> void:
 func _check_hit() -> void:
 	var before := hits_landed
 	super._check_hit()
+	# Arena subtracts nonlethal damage from dummy_hp. Keep the boss rules,
+	# HUD and checkpoint in sync before returning from this hit.
+	if hits_landed != before and not boss_defeated and dummy_hp > 0.0:
+		rules.boss_hp = dummy_hp
 	if hits_landed != before or _move.is_empty() or _landed or hero.dead:
 		return
 	if not hero.is_acting(_move.action) or _move_age < float(_move.get("hit_at", 0.0)):
@@ -332,8 +336,10 @@ func _check_hit() -> void:
 		return
 
 
-func _ko(result: Dictionary) -> void:
-	var state := rules.hit_boss(float(result.get("damage", 0.0)))
+func _ko(_result: Dictionary) -> void:
+	# Arena already subtracted the lethal blow from dummy_hp. Apply the
+	# accumulated phase damage, not just the last hit.
+	var state := rules.hit_boss(maxf(0.0, rules.boss_hp - dummy_hp))
 	dummy_hp = rules.boss_hp
 	if state.phase_changed:
 		dummy.revive()
