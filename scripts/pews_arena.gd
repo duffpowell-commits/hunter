@@ -300,8 +300,12 @@ func _damage_hero(amount: int, from_pos: Vector3) -> void:
 
 
 func _check_hit() -> void:
+	var hp_before := dummy_hp
 	var before := hits_landed
 	super._check_hit()
+	# Keep the data-driven boss state aligned after every nonlethal hit as well.
+	if not is_equal_approx(dummy_hp, hp_before):
+		rules.boss_hp = maxf(0.0, dummy_hp)
 	if hits_landed != before or _move.is_empty() or _landed or hero.dead:
 		return
 	if not hero.is_acting(_move.action) or _move_age < float(_move.get("hit_at", 0.0)):
@@ -333,6 +337,8 @@ func _check_hit() -> void:
 
 
 func _ko(result: Dictionary) -> void:
+	# Arena has already reduced dummy_hp before calling this virtual KO hook.
+	rules.boss_hp = maxf(0.0, dummy_hp)
 	var state := rules.hit_boss(float(result.get("damage", 0.0)))
 	dummy_hp = rules.boss_hp
 	if state.phase_changed:
