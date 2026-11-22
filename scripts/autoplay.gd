@@ -187,13 +187,24 @@ func _run() -> void:
 # ---------------------------------------------------------------- Hunter M2: The Pews vertical slice
 
 func _pews_checks() -> void:
-	# Switch scenes so the Pews arena owns the viewport, World3D and active camera.
-	var err := get_tree().change_scene_to_file("res://scenes/pews_arena.tscn")
-	_check(err == OK, "PEWS SCENE PASS (PewsArena scene loads)")
-	await _wait_scene("PewsArena")
-	var arena = get_tree().current_scene
+	# Replace CharacterTest as the active scene. The Pews arena then owns the viewport,
+	# World3D and camera, and screenshots cannot accidentally capture the previous scene.
+	var previous_scene := get_tree().current_scene
+	get_tree().current_scene = null
+	if previous_scene != null:
+		get_tree().root.remove_child(previous_scene)
+		previous_scene.queue_free()
+		await _frames(2)
+	var packed: PackedScene = load("res://scenes/pews_arena.tscn")
+	if packed == null:
+		_fail("PewsArena scene could not be loaded")
+		return
+	var arena = packed.instantiate()
+	get_tree().root.add_child(arena)
+	get_tree().current_scene = arena
 	await _frames(25)
 	arena.rig.cam.make_current()
+	_check(arena.name == "PewsArena", "PEWS SCENE PASS (PewsArena scene loads)")
 	_check(arena.dummy.name == "Vesper" and arena.get_node_or_null("Pews/Altar") != null
 		and arena._foes.size() == 2, "PEWS MAP PASS (church altar, Vesper, Zealot and Choir)")
 	_shot("pews_map")
