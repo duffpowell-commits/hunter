@@ -16,6 +16,9 @@ var parts := 0
 var cash := 0
 var heat := 0
 var plates_collected := 0
+var inventory := {}
+var engaged := false
+var ambush_started := false
 
 
 func _init(data: Dictionary = {}) -> void:
@@ -28,6 +31,7 @@ func _init(data: Dictionary = {}) -> void:
 func tick_stalking(current: float, distance: float, angle_rad: float, sneaking: bool, seen: bool, dt: float) -> float:
 	if seen:
 		studied = 0.0
+		engaged = true
 		return studied
 	var rules: Dictionary = config.get("stalking", {})
 	var radius := float(rules.get("study_radius", 6.0))
@@ -94,3 +98,28 @@ func collect_plate() -> Dictionary:
 	heat += gained_heat
 	plates_collected += 1
 	return {"cash": earned, "heat": gained_heat, "total_cash": cash, "total_heat": heat}
+
+
+func ambush_ready() -> bool:
+	return studied >= 100.0 and not engaged and not boss_defeated
+
+
+## Start a studied encounter. The first special is free; the caller staggers Vesper in the scene.
+func start_ambush() -> Dictionary:
+	if not ambush_ready() or ambush_started:
+		return {}
+	ambush_started = true
+	engaged = true
+	return {"started": true, "free_first_special": true, "target_staggered": true}
+
+
+## Pick up one of the realm's listed materials. Unknown IDs are ignored.
+func scavenge(loot_id: String) -> Dictionary:
+	for item: Dictionary in config.get("loot", []):
+		if str(item.get("id", "")) == loot_id:
+			var count := int(inventory.get(loot_id, 0)) + 1
+			inventory[loot_id] = count
+			var gained := int(item.get("parts", 1))
+			parts += gained
+			return {"item": loot_id, "count": count, "parts": gained, "total_parts": parts}
+	return {}
