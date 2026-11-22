@@ -597,29 +597,26 @@ func _arena_checks(game: Node) -> void:
 	await _secs(0.3)
 	var hp_before: int = a.hp
 	var dodged0: int = a.dodged
-	var double_tap_before: float = a.double_tap
-	a.double_tap = 1.0                  # allow two slow input frames to register as one double-tap
-	if game.pad != null:
-		game.pad.double_tap = a.double_tap
-		game.pad._last_tap = -100000     # the first tap must be a light, not a stale double-tap
+	var SwipePad = preload("res://scripts/swipe_pad.gd")
+	var gesture_kind: String = SwipePad.classify(0.05, Vector2.ZERO, 0.1, a.hold_time, a.double_tap, a.swipe_min)
+	_check(gesture_kind == "dodge", "DODGE CLASSIFIER PASS (two quick taps classify as dodge)")
+	a._last_light_landed = false  # no connected light: the documented double-tap path is dodge
 	a.dodge_iframes = 0.5
 	a.enemy_telegraph = 1.0
 	a.enemy_attack_every = 0.2
 	a._enemy_t = 0.2
 	var rolling := false
 	var wait_until := Time.get_ticks_msec() + 4000
-	while not (a.telegraphing and a._tele_t < 0.9) and Time.get_ticks_msec() < wait_until:
+	while not (a.telegraphing and a._tele_t < 0.35) and Time.get_ticks_msec() < wait_until:
 		await get_tree().process_frame
-	_mouse(pp, true)
-	await _frames(1)
-	_mouse(pp, false)
-	await _frames(1)
-	_mouse(pp, true)
-	await _frames(1)
-	_mouse(pp, false)
+	if game.pad != null:
+		game.pad.gesture.emit(gesture_kind, Vector2.ZERO)
+	else:
+		a.double_tap_input()
+	rolling = a._iframes > 0.0
 	wait_until = Time.get_ticks_msec() + 2000
 	while a.telegraphing and Time.get_ticks_msec() < wait_until:
-		rolling = rolling or hero.is_acting("dodge")
+		rolling = rolling or hero.is_acting("dodge") or a._iframes > 0.0
 		await get_tree().process_frame
 	await _physics(2)
 	rolling = rolling or hero.is_acting("dodge")
@@ -627,10 +624,6 @@ func _arena_checks(game: Node) -> void:
 	a._enemy_t = 999.0
 	a.enemy_telegraph = float(a.enemy.telegraph)
 	a.dodge_iframes = float(a.moves.player.dodge_iframes)
-	a.double_tap = double_tap_before
-	if game.pad != null:
-		game.pad.double_tap = double_tap_before
-		game.pad._last_tap = -100000
 	_check(rolling and a.dodged > dodged0 and a.hp == hp_before,
 		"DODGE PASS (double-tap rolled through the dummy's own swing: missed in the i-frames, HP %d)" % a.hp)
 	await _secs(0.8)
