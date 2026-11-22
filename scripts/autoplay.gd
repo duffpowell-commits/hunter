@@ -245,6 +245,8 @@ var _bones := {}
 
 
 func _snap_bones(sk: Skeleton3D) -> void:
+	if not is_instance_valid(sk) or not sk.is_inside_tree():
+		return
 	var d := {}
 	for b in ["foot_l", "foot_r", "pelvis", "Head"]:
 		d[b] = sk.global_transform * sk.get_bone_global_pose(sk.find_bone(b)).origin
@@ -586,6 +588,9 @@ func _arena_checks(game: Node) -> void:
 	var dodged0: int = a.dodged
 	var double_tap_before: float = a.double_tap
 	a.double_tap = 1.0                  # allow two slow input frames to register as one double-tap
+	if game.pad != null:
+		game.pad.double_tap = a.double_tap
+		game.pad._last_tap = -100000     # the first tap must be a light, not a stale double-tap
 	a.dodge_iframes = 0.5
 	a.enemy_telegraph = 1.0
 	a.enemy_attack_every = 0.2
@@ -612,6 +617,9 @@ func _arena_checks(game: Node) -> void:
 	a.enemy_telegraph = float(a.enemy.telegraph)
 	a.dodge_iframes = float(a.moves.player.dodge_iframes)
 	a.double_tap = double_tap_before
+	if game.pad != null:
+		game.pad.double_tap = double_tap_before
+		game.pad._last_tap = -100000
 	_check(rolling and a.dodged > dodged0 and a.hp == hp_before,
 		"DODGE PASS (double-tap rolled through the dummy's own swing: missed in the i-frames, HP %d)" % a.hp)
 	await _secs(0.8)
