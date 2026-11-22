@@ -19,6 +19,7 @@ var _boss_telegraph := 0.0
 var _boss_move := ""
 var _flock_time := 0.0
 var _flock_cd := 0.0
+var _flock_node: Node3D
 var _nearest_plate: Node3D
 var _nearest_loot: Node3D
 var _loot_nodes: Array[Node3D] = []
@@ -171,6 +172,9 @@ func _enemy(dt: float) -> void:
 			_flock_cd = 1.25
 			if hero.global_position.distance_to(dummy.global_position) < 2.4:
 				_damage_hero(5, dummy.global_position)
+		if _flock_time <= 0.0 and _flock_node != null:
+			_flock_node.queue_free()
+			_flock_node = null
 	if not encounter_started:
 		var to_hero := hero.global_position - dummy.global_position
 		to_hero.y = 0.0
@@ -258,6 +262,21 @@ func _execute_boss_move() -> void:
 		"flock":
 			_flock_time = 4.0
 			_flock_cd = 0.5
+			if _flock_node != null:
+				_flock_node.queue_free()
+			_flock_node = Node3D.new()
+			_flock_node.name = "FlockShadows"
+			_flock_node.global_position = dummy.global_position
+			add_child(_flock_node)
+			for i in 3:
+				var shadow := MeshInstance3D.new()
+				var orb := SphereMesh.new()
+				orb.radius = 0.32
+				orb.height = 0.64
+				shadow.mesh = orb
+				shadow.material_override = _toon(Color("302b3d"), false)
+				shadow.position = Vector3(cos(float(i) * TAU / 3.0) * 1.4, 0.8, sin(float(i) * TAU / 3.0) * 1.4)
+				_flock_node.add_child(shadow)
 			get_node("/root/Subs").cue("[shadows answer the sermon]")
 		"laying_of_hands":
 			var healed := rules.heal_boss(float(data.get("heal", 18)))
@@ -325,6 +344,9 @@ func _ko(result: Dictionary) -> void:
 		get_node("/root/Subs").cue("[Vesper reveals his second form]")
 	elif state.defeated:
 		boss_defeated = true
+		if _flock_node != null:
+			_flock_node.queue_free()
+			_flock_node = null
 		dummy.die(Vector3(0, 1.2, 2.0))
 		_warn.visible = false
 		get_node("/root/Subs").cue("[Vesper collapses]")
