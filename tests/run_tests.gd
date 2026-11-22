@@ -761,3 +761,26 @@ func test_pews_arena_starts_in_the_church() -> void:
 	check(arena.get_node_or_null("Pews/Altar") != null, "Pews arena builds the church altar")
 	arena.queue_free()
 	await process_frame
+
+
+## Scene regression: cumulative hits must transition both boss phases.
+func test_pews_cumulative_boss_damage() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.rules.engaged = true
+	# Simulate a nonlethal parent hit: the inherited controller owns dummy_hp.
+	a.dummy_hp = 110.0
+	a.rules.boss_hp = a.dummy_hp
+	check(is_equal_approx(a.rules.boss_hp, 110.0), "partial damage visible to boss rules")
+	a.dummy_hp = -5.0
+	a._ko({"damage": 10.0})
+	check(a.rules.boss_phase == 2 and not a.rules.boss_defeated, "cumulative phase one damage triggers phase two")
+	check(a.dummy_hp > 0.0 and is_equal_approx(a.dummy_hp, a.rules.boss_hp), "phase two starts at synchronized HP")
+	a.dummy_hp = -2.0
+	a._ko({"damage": 12.0})
+	check(a.boss_defeated and a.rules.boss_defeated, "cumulative phase two damage defeats Vesper")
+	a.queue_free()
+	await process_frame
