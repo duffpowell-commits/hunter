@@ -266,7 +266,7 @@ func _execute_boss_move() -> void:
 				_flock_node.queue_free()
 			_flock_node = Node3D.new()
 			_flock_node.name = "FlockShadows"
-			_flock_node.global_position = dummy.global_position
+			_flock_node.position = dummy.position
 			add_child(_flock_node)
 			for i in 3:
 				var shadow := MeshInstance3D.new()
