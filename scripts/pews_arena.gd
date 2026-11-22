@@ -271,7 +271,7 @@ func _check_hit() -> void:
 		var result := combat.land(_move)
 		foe.hp = float(foe.hp) - float(result.damage)
 		actor.hit(hero.global_position + Vector3(0, 1.2, 0), float(result.power))
-		Feel.impact(actor.global_position + Vector3(0, 1.3, 0), float(result.power), self)
+		get_node("/root/Feel").impact(actor.global_position + Vector3(0, 1.3, 0), float(result.power), self)
 		if foe.hp <= 0.0:
 			foe.dead = true
 			actor.die((actor.global_position - hero.global_position).normalized() * 2.0 + Vector3(0, 1.0, 0))
