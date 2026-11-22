@@ -16,3 +16,15 @@
 - Nov 21: on a slow sandbox (8 cores, software GL) autoplay's `CAMERA SMOOTH` failed once out of
   three runs (15.1 m/s vs a 12 m/s limit) and passed the other two (9.4, 9.6). It measures per
   frame, so a hitch shows up as speed. Rerun before chasing it; fix the check if it repeats in CI.
+  Fixed in M1 (Nov 21): it now measures over >= 0.1 s of real time (a real cut still fails it).
+- Nov 21 (M1): a Character3D one-shot isn't "acting" until the next physics step, so code that
+  checks `is_acting()` right after `act()` must allow a short grace period (arena.gd `_move_age`).
+- Nov 21 (M1 CI): don't sample a 60 ms effect from the bot; a slow CI frame is longer than that.
+  Count it instead (Character3D `stops` / `last_stop`, used by HITSTOP PASS).
+- Nov 21 (M1 review): a save point must check that the player is alive. Dying, then PAUSE, then
+  QUIT, then CONTINUE brought a dead run back. Guard `checkpoint()`, clear the save on death, and treat a
+  0 HP save as a new run.
+- Nov 21 (M1 review): a TUNE slider that's copied once in `_build`/`_ready` isn't live. Push every
+  slider each frame (arena `push_tune()`, the pad in game.gd `_process`).
+- Nov 21 (M1 review): once contact waits for `hit_at`, a target still sliding from the last knockback
+  walks out of reach. Autoplay must let the knockback finish before it sets up the next hit.

@@ -5,6 +5,107 @@ what review found, and what is still open. Add an entry whenever a session chang
 work here or settles a design question. AGENTS.md lists this file in its reading order.
 Game-design decisions themselves live in docs/DESIGN.md; this file is the "why" and the history.
 
+## 2026-11-21: Milestone 1 review fixes (fresh-eyes CHANGES REQUESTED on 95847e0)
+Grok, same branch, no force-push. Every item below has a rule test that I saw fail by breaking the
+code on purpose before it passed.
+
+**Blockers**
+1. Pad sliders: `game.gd` copies hold_time, swipe_min and double_tap into the pad every frame.
+   Before, it copied them once at build time, so dragging the slider did nothing
+   (`test_keyboard_reaches_every_special`, "pad sliders act live").
+2. Missing TUNE sliders: arena.TUNE now also has dodge_iframes, dodge_cooldown, double_tap,
+   string_gap, cancel_bonus, damage_scale (x every move's damage), dummy_max_hp, pipe_durability
+   and break_mult. `arena.push_tune()` pushes them into combat every frame (`test_arena_tune_live`).
+3. Death escaped through the save. `_on_hero_died` now sets `dying` and clears the save at once.
+   `checkpoint()` never writes while the hero is dying, dead, at 0 HP or over. A loaded save with
+   hp <= 0 starts a new run. Test: `test_death_cannot_escape_through_save` dies, then runs PAUSE, then QUIT
+   (`save_for_quit`), and no save survives. It then plants a 0 HP save and gets a fresh run.
+4. Keyboard and pad reach every special: there are new Controls actions HEAVY (I / RB) and SPECIAL (O / RT).
+   SPECIAL uses the stick direction through the same `Combat.swipe_dir` as a swipe, so SPIN (away) and
+   SWEEP (down) work too. The legend lists HEAVY and SPECIAL (`test_keyboard_reaches_every_special`).
+
+**Non-blocking, also fixed**
+- Hit timing: every move has `hit_at` and `recover` in data/moves.json, in seconds of hero time
+  (hit-stop pauses them). Contact lands at hit_at, not on the first frame. A new input waits until
+  the swing has recovered. One input is buffered, newest wins, if pressed within `arena.input_buffer`
+  (0.3 s) of recovery. Earlier presses are dropped, so mashing can't restart swings. A special may still
+  cancel a swing that has landed (`test_hit_timing_and_buffer`).
+- A special out of a roll gives up the roll's i-frames. A special during a stagger (knockback,
+  hit_chest, hit_head) is queued until the stagger ends instead of aborting it (`test_special_rules_in_arena`).
+- combat.gd: `special()` only looks. `commit()` spends the cooldown when the move really starts, so a
+  refused move costs nothing. The +25 % goes to the first special after each landed light/heavy only
+  (`test_special_cancel`).
+- Double-tap (judgment call, for Duff): a double-tap is a dodge, unless the tap before it was a light
+  that connected. Then it's another light. Why: mashing light in a fight used to alternate light, dodge,
+  light, dodge, which threw the hero out of range. A double-tap on empty air (or after a whiff) is still the
+  dodge the spec asks for. The window is 0.2 s and is a TUNE slider (`test_double_tap_resolves`).
+- Numbers moved to data: pickup radius, auto-face distance, KO knockback, input buffer
+  (moves.json `arena`), and the dummy's approach margin and hit power on the hero (enemies.json).
+- Autoplay: SPECIAL PASS now requires the cancel and exactly +25 % damage. DODGE PASS uses the dummy's own
+  telegraphed swing (hero 1.62 m away: out of jab reach, inside the dummy's) instead of calling `_swing()`.
+
+**Left alone on purpose**
+- Judgment call 4 (up/down when the dummy is straight up the screen) stays as it is. The reviewer
+  flagged it as Duff's call, and it's in tasks/todo.md.
+
+## 2026-11-21: Milestone 1 built: the 3D test arena (movement and combat feel)
+Built by Grok on branch `grok/milestone-1-arena`, on top of PR #13 (M0). docs/BUILD_SPEC.md M1.
+
+**What changed**
+- NEW GAME now opens the arena. `scripts/game.gd`'s PLAY section is Hunter: `scripts/arena.gd`
+  (the 3D arena) plus `virtual_stick.gd` (left thumb) and `swipe_pad.gd` (right thumb). Pause,
+  focus-out save, back button, game over and left-handed mirroring are the starter's.
+- Rules live in `scripts/combat.gd` (no nodes, so tests call it directly). Numbers live in
+  `data/moves.json`, `data/enemies.json` and `data/weapons.json`, loaded by `scripts/game_data.gd`.
+  `export_presets.cfg` now ships `data/*.json` (`test_data_files_ship`).
+- `Character3D` got `extra_actions` so a game can add one-shot clips (heavy, specials, pipe swings)
+  from the CC0 UAL library without editing ACTIONS. Every clip comes from the library; there's
+  no hand-made motion.
+- `Save.VERSION` 2: {level = round, score = knockouts, hp}. v1 saves migrate (lives dropped,
+  HP full). See `test_save_migrates_v1`.
+- 10 new rule tests and 13 new autoplay PASS lines (ARENA CAMERA, STICK, LIGHT STRING, COMBO,
+  HITSTOP, SHAKE, HEAVY, SPECIAL, DODGE, PICKUP, WEAPON BREAK, KO, ENEMY). I saw every new test
+  fail on purpose before it passed. The arena screenshots are in `docs/renders/flow_arena*.png`.
+- Autoplay `CAMERA SMOOTH` now measures over at least 0.1 s of real time instead of per frame. Why: it
+  flaked once in three runs on a slow box (one hitch frame read as 15 m/s). A real camera cut still
+  fails it: I faked a 4 m cut and it read 34 m/s, FAIL.
+
+**Grok's judgment calls, for Duff to review** (the spec didn't say; each is easy to change)
+1. The training dummy fights back. It telegraphs for 0.6 s (red "!" plus a caption), then swings for
+   10 damage within 1.7 m, every 2.5 s. Why: dodge i-frames and GAME OVER need something to dodge
+   and something that can kill you. Its numbers are in data/enemies.json and TUNE.
+2. A round is one knockout. Each KO is a checkpoint (autosave), and HP carries over. Why: the
+   starter's checkpoint/CONTINUE flow needs a "level"; M1 has no realms yet.
+3. Placeholder specials for the four swipes, until voices own the slots (M2):
+   - toward = LUNGE 20
+   - away = SPIN 15, hits all round
+   - up = LAUNCHER 25
+   - down = SWEEP 18 (a slide)
+   - cooldowns of 1.2 to 1.5 s
+   They're in data/moves.json.
+4. Swipe directions: toward/away win when the swipe is within 45 degrees of the dummy's direction
+   on screen. Otherwise it's up or down. When the dummy is straight up the screen, "up" means toward.
+5. The combo counter shows at 2+ hits. It resets after 1.2 s without a hit, or when you get hit.
+   The spec gives no gap.
+6. Weapon durability is spent by every hit, specials included. After the pipe breaks, a new one
+   appears at its spawn so the test arena can be replayed.
+7. Attacks snap the hero to face the dummy when it's within 3 m (touch players can't aim a swing).
+8. Keyboard/gamepad: ATTACK = light, HEAVY (I / RB) = heavy, SPECIAL (O / RT) + stick direction =
+   the special, read like a swipe (no direction = toward), DODGE = dodge. Changed in the review fixes
+   below. The first version reached only LUNGE and LAUNCHER.
+9. Look: dark charcoal floor with ink crack lines and dried-blood splats (#6E1212, darker than
+   the palette's #B01818 so characters read first). The hero is still the yellow UAL mannequin with
+   the orange rim. A black-hoodie model is later work (BUILD_SPEC: never block on models).
+
+**Not in M1 (later milestones or follow-ups)**
+- One-time gesture hints ("Swipe toward him: special") and the pause-menu gesture card (BUILD_SPEC
+  pipeline rules).
+- Voices, stalking, scavenging and realms (M2+).
+- The starter's 3D CHARACTER TEST stays in the dev menu, with all its checks.
+- Multi-touch: the stick and pad each follow their own finger. That logic is written but has not
+  been tried on a phone yet.
+- `Character3D.extra_actions` should be copied back to godot-game-starter (it's the master).
+
 ## 2026-11-21: Hunter greenlit; Godot 4.6.3; Milestone 0 built (copy of godot-game-starter)
 **Decisions (Duff, Nov 21)**
 - Hunter is greenlit for building. Duff: "lets move forward to building a small sample of hunter".

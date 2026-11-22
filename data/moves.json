@@ -1,0 +1,127 @@
+{
+  "_why": "Hunter M1 (Nov 21, 2026): every combat number lives here, not in code (docs/BUILD_SPEC.md: content is data). Numbers are the spec's starting values; tune live in DEV MENU -> TUNE. hit_at = seconds into the swing when it connects (contact lands mid-swing, not on frame 1); recover = seconds before the next swing can start (taps made sooner are buffered once). Added after the fresh-eyes review of 95847e0.",
+  "player": {
+    "hp": 100,
+    "dodge_iframes": 0.25,
+    "dodge_cooldown": 0.6
+  },
+  "pad": {
+    "hold_time": 0.3,
+    "double_tap": 0.2,
+    "swipe_min": 60.0,
+    "_why_double_tap": "0.2 s, and a tap only counts toward a double-tap when the previous tap's light did not connect, so mashing light near the dummy stays a string (DECISIONS, Nov 21)."
+  },
+  "combo": {
+    "gap": 1.2,
+    "cancel_window": 0.35,
+    "cancel_bonus": 0.25,
+    "string_gap": 0.8
+  },
+  "light": [
+    {
+      "id": "jab",
+      "action": "punch",
+      "armed_action": "slash_a",
+      "damage": 8,
+      "power": 0.3,
+      "reach": 1.5,
+      "hit_at": 0.12,
+      "recover": 0.3
+    },
+    {
+      "id": "cross",
+      "action": "cross",
+      "armed_action": "slash_b",
+      "damage": 8,
+      "power": 0.3,
+      "reach": 1.5,
+      "hit_at": 0.15,
+      "recover": 0.32
+    },
+    {
+      "id": "hook",
+      "action": "hook",
+      "armed_action": "slash_c",
+      "damage": 8,
+      "power": 0.6,
+      "reach": 1.6,
+      "hit_at": 0.22,
+      "recover": 0.45
+    }
+  ],
+  "heavy": {
+    "id": "heavy",
+    "action": "heavy",
+    "damage": 20,
+    "power": 0.6,
+    "reach": 1.7,
+    "guard_break": true,
+    "hit_at": 0.35,
+    "recover": 0.6
+  },
+  "specials": {
+    "toward": {
+      "id": "lunge",
+      "name": "LUNGE",
+      "action": "lunge",
+      "damage": 20,
+      "power": 0.6,
+      "reach": 2.2,
+      "cooldown": 1.2,
+      "hit_at": 0.25,
+      "recover": 0.5
+    },
+    "away": {
+      "id": "spin",
+      "name": "SPIN",
+      "action": "spin",
+      "damage": 15,
+      "power": 0.5,
+      "reach": 1.8,
+      "arc": 360,
+      "cooldown": 1.2,
+      "hit_at": 0.3,
+      "recover": 0.55
+    },
+    "up": {
+      "id": "launcher",
+      "name": "LAUNCHER",
+      "action": "launcher",
+      "damage": 25,
+      "power": 0.7,
+      "reach": 1.6,
+      "cooldown": 1.5,
+      "hit_at": 0.3,
+      "recover": 0.55
+    },
+    "down": {
+      "id": "sweep",
+      "name": "SWEEP",
+      "action": "slide",
+      "damage": 18,
+      "power": 0.6,
+      "reach": 1.8,
+      "cooldown": 1.5,
+      "hit_at": 0.25,
+      "recover": 0.5
+    }
+  },
+  "clips": {
+    "_why": "Extra Character3D actions for Hunter, all clips from the CC0 UAL library already in assets/models (no hand-made motion, BUILD_SPEC pipeline rules).",
+    "heavy": "Sword_Attack",
+    "lunge": "ual2/Shield_Dash",
+    "spin": "ual2/Sword_Regular_Combo",
+    "launcher": "ual2/OverhandThrow",
+    "slash_a": "ual2/Sword_Regular_A",
+    "slash_b": "ual2/Sword_Regular_B",
+    "slash_c": "ual2/Sword_Regular_C",
+    "enemy_swing": "ual2/Zombie_Scratch"
+  },
+  "arena": {
+    "pickup_radius": 1.4,
+    "auto_face": 3.0,
+    "ko_knockback": 4.0,
+    "ko_knockback_per_power": 6.0,
+    "input_buffer": 0.3
+  }
+}

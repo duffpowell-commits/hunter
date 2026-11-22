@@ -70,26 +70,17 @@ func _run() -> void:
 	var ld: Node = get_node("/root/Loader")
 	_check(ld.loads >= 2 and not ld.busy(), "LOAD PASS (%d scenes loaded in the background, %d frames drawn meanwhile)" % [ld.loads, ld.frames_while_loading])
 
-	# Play: tap the green orbs for a few seconds.
-	# Real time, not frame counts: a slow box runs few frames, so give it up to 15 s and stop at 3 points.
+	# Play (Hunter M1): fight the dummy in the arena with real stick drags and pad gestures.
 	var start_score: int = game.score
-	var until := Time.get_ticks_msec() + 15000
-	while Time.get_ticks_msec() < until and game.score < start_score + 3:
-		for o in game.orbs:
-			if not o.bad and o.pos.y > 150:
-				await _tap_at(game.field.get_global_transform() * o.pos)
-				break
-		await _frames(3)
-	_shot("game")
-	_check(game.score > start_score, "PLAY PASS (score %d)" % game.score)
 	var bat: Node = get_node("/root/Battery")
 	var playing_full: bool = bat.state == "play" and Engine.max_fps == 60
+	await _arena_checks(game)
+	_check(game.score > start_score, "PLAY PASS (%d knockout, now round %d)" % [game.score, game.level])
 
-	# Checkpoint: next level autosaves.
-	game.debug_skip_level()
-	await _frames(2)
+	# Checkpoint: every knockout autosaves the round.
 	var saved: Dictionary = get_node("/root/Save").read()
-	_check(int(saved.get("level", 0)) == 2, "AUTOSAVE PASS (level 2 saved)")
+	var saved_level: int = int(saved.get("level", 0))
+	_check(saved_level == game.level and saved_level >= 2, "AUTOSAVE PASS (round %d saved)" % saved_level)
 
 	# Phone interruption: the app loses focus -> pause + save.
 	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
@@ -127,7 +118,7 @@ func _run() -> void:
 	await _click("CONTINUE")
 	await _wait_scene("Game")
 	game = get_tree().current_scene
-	_check(game.level == 2, "RESUME PASS (continued at level %d)" % game.level)
+	_check(game.level == saved_level, "RESUME PASS (continued at round %d)" % game.level)
 	await _frames(10)
 	_shot("game_lefthanded")
 
@@ -138,12 +129,19 @@ func _run() -> void:
 	await _click("RESUME")
 	await _frames(5)
 
-	# Stop tapping and let the orbs fall: GAME OVER.
+	# Stand next to a fast, hard-hitting dummy (TUNE values) until the hero drops: GAME OVER.
+	var ar: Node = game.arena
+	ar.reset_dummy()
+	ar.enemy_attack_every = 0.3
+	ar.enemy_telegraph = 0.5
+	ar.enemy_damage = 40.0
+	_place(ar.hero, ar.dummy.global_position + Vector3(0, 0.05, 1.0), PI)
 	Engine.time_scale = 4.0
-	var waited := 0
-	while not game.over and waited < 60 * 60:
-		await _frames(1)
-		waited += 1
+	var go_until := Time.get_ticks_msec() + 30000
+	while not game.over and Time.get_ticks_msec() < go_until:
+		if not ar.hero.dead:
+			_place(ar.hero, ar.dummy.global_position + Vector3(0, 0.05, 1.0), PI)
+		await _frames(5)
 	Engine.time_scale = 1.0
 	await _frames(10)
 	_shot("gameover")
@@ -373,6 +371,235 @@ func _movement_checks(ct: Node) -> void:
 	_check(inked, "INK PASS (toon + outline on every surface)")
 
 
+# ---------------------------------------------------------------- Hunter M1 arena checks
+# Why (Hunter M1, Nov 21): BUILD_SPEC M1 "Autoplay: move, light string, special, weapon break",
+# plus one PASS line per M1 feature. Real input events on the stick and the pad; real-time waits.
+
+func _secs(t: float) -> void:
+	var until := Time.get_ticks_msec() + int(t * 1000.0)
+	while Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+
+
+func _mouse(p: Vector2, down: Variant) -> void:
+	var w := get_viewport().get_final_transform() * p
+	var e: InputEvent
+	if down == null:
+		var m := InputEventMouseMotion.new()
+		m.button_mask = MOUSE_BUTTON_MASK_LEFT
+		e = m
+	else:
+		var b := InputEventMouseButton.new()
+		b.button_index = MOUSE_BUTTON_LEFT
+		b.pressed = down
+		e = b
+	e.position = w
+	e.global_position = w
+	Input.parse_input_event(e)
+
+
+func _pad_point(game: Node) -> Vector2:
+	return game.pad.get_global_rect().get_center()
+
+
+## Hero 1 m in front of the dummy, facing it; camera cut.
+func _face_dummy(a: Node) -> void:
+	_place(a.hero, a.dummy.global_position + Vector3(0, 0.05, 1.0), PI)
+	a.rig.snap()
+	await _physics(3)
+
+
+## One pad tap; waits up to `t` s for it to land. True if a new hit landed.
+func _pad_tap(game: Node, t := 0.6) -> bool:
+	var a: Node = game.arena
+	var before: int = a.hits_landed
+	var p := _pad_point(game)
+	_mouse(p, true)
+	await _frames(1)
+	_mouse(p, false)
+	var until := Time.get_ticks_msec() + int(t * 1000.0)
+	while a.hits_landed == before and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+	return a.hits_landed > before
+
+
+func _arena_checks(game: Node) -> void:
+	var a: Node = game.arena
+	var hero: Node = a.hero
+	var dummy: Node = a.dummy
+	var feel: Node = get_node("/root/Feel")
+	a.enemy_attack_every = 999.0             # the dummy holds still until the ENEMY check
+	a._enemy_t = 999.0
+	await _frames(10)
+	# Camera: fixed high three-quarter, about 50 degrees down.
+	var look: Vector3 = -a.rig.cam.global_transform.basis.z
+	var pitch := rad_to_deg(asin(-look.y))
+	_check(absf(pitch - 50.0) < 3.0, "ARENA CAMERA PASS (looking %.0f degrees down)" % pitch)
+	_shot("arena")
+	# Move: drag the virtual stick in a full circle; the hero runs and turns all the way round.
+	var turned0: float = hero.turned
+	var p0: Vector3 = hero.global_position
+	var top := 0.0
+	var c: Vector2 = game.stick.get_global_rect().get_center()
+	_mouse(c, true)
+	await _frames(2)
+	for i in 48:
+		var ang := TAU * i / 32.0
+		_mouse(c + Vector2(cos(ang), sin(ang)) * 90.0, null)
+		await _secs(0.05)
+		top = maxf(top, hero.speed())
+	_mouse(c, false)
+	await _secs(0.3)
+	var moved: float = hero.global_position.distance_to(p0)
+	_check(top > 3.0 and hero.turned - turned0 > TAU and moved > 0.5,
+		"STICK PASS (top speed %.1f m/s, turned %.1f rad, any direction)" % [top, hero.turned - turned0])
+	# Light string: three taps in rhythm; the third (hook) knocks back. Hit-stop, shake, counter.
+	await _face_dummy(a)
+	var shakes0: int = feel.shakes
+	var hero_stops0: int = hero.stops
+	var dummy_stops0: int = dummy.stops
+	var landed := 0
+	var trauma := 0.0
+	for i in 3:
+		if await _pad_tap(game):
+			landed += 1
+			trauma = maxf(trauma, a.rig.trauma)
+		if i < 2:
+			await _secs(0.35)
+	var d0: Vector3 = dummy.global_position
+	var hook: Dictionary = a.last_hit
+	await _frames(2)
+	_shot("arena_combo")
+	var combo_seen := _has_label("3 HITS")
+	await _secs(0.8)
+	_check(landed == 3 and float(hook.get("power", 0)) >= 0.5 and dummy.global_position.distance_to(d0) > 0.3,
+		"LIGHT STRING PASS (L, L, L landed %d, the third knocked the dummy %.1f m)" % [landed, dummy.global_position.distance_to(d0)])
+	_check(combo_seen, "COMBO PASS (counter showed 3 HITS)")
+	# Counted, not sampled: on a slow CI box 60 ms is shorter than a frame (Nov 21: it flaked).
+	var want: float = 0.06 * feel.stop_scale
+	_check(hero.stops - hero_stops0 >= 3 and dummy.stops - dummy_stops0 >= 3
+		and is_equal_approx(hero.last_stop, want) and is_equal_approx(dummy.last_stop, want),
+		"HITSTOP PASS (attacker and victim froze %d / %d times, %.0f ms each)" % [hero.stops - hero_stops0, dummy.stops - dummy_stops0, want * 1000.0])
+	_check(feel.shakes > shakes0 and trauma > 0.0, "SHAKE PASS (camera trauma %.2f per hit)" % trauma)
+	# Heavy: hold 0.3 s, release.
+	await _face_dummy(a)
+	var hp0: float = a.dummy_hp
+	var pp := _pad_point(game)
+	_mouse(pp, true)
+	await _secs(0.45)
+	_mouse(pp, false)
+	await _secs(0.6)
+	_check(a.last_hit.get("kind", "") == "heavy" and is_equal_approx(hp0 - a.dummy_hp, 20.0),
+		"HEAVY PASS (hold and release: %.0f damage)" % (hp0 - a.dummy_hp))
+	# Special: a light, then a swipe toward the dummy inside the cancel window.
+	# Let the heavy's knockback clip finish first: it slides the dummy, and with contact at hit_at
+	# (not the first frame) a drifting dummy walks out of jab reach (Nov 21 review fixes).
+	a.reset_dummy()
+	await _secs(1.0)
+	await _face_dummy(a)
+	await _secs(0.1)
+	var hit_ok := await _pad_tap(game)
+	var to: Vector2 = a.rig.cam.unproject_position(dummy.global_position) - a.rig.cam.unproject_position(hero.global_position)
+	var sw := pp + to.normalized() * 120.0
+	_mouse(pp, true)
+	await _frames(1)
+	_mouse(sw, null)
+	await _frames(1)
+	_mouse(sw, false)
+	await _secs(0.7)
+	_shot("arena_special")
+	var sp: Dictionary = a.last_special
+	# Review of 95847e0: the cancel is the point of this check, so it's required, with its +25 %.
+	var base := float(a.moves.specials.toward.damage)
+	_check(hit_ok and sp.get("dir", "") == "toward" and sp.get("cancel", false) and a.last_hit.get("kind", "") == "special"
+		and is_equal_approx(float(a.last_hit.get("damage", 0)), base * (1.0 + a.cancel_bonus)),
+		"SPECIAL PASS (light, then swipe toward = %s inside the cancel window: %.0f damage, +25%%)" % [sp.get("name", "?"),
+		float(a.last_hit.get("damage", 0))])
+	# Dodge: a real enemy swing (review of 95847e0: no calling _swing by hand). The hero stands 1.62 m
+	# off: past the jab's 1.5 m reach, inside the dummy's 1.7 m. Double-tap late in the telegraph.
+	# The i-frames slider goes to 0.5 s for this check only: a slow CI frame can be 0.1 s, and the
+	# two taps take three frames.
+	a.reset_dummy()
+	await _secs(1.0)
+	_place(hero, dummy.global_position + Vector3(0, 0.05, 1.62), PI)
+	a.rig.snap()
+	await _secs(0.3)
+	var hp_before: int = a.hp
+	var dodged0: int = a.dodged
+	a.dodge_iframes = 0.5
+	a.enemy_telegraph = 1.0
+	a.enemy_attack_every = 0.2
+	a._enemy_t = 0.2
+	var rolling := false
+	var wait_until := Time.get_ticks_msec() + 4000
+	while not (a.telegraphing and a._tele_t < 0.3) and Time.get_ticks_msec() < wait_until:
+		await get_tree().process_frame
+	_mouse(pp, true)
+	await _frames(1)
+	_mouse(pp, false)
+	await _frames(1)
+	_mouse(pp, true)
+	await _frames(1)
+	_mouse(pp, false)
+	wait_until = Time.get_ticks_msec() + 2000
+	while a.telegraphing and Time.get_ticks_msec() < wait_until:
+		rolling = rolling or hero.is_acting("dodge")
+		await get_tree().process_frame
+	await _physics(2)
+	rolling = rolling or hero.is_acting("dodge")
+	a.enemy_attack_every = 999.0
+	a._enemy_t = 999.0
+	a.enemy_telegraph = float(a.enemy.telegraph)
+	a.dodge_iframes = float(a.moves.player.dodge_iframes)
+	_check(rolling and a.dodged > dodged0 and a.hp == hp_before,
+		"DODGE PASS (double-tap rolled through the dummy's own swing: missed in the i-frames, HP %d)" % a.hp)
+	await _secs(0.8)
+	# Weapon: pick up the pipe, 4 hits spend it, the 5th snaps it (x2.5, big knockback) and KOs.
+	a.reset_dummy()
+	_place(hero, a._pickup.global_position + Vector3(0, 0.05, 0.5), PI)
+	a.rig.snap()
+	await _secs(0.3)
+	var can: bool = _find("PICK UP") != null
+	await _click("PICK UP")
+	await _frames(3)
+	_check(can and a.combat.weapon == "pipe" and _has_label("PIPE 4/4"), "PICKUP PASS (PICK UP button, PIPE 4/4)")
+	_shot("arena_weapon")
+	var kos0: int = a.kos
+	var broke := false
+	var break_dmg := 0.0
+	for i in 8:
+		if a.kos > kos0:
+			break
+		await _face_dummy(a)
+		if await _pad_tap(game) and a.last_hit.get("broke", false):
+			broke = true
+			break_dmg = float(a.last_hit.damage)
+			await _frames(2)
+			_shot("arena_break")
+		await _secs(0.4)
+	_check(broke and a.combat.weapon == "" and absf(break_dmg - (8.0 + 4.0) * 2.5) < 0.01,
+		"WEAPON BREAK PASS (4 hits spent the pipe, the 5th snapped it for %.0f damage)" % break_dmg)
+	_check(a.kos > kos0 and dummy.dead, "KO PASS (dummy down, round %d)" % game.level)
+	await _secs(float(a.enemy.respawn) + 0.5)
+	# The dummy fights back: telegraph (red ! + caption) for >= 0.5 s, then a swing that hurts.
+	a.enemy_attack_every = 0.3
+	a._enemy_t = 0.3
+	a.enemy_telegraph = float(a.enemy.telegraph)
+	var hp1: int = a.hp
+	var tele_seen := false
+	var until := Time.get_ticks_msec() + 6000
+	while a.hero_hits_taken == 0 and Time.get_ticks_msec() < until:
+		_place(hero, dummy.global_position + Vector3(0, 0.05, 1.0), PI)
+		if a.telegraphing and a._warn.visible:
+			if not tele_seen:
+				_shot("arena_telegraph")
+			tele_seen = true
+		await _frames(2)
+	_check(tele_seen and a.hp < hp1, "ENEMY PASS (red ! telegraph, then the swing took %d HP)" % (hp1 - a.hp))
+	a.enemy_attack_every = float(a.enemy.attack_every)
+	a._enemy_t = a.enemy_attack_every
+
+
 # ---------------------------------------------------------------- house standards (GROK_STANDARDS.md)
 
 func _contrast(img: Image, cam: Camera3D, c: Node) -> float:
@@ -414,11 +641,19 @@ func _standards_checks(ct: Node, coach_was: bool) -> void:
 	var last: Vector3 = ct.rig.cam.global_position
 	var fastest := 0.0
 	ct.bot_stick = Vector2(1, 0)
-	for i in 50:
+	# Smooth = the camera glides: never faster than twice the hero's top speed (no jump cuts).
+	# Why real time (Hunter, Nov 21): per-frame speed flaked on slow boxes (one hitch frame read as
+	# 15 m/s, tasks/lessons.md). Speed over >= 0.1 s of wall-clock time still catches a cut (a cut
+	# moves metres at once) but ignores frame-time jitter.
+	var last_us := Time.get_ticks_usec()
+	var until := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < until:
 		await _frames(1)
-		# Smooth = the camera glides: never faster than twice the hero's top speed (no jump cuts).
-		fastest = maxf(fastest, ct.rig.cam.global_position.distance_to(last) / maxf(get_process_delta_time(), 0.001))
-		last = ct.rig.cam.global_position
+		var us := Time.get_ticks_usec()
+		if us - last_us >= 100000:
+			fastest = maxf(fastest, ct.rig.cam.global_position.distance_to(last) / ((us - last_us) / 1000000.0))
+			last = ct.rig.cam.global_position
+			last_us = us
 	ct.bot_stick = Vector2.ZERO
 	_check(fastest < hero.max_speed * 2.0, "CAMERA SMOOTH PASS (camera top speed %.1f m/s)" % fastest)
 	_place(hero, Vector3(-12, 0.05, 2.2), 0.0)

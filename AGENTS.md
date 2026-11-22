@@ -45,8 +45,8 @@ Milestone 0 is done (Nov 21): the godot-game-starter template was copied in (sce
 autoloads, CI, signing, tests, autoplay bot) and renamed Hunter, base canvas 720x1280. Next is
 Hunter's Milestone 1 on top (docs/BUILD_SPEC.md). Hunter is a 3D game: use the template's
 `Character3D` and keep every movement and standards PASS line green (`standards/02-movement.md`,
-`standards/12-testing.md`). `scripts/game.gd` is still the starter's placeholder "Orb Catch":
-replace its PLAY section, keep the rest.
+`standards/12-testing.md`). Since M1 (Nov 21) `scripts/game.gd`'s PLAY section is Hunter's
+arena (`arena.gd` + `combat.gd`, numbers in `data/*.json`).
 
 ## Standing rules
 - Duff works phone-only (Android, Godot Android editor). No desktop-only tools. GDScript only.
@@ -95,6 +95,9 @@ replace its PLAY section, keep the rest.
   Telemetry, Loader, Battery, Updater, DebugMenu, Autoplay. Helpers: `ui.gd`, `config.gd`,
   `bug_report.gd`, `settings_sheet.gd`, `tune_panel.gd`, `camera_rig.gd`, `coach.gd`,
   `character3d.gd` (+ foot_ik, aim_twist, ragdoll). `shaders/` toon + outline (the ink look).
+- Hunter code (M1, Nov 21): `arena.gd` (3D arena, hero, dummy, pipe), `combat.gd` (rules, no
+  nodes), `swipe_pad.gd`, `virtual_stick.gd`, `game_data.gd` (reads `data/*.json`: moves,
+  enemies, weapons). Content is data: a new enemy or weapon is a JSON edit.
 - `tests/run_tests.gd` rule tests. `tools/` check_scripts.gd, test.sh, autoplay.sh, gen_audio.py.
 - `assets/audio/` (list every clip in SOURCES.md), `assets/art/`, `assets/models/`. `grok_art/` never ships.
 - `signing/` keystone (encrypted) + `unlock.sh`. `docs/renders/` autoplay screenshots, committed at

@@ -7,7 +7,8 @@ extends Node
 ## Writes go to a temp file first, then replace the real one, so a kill mid-write can't leave
 ## a half-written save.
 
-const VERSION := 1
+## 2 = Hunter M1 (Nov 21): {"level" = round, "score" = knockouts, "hp"}; v1 had Orb Catch "lives".
+const VERSION := 2
 var path := "user://run.json"
 
 
@@ -50,4 +51,9 @@ func clear() -> void:
 
 ## Old saves keep loading: bump VERSION and upgrade here when the save format changes.
 func _migrate(d: Dictionary) -> Dictionary:
+	if int(d.get("_version", 1)) < 2:
+		# Why (Hunter M1): Orb Catch's lives mean nothing in the arena; start at full HP.
+		d.erase("lives")
+		d["hp"] = 100
+		d["_version"] = 2
 	return d

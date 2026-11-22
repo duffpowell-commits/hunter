@@ -6,6 +6,10 @@ Top-down action RPG: you're a half-demon serial killer of demons. Stalk, kill, s
 Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unless it's imported. Catch-up log: docs/DECISIONS.md.
 
 ## Where things stand (Nov 21, 2026)
+- **Nov 21: Milestone 1 built** (Grok, PR "Milestone 1", on top of the M0 PR): NEW GAME opens the 3D test
+  arena with the stick and swipe pad, a dummy that fights back, a pipe that breaks, combos, hit-stop
+  and shake. Grok's judgment calls for Duff are listed in docs/DECISIONS.md. **Next: Milestone 2**
+  (The Pews and Vesper).
 - **Nov 21: Milestone 0 built** (Grok, PR "Milestone 0"): godot-game-starter copied in, renamed
   Hunter, base canvas 720x1280, Godot 4.6.3. Tests, autoplay and the APK export pass. Duff greenlit
   Hunter on Nov 21, asked which version fits his goals, Grok recommended 4.6.3, and he confirmed

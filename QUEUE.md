@@ -1,9 +1,11 @@
 # Queue
 
 ## NOW
-- Code: Milestone 1 (docs/BUILD_SPEC.md): 3D test arena, ink look, 360 movement, stick + swipe
-  combat, dummy, breakable weapon, combos, hit-stop, shake, one autoplay PASS line per feature.
-  Milestone 0 (copy of godot-game-starter, Godot 4.6.3, 720x1280) was built Nov 21.
+- Code: Milestone 1 (the 3D test arena) was built Nov 21 (PR #14). The review fixes were pushed Nov 21
+  and are waiting on the next fresh-eyes review, then merge. Actions minutes are nearly out until the
+  monthly reset: batch into one push after all local checks pass, and never push docs-only commits. Next is
+  Milestone 2 (docs/BUILD_SPEC.md): The Pews and Vesper. Duff should first review M1's judgment
+  calls (docs/DECISIONS.md).
 - Design, in parallel: hero name (asked Nov 20), then the rest of NEXT. Art is locked: ink on 3D (docs/style-guide.md).
 
 ## NEXT (design, no code)
