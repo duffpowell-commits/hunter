@@ -718,3 +718,14 @@ func test_pews_collection_plate_hazard() -> void:
 	var result: Dictionary = p.collect_plate()
 	check(result.get("cash", 0) > 0, "collection plate yields cash")
 	check(result.get("heat", 0) > 0, "collection plate raises heat")
+
+
+func test_pews_ambush_and_scavenging() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	p.tick_stalking(0.0, 4.0, PI, false, false, 20.0)
+	check(p.ambush_ready(), "full study enables an ambush")
+	check(p.start_ambush().get("free_first_special", false), "ambush staggers the target and grants a free opener")
+	var loot: Dictionary = p.scavenge("stained_glass")
+	check(loot.get("item", "") == "stained_glass" and loot.get("parts", 0) == 2, "scavenge collects realm-specific materials")
+	check(not p.scavenge("not_real").has("item"), "unknown loot cannot be collected")
