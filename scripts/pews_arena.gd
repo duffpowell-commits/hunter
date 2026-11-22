@@ -393,12 +393,20 @@ func status_text() -> String:
 	return "VESPER  PHASE %d  %d HP" % [rules.boss_phase, int(round(rules.boss_hp))]
 
 
+func _remaining_loot_ids() -> Array:
+	var ids: Array = []
+	for prop in _loot_nodes:
+		if is_instance_valid(prop) and not prop.is_queued_for_deletion():
+			ids.append(str(prop.get_meta("loot_id", "")))
+	return ids
+
+
 func save_state() -> Dictionary:
 	return {"studied": rules.studied, "phase": rules.boss_phase, "boss_hp": rules.boss_hp,
 		"boss_defeated": rules.boss_defeated, "engaged": rules.engaged, "ambush_started": rules.ambush_started,
 		"cash": rules.cash, "heat": rules.heat, "parts": rules.parts, "corruption": rules.corruption,
 		"inventory": rules.inventory.duplicate(), "finisher": rules.finisher, "eaten": rules.eaten,
-		"plates_collected": rules.plates_collected}
+		"plates_collected": rules.plates_collected, "remaining_loot": _remaining_loot_ids()}
 
 
 func restore_state(state: Dictionary) -> void:
@@ -418,6 +426,23 @@ func restore_state(state: Dictionary) -> void:
 	rules.finisher = str(state.get("finisher", ""))
 	rules.eaten = bool(state.get("eaten", false))
 	rules.plates_collected = int(state.get("plates_collected", 0))
+	# World props are constructed on scene load. Remove anything consumed before
+	# the save so loading a checkpoint cannot duplicate cash, heat, or parts.
+	if rules.plates_collected > 0 and is_instance_valid(_nearest_plate):
+		_nearest_plate.queue_free()
+		_nearest_plate = null
+	var remaining: Array = state.get("remaining_loot", [])
+	if state.has("remaining_loot"):
+		for prop in _loot_nodes.duplicate():
+			if is_instance_valid(prop) and not remaining.has(str(prop.get_meta("loot_id", ""))):
+				_loot_nodes.erase(prop)
+				prop.queue_free()
+	else:
+		# Compatibility with earlier M2 saves, which only stored inventory.
+		for prop in _loot_nodes.duplicate():
+			if is_instance_valid(prop) and int(rules.inventory.get(str(prop.get_meta("loot_id", "")), 0)) > 0:
+				_loot_nodes.erase(prop)
+				prop.queue_free()
 	encounter_started = rules.engaged
 	boss_defeated = rules.boss_defeated
 	portal_ready = rules.eaten
