@@ -205,12 +205,15 @@ func _pews_checks() -> void:
 	_check(arena.encounter_started and arena._ambush_free_special,
 		"PEWS AMBUSH PASS (Vesper staggered, first special free)")
 
+	# The inherited combat controller subtracts damage before invoking _ko.
+	arena.dummy_hp -= 999.0
 	arena._ko({"damage": 999.0})
 	_check(arena.rules.boss_phase == 2 and not arena.boss_defeated,
 		"PEWS PHASE PASS (phase one transitions to phase two)")
 	arena.rig.cam.make_current()
 	await _frames(3)
 	_shot("pews_boss")
+	arena.dummy_hp -= 999.0
 	arena._ko({"damage": 999.0})
 	_check(arena.boss_defeated and arena.rules.boss_defeated,
 		"PEWS BOSS PASS (Vesper only falls after phase two)")
