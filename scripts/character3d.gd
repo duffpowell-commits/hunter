@@ -103,6 +103,8 @@ var _mats: Array[ShaderMaterial] = []
 var _coyote := 0.0
 var _stop_t := 0.0
 var _flash := 0.0
+var _knockback_velocity := Vector3.ZERO
+var _knockback_time := 0.0
 var _climb := {}
 var _buffer := {}                       # action -> seconds it stays queued
 var steps := {}                         # surface -> footsteps heard (tests read this)
@@ -364,6 +366,13 @@ func _do_walk(dt: float, rm: Vector3) -> void:
 		# The clip moves the body: the hips' real travel, scaled, turned to where the model faces.
 		var step := model.global_transform.basis * rm * float(ROOT_MOTION[rm_act])
 		flat = Vector3(step.x, 0, step.z) / dt
+	if _knockback_time > 0.0 and dt > 0.0:
+		# Some imported hit clips are in-place. Preserve their animation but give the body
+		# a short physical shove when the clip supplies no root translation.
+		if rm_act == "" or rm.length() < 0.001:
+			flat += _knockback_velocity
+		_knockback_velocity = _knockback_velocity.move_toward(Vector3.ZERO, 24.0 * dt)
+		_knockback_time = maxf(0.0, _knockback_time - dt)
 	velocity.x = flat.x
 	velocity.z = flat.z
 	# Air and landing.
@@ -650,6 +659,11 @@ func hit(from_pos: Vector3, power := 0.3) -> void:
 	if power >= 0.5:
 		heading = atan2(d.x, d.z)          # face the hit; the clip throws you back
 		model.rotation.y = heading
+		var away := Vector3(-d.x, 0.0, -d.z)
+		if away.length() < 0.1:
+			away = Vector3(-sin(heading), 0.0, -cos(heading))
+		_knockback_velocity = away.normalized() * (3.5 + power * 2.5)
+		_knockback_time = 0.25
 		act("knockback")
 	else:
 		act("hit_head" if from_pos.y > global_position.y + 1.3 else "hit_chest")
@@ -671,6 +685,8 @@ func die(impulse := Vector3.ZERO) -> void:
 	died.emit()
 	_col.disabled = true
 	velocity = Vector3.ZERO
+	_knockback_velocity = Vector3.ZERO
+	_knockback_time = 0.0
 	var low: bool = has_node("/root/Settings") and get_node("/root/Settings").get_value("low_graphics")
 	if use_ragdoll and not low:
 		if ragdoll == null:
@@ -696,6 +712,8 @@ func revive() -> void:
 		ragdoll.physical_bones_stop_simulation()
 		ragdoll.active = false
 	dead = false
+	_knockback_velocity = Vector3.ZERO
+	_knockback_time = 0.0
 	_col.disabled = false
 	tree.active = true
 	foot_ik.active = true
