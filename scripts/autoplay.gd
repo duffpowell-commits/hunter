@@ -205,9 +205,12 @@ func _pews_checks() -> void:
 	_check(arena.encounter_started and arena._ambush_free_special,
 		"PEWS AMBUSH PASS (Vesper staggered, first special free)")
 
-	arena._ko({"damage": 999.0})
+	arena.dummy_hp = 110.0
+	arena.rules.boss_hp = 110.0
+	arena.dummy_hp = -1.0  # previous nonlethal hits have already consumed the phase's HP
+	arena._ko({"damage": 5.0})
 	_check(arena.rules.boss_phase == 2 and not arena.boss_defeated,
-		"PEWS PHASE PASS (phase one transitions to phase two)")
+		"PEWS PHASE PASS (cumulative phase-one damage transitions to phase two)")
 	arena.rig.cam.make_current()
 	arena.rig.snap()
 	await _frames(3)
@@ -217,7 +220,8 @@ func _pews_checks() -> void:
 		arena.rig.cam.current, camera_active, arena.hero.global_position, arena.rig.cam.global_position])
 	_check(camera_active, "PEWS CAMERA PASS (phase-two camera remains active)")
 	_shot("pews_boss")
-	arena._ko({"damage": 999.0})
+	arena.dummy_hp = -1.0
+	arena._ko({"damage": 5.0})
 	_check(arena.boss_defeated and arena.rules.boss_defeated,
 		"PEWS BOSS PASS (Vesper only falls after phase two)")
 	var finish_requested := [false]
