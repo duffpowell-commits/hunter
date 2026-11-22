@@ -711,6 +711,11 @@ func test_pews_boss_two_phases_and_finishers() -> void:
 	check(brutal_result.get("parts", 999) < clean_result.get("parts", 0), "BRUTAL yields fewer crafting parts")
 	check(brutal.eat().get("voice_unlocked", false), "EAT unlocks Vesper as a voice")
 	check(not brutal.eat().get("voice_unlocked", true), "EAT cannot unlock the same voice twice")
+	check(brutal.heal_boss(999.0) == 0.0, "defeated boss cannot heal")
+	var wounded = Pews.new()
+	wounded.hit_boss(30.0)
+	check(wounded.heal_boss(999.0) == 30.0, "Laying of Hands heals only missing HP up to the phase cap")
+	check(wounded.boss_hp == 140.0, "boss healing cannot exceed current phase maximum")
 
 func test_pews_collection_plate_hazard() -> void:
 	var Pews = preload("res://scripts/pews_rules.gd")
