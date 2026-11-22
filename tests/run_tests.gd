@@ -761,3 +761,26 @@ func test_pews_arena_starts_in_the_church() -> void:
 	check(arena.get_node_or_null("Pews/Altar") != null, "Pews arena builds the church altar")
 	arena.queue_free()
 	await process_frame
+
+
+## Review regression: inherited Arena applies damage to dummy_hp before invoking _ko.
+## A lethal hit must consume the accumulated phase damage, not just the last blow.
+func test_pews_boss_health_stays_in_sync() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.rules.engaged = true
+	a.dummy_hp = 110.0
+	a.sync_boss_health()
+	check(is_equal_approx(a.rules.boss_hp, 110.0), "partial hits update boss rules HP and HUD")
+	a.dummy_hp = -5.0
+	a._ko({"damage": 10.0})
+	check(a.rules.boss_phase == 2 and not a.rules.boss_defeated, "phase one KO transitions after cumulative damage")
+	check(is_equal_approx(a.dummy_hp, a.rules.boss_hp) and a.dummy_hp > 0.0, "phase two HP is synchronized")
+	a.dummy_hp = -2.0
+	a._ko({"damage": 12.0})
+	check(a.rules.boss_defeated and a.boss_defeated, "phase two KO defeats Vesper")
+	a.queue_free()
+	await process_frame
