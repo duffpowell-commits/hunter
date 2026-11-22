@@ -50,6 +50,7 @@ func _build_world() -> void:
 
 func _ready() -> void:
 	super._ready()
+	name = "PewsArena"
 	rules = PewsRules.new()
 	dummy.name = "Vesper"
 	dummy.tint = Color("8b718f")
