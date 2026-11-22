@@ -186,7 +186,8 @@ func _refresh_hud() -> void:
 	if hud == null or arena == null:
 		return
 	var god := " GOD" if get_node("/root/DebugMenu").god_mode else ""
-	hud.text = "ROUND %d\nHP %d%s" % [level, arena.hp, god]
+	var status := str(arena.call("status_text")) if arena.has_method("status_text") else ""
+	hud.text = "ROUND %d\nHP %d%s%s" % [level, arena.hp, god, "\n" + status if not status.is_empty() else ""]
 	var c: int = arena.combo_count()
 	combo_label.text = "%d HITS" % c if c >= 2 else ""
 	var w: String = arena.combat.weapon
@@ -240,6 +241,7 @@ func _unhandled_input(e: InputEvent) -> void:
 func _context_action() -> void:
 	if arena != null and arena.has_method("context_action"):
 		arena.call("context_action")
+		checkpoint()
 	else:
 		arena.pick_up()
 	_refresh_hud()
@@ -258,6 +260,7 @@ func _choose_finish(sh: VBoxContainer, method: String) -> void:
 	var result: Dictionary = arena.call("choose_finisher", method)
 	if not result.is_empty():
 		get_node("/root/Subs").cue("[%s finisher]" % method.to_lower())
+		checkpoint()
 	_refresh_hud()
 
 
@@ -269,6 +272,7 @@ func _on_voice_unlocked() -> void:
 	sh.add_child(UI.label(str(voice.get("dialogue", "You ate me mid-sermon. The congregation will hear of this.")), 19))
 	sh.add_child(UI.button("CLOSE", func(): UI.close_sheet(sh), 88))
 	get_node("/root/Subs").cue("[a new voice speaks in your head]")
+	checkpoint()
 
 
 func _on_portal_opened() -> void:
