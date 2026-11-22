@@ -187,15 +187,11 @@ func _run() -> void:
 # ---------------------------------------------------------------- Hunter M2: The Pews vertical slice
 
 func _pews_checks() -> void:
-	# The movement suite leaves CharacterTest as current_scene. Remove it so the Pews
-	# screenshots show the actual realm instead of the previous test's UI and camera.
-	var previous_scene := get_tree().current_scene
-	if previous_scene != null:
-		previous_scene.queue_free()
-		await _frames(3)
-	var PewsArena = preload("res://scripts/pews_arena.gd")
-	var arena = PewsArena.new()
-	get_tree().root.add_child(arena)
+	# Switch scenes so the Pews arena owns the viewport, World3D and active camera.
+	var err := get_tree().change_scene_to_file("res://scenes/pews_arena.tscn")
+	_check(err == OK, "PEWS SCENE PASS (PewsArena scene loads)")
+	await _wait_scene("PewsArena")
+	var arena = get_tree().current_scene
 	await _frames(25)
 	arena.rig.cam.make_current()
 	_check(arena.dummy.name == "Vesper" and arena.get_node_or_null("Pews/Altar") != null
