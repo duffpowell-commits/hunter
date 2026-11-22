@@ -209,7 +209,13 @@ func _pews_checks() -> void:
 	_check(arena.rules.boss_phase == 2 and not arena.boss_defeated,
 		"PEWS PHASE PASS (phase one transitions to phase two)")
 	arena.rig.cam.make_current()
+	arena.rig.snap()
 	await _frames(3)
+	var camera_active: bool = get_viewport().get_camera_3d() == arena.rig.cam
+	print("PEWS CAMERA STATE: arena=%s rig=%s cam=%s current=%s viewport=%s hero=%s camera_pos=%s" % [
+		arena.is_inside_tree(), arena.rig.is_inside_tree(), arena.rig.cam.is_inside_tree(),
+		arena.rig.cam.current, camera_active, arena.hero.global_position, arena.rig.cam.global_position])
+	_check(camera_active, "PEWS CAMERA PASS (phase-two camera remains active)")
 	_shot("pews_boss")
 	arena._ko({"damage": 999.0})
 	_check(arena.boss_defeated and arena.rules.boss_defeated,
