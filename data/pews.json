@@ -25,5 +25,10 @@
     {"id": "candle", "name": "Candle", "parts": 1},
     {"id": "stained_glass", "name": "Stained Glass", "parts": 2},
     {"id": "censer_chain", "name": "Censer Chain", "parts": 2}
-  ]
+  ],
+  "voice": {
+    "id": "vesper",
+    "name": "BROTHER VESPER LYLE",
+    "dialogue": "You ate me mid-sermon. The congregation will hear of this. And now, regrettably, so will you."
+  }
 }
