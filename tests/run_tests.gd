@@ -729,3 +729,12 @@ func test_pews_ambush_and_scavenging() -> void:
 	var loot: Dictionary = p.scavenge("stained_glass")
 	check(loot.get("item", "") == "stained_glass" and loot.get("parts", 0) == 2, "scavenge collects realm-specific materials")
 	check(not p.scavenge("not_real").has("item"), "unknown loot cannot be collected")
+
+
+func test_pews_content_is_data_driven() -> void:
+	var data: Dictionary = GameData.load_json("pews")
+	check(data.get("boss", {}).get("id", "") == "vesper", "Pews boss comes from data")
+	check(data.get("boss", {}).get("phase_hp", []).size() == 2, "Vesper has exactly two data-driven phases")
+	for move: Dictionary in data.get("boss", {}).get("moves", {}).values():
+		check(float(move.get("telegraph", 0.0)) >= 0.5, "every Vesper move has a telegraph of at least half a second")
+	check(data.get("loot", []).size() >= 3, "Pews has realm-specific scavenging loot")
