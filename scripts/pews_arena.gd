@@ -40,7 +40,7 @@ func _build_world() -> void:
 	for row in range(3):
 		var z := -1.0 - float(row) * 2.1
 		for side in [-1.0, 1.0]:
-			var x := side * 2.5
+			var x: float = float(side) * 2.5
 			_box(Vector3(x - 1.25, 0.0, z), Vector3(x + 1.25, 0.45, z + 0.28), Color("4b3938"))
 			_box(Vector3(x - 1.25, 0.45, z + 0.22), Vector3(x + 1.25, 1.05, z + 0.48), Color("382b2e"))
 	for side in [-1.0, 1.0]:
