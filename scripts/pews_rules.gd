@@ -123,3 +123,14 @@ func scavenge(loot_id: String) -> Dictionary:
 			parts += gained
 			return {"item": loot_id, "count": count, "parts": gained, "total_parts": parts}
 	return {}
+
+
+## Vesper's Laying of Hands cannot heal beyond the current phase's maximum.
+func heal_boss(amount: float) -> float:
+	if boss_defeated or amount <= 0.0:
+		return 0.0
+	var hp_by_phase: Array = config.get("boss", {}).get("phase_hp", [140, 180])
+	var cap := float(hp_by_phase[mini(boss_phase - 1, hp_by_phase.size() - 1)]) if not hp_by_phase.is_empty() else 180.0
+	var healed := minf(amount, maxf(0.0, cap - boss_hp))
+	boss_hp += healed
+	return healed
