@@ -2,7 +2,6 @@ extends "res://scripts/arena.gd"
 ## The Pews: a playable church encounter built on Hunter's tested combat controller.
 ## The training arena remains the autoplay target; normal NEW GAME enters this realm.
 
-const Character3D = preload("res://scripts/character3d.gd")
 const UI = preload("res://scripts/ui.gd")
 const PewsRules = preload("res://scripts/pews_rules.gd")
 
@@ -192,7 +191,7 @@ func _foe_ai(dt: float) -> void:
 			foe.windup -= dt
 			if foe.windup <= 0.0:
 				actor.act("enemy_swing")
-				var boosted := foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < 5.5
+				var boosted: bool = foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < 5.5
 				_damage_hero(int(foe.damage) + (4 if boosted else 0), actor.global_position)
 				foe.attack_cd = 2.4
 		else:
@@ -303,7 +302,7 @@ func _ko(result: Dictionary) -> void:
 func _input_move(q: Dictionary) -> void:
 	if not encounter_started or boss_defeated:
 		return
-	var free_opener := _ambush_free_special and q.get("kind", "") == "special"
+	var free_opener: bool = _ambush_free_special and q.get("kind", "") == "special"
 	super._input_move(q)
 	if free_opener and not last_special.is_empty():
 		combat.cooldowns.erase(last_special.get("id", ""))
