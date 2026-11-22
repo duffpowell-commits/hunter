@@ -61,11 +61,11 @@ func _ready() -> void:
 	arena.ko.connect(_on_ko)
 	arena.hero_died.connect(_on_hero_died)
 	if arena.has_signal("finish_requested"):
-		arena.finish_requested.connect(_on_finish_requested)
-		arena.voice_unlocked.connect(_on_voice_unlocked)
-		arena.portal_opened.connect(_on_portal_opened)
+		arena.connect("finish_requested", Callable(self, "_on_finish_requested"))
+		arena.connect("voice_unlocked", Callable(self, "_on_voice_unlocked"))
+		arena.connect("portal_opened", Callable(self, "_on_portal_opened"))
 	if arena.has_method("restore_state"):
-		arena.restore_state(d.get("pews", {}))
+		arena.call("restore_state", d.get("pews", {}))
 	_build()
 	checkpoint()
 	get_node("/root/Audio").music_layers("music_loop", "music_combat")
@@ -76,7 +76,7 @@ func _ready() -> void:
 func state() -> Dictionary:
 	var result := {"level": level, "score": score, "hp": arena.hp if arena != null else 100}
 	if arena != null and arena.has_method("save_state"):
-		result["pews"] = arena.save_state()
+		result["pews"] = arena.call("save_state")
 	return result
 
 
@@ -192,8 +192,8 @@ func _refresh_hud() -> void:
 	var w: String = arena.combat.weapon
 	weapon_label.text = "%s %d/%d" % [arena.weapon_data[w].name, arena.combat.durability, int(arena.weapon_data[w].durability)] if w != "" else ""
 	if arena.has_method("context_label"):
-		pick_btn.text = arena.context_label()
-		pick_btn.visible = arena.context_visible()
+		pick_btn.text = str(arena.call("context_label"))
+		pick_btn.visible = bool(arena.call("context_visible"))
 	else:
 		pick_btn.text = "PICK UP"
 		pick_btn.visible = arena.can_pick_up
@@ -239,7 +239,7 @@ func _unhandled_input(e: InputEvent) -> void:
 
 func _context_action() -> void:
 	if arena != null and arena.has_method("context_action"):
-		arena.context_action()
+		arena.call("context_action")
 	else:
 		arena.pick_up()
 	_refresh_hud()
@@ -255,7 +255,7 @@ func _on_finish_requested() -> void:
 
 func _choose_finish(sh: VBoxContainer, method: String) -> void:
 	UI.close_sheet(sh)
-	var result: Dictionary = arena.choose_finisher(method)
+	var result: Dictionary = arena.call("choose_finisher", method)
 	if not result.is_empty():
 		get_node("/root/Subs").cue("[%s finisher]" % method.to_lower())
 	_refresh_hud()
@@ -263,7 +263,8 @@ func _choose_finish(sh: VBoxContainer, method: String) -> void:
 
 func _on_voice_unlocked() -> void:
 	var sh := UI.sheet(self)
-	var voice: Dictionary = arena.rules.config.get("voice", {})
+	var pews_rules: Variant = arena.get("rules")
+	var voice: Dictionary = pews_rules.config.get("voice", {}) if pews_rules != null else {}
 	sh.add_child(UI.label(str(voice.get("name", "BROTHER VESPER LYLE")), 26, UI.ACCENT))
 	sh.add_child(UI.label(str(voice.get("dialogue", "You ate me mid-sermon. The congregation will hear of this.")), 19))
 	sh.add_child(UI.button("CLOSE", func(): UI.close_sheet(sh), 88))
