@@ -249,9 +249,15 @@ func _context_action() -> void:
 
 func _on_finish_requested() -> void:
 	var sh := UI.sheet(self)
+	var pews_rules: Variant = arena.get("rules")
+	var outcomes: Dictionary = pews_rules.config.get("finishers", {}) if pews_rules != null else {}
+	var clean: Dictionary = outcomes.get("clean", {})
+	var brutal: Dictionary = outcomes.get("brutal", {})
 	sh.add_child(UI.label("VESPER IS BROKEN", 28, UI.ACCENT))
 	sh.add_child(UI.label("Choose what remains of him.", 18))
+	sh.add_child(UI.label("CLEAN: intact trophy, %d parts, +%d corruption" % [int(clean.get("parts", 0)), int(clean.get("corruption", 0))], 15))
 	sh.add_child(UI.button("CLEAN", func(): _choose_finish(sh, "CLEAN"), 88))
+	sh.add_child(UI.label("BRUTAL: +%d voice slot, %d parts, +%d corruption" % [int(brutal.get("extra_special_slots", 0)), int(brutal.get("parts", 0)), int(brutal.get("corruption", 0))], 15))
 	sh.add_child(UI.button("BRUTAL", func(): _choose_finish(sh, "BRUTAL"), 88))
 
 
