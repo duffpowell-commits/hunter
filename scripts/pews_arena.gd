@@ -120,6 +120,9 @@ func _process(dt: float) -> void:
 	super._process(dt)
 	if rules == null:
 		return
+	# The inherited arena owns dummy_hp. Mirror nonlethal damage into the boss
+	# rules after its hit processing, so HUD, healing, and saves see the same HP.
+	sync_boss_health()
 	_nearest_plate = null
 	_nearest_loot = null
 	var best_plate := 1.5
@@ -288,8 +291,10 @@ func _check_hit() -> void:
 		return
 
 
-func _ko(result: Dictionary) -> void:
-	var state := rules.hit_boss(float(result.get("damage", 0.0)))
+## Called by Arena after it has already subtracted the lethal hit from dummy_hp.
+## Consume the *remaining phase HP* here, not merely the final hit's damage.
+func _ko(_result: Dictionary) -> void:
+	var state := rules.hit_boss(maxf(0.0, rules.boss_hp - dummy_hp))
 	dummy_hp = rules.boss_hp
 	if state.phase_changed:
 		dummy.revive()
@@ -304,6 +309,12 @@ func _ko(result: Dictionary) -> void:
 		_warn.visible = false
 		get_node("/root/Subs").cue("[Vesper collapses]")
 		ko.emit(kos + 1)
+
+
+## Nonlethal hits are applied by the parent before this arena's _process returns.
+func sync_boss_health() -> void:
+	if rules != null and not rules.boss_defeated:
+		rules.boss_hp = maxf(0.0, dummy_hp)
 
 
 func _input_move(q: Dictionary) -> void:
