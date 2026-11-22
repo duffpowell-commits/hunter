@@ -738,3 +738,15 @@ func test_pews_content_is_data_driven() -> void:
 	for move: Dictionary in data.get("boss", {}).get("moves", {}).values():
 		check(float(move.get("telegraph", 0.0)) >= 0.5, "every Vesper move has a telegraph of at least half a second")
 	check(data.get("loot", []).size() >= 3, "Pews has realm-specific scavenging loot")
+
+
+func test_pews_arena_starts_in_the_church() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var arena = PewsArena.new()
+	root.add_child(arena)
+	await process_frame
+	check(arena.dummy.name == "Vesper", "Pews arena loads Vesper instead of the training dummy")
+	check(arena.rules != null and arena.rules.boss_phase == 1, "Pews arena owns a fresh two-phase boss encounter")
+	check(arena.get_node_or_null("Pews/Altar") != null, "Pews arena builds the church altar")
+	arena.queue_free()
+	await process_frame
