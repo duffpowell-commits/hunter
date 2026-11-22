@@ -3,6 +3,7 @@ extends "res://scripts/arena.gd"
 ## The training arena remains the autoplay target; normal NEW GAME enters this realm.
 
 const Character3D = preload("res://scripts/character3d.gd")
+const UI = preload("res://scripts/ui.gd")
 const PewsRules = preload("res://scripts/pews_rules.gd")
 
 signal finish_requested
@@ -58,7 +59,8 @@ func _ready() -> void:
 	dummy.heading = PI
 	dummy.model.rotation.y = PI
 	dummy_hp = rules.boss_hp
-	dummy_max_hp = rules.boss_hp
+	var phase_hp: Array = rules.config.get("boss", {}).get("phase_hp", [140, 180])
+	dummy_max_hp = float(phase_hp[phase_hp.size() - 1]) if not phase_hp.is_empty() else rules.boss_hp
 	hero.position = Vector3(0, 0, 5.0)
 	hero.heading = PI
 	hero.model.rotation.y = PI
