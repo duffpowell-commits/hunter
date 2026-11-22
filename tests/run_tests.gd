@@ -784,3 +784,28 @@ func test_pews_boss_health_stays_in_sync() -> void:
 	check(a.rules.boss_defeated and a.boss_defeated, "phase two KO defeats Vesper")
 	a.queue_free()
 	await process_frame
+
+
+## Reloading a checkpoint must not regenerate already collected world props.
+func test_pews_consumed_props_stay_consumed() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	a.rules.collect_plate()
+	a.rules.scavenge("candle")
+	var state: Dictionary = a.save_state()
+	state["remaining_loot"] = ["stained_glass", "censer_chain"]
+	a.queue_free()
+	await process_frame
+	var restored = PewsArena.new()
+	root.add_child(restored)
+	await process_frame
+	restored.restore_state(state)
+	await process_frame
+	check(restored.get_node_or_null("CollectionPlate") == null, "collected plate stays absent after load")
+	check(not restored._remaining_loot_ids().has("candle"), "scavenged candle stays absent after load")
+	check(restored._remaining_loot_ids().has("stained_glass"), "uncollected loot remains after load")
+	check(restored.rules.cash == int(state.get("cash", 0)) and restored.rules.parts == int(state.get("parts", 0)), "cash and parts restored without duplicate loot")
+	restored.queue_free()
+	await process_frame
