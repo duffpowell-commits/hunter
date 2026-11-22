@@ -2,7 +2,6 @@ extends "res://scripts/arena.gd"
 ## The Pews: a playable church encounter built on Hunter's tested combat controller.
 ## The training arena remains the autoplay target; normal NEW GAME enters this realm.
 
-const UI = preload("res://scripts/ui.gd")
 const PewsRules = preload("res://scripts/pews_rules.gd")
 
 signal finish_requested
