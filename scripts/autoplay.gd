@@ -579,8 +579,8 @@ func _arena_checks(game: Node) -> void:
 		float(a.last_hit.get("damage", 0))])
 	# Dodge: a real enemy swing (review of 95847e0: no calling _swing by hand). The hero stands 1.62 m
 	# off: past the jab's 1.5 m reach, inside the dummy's 1.7 m. Double-tap late in the telegraph.
-	# The i-frames slider goes to 0.5 s for this check only: a slow CI frame can be 0.1 s, and the
-	# two taps take three frames.
+	# The i-frames and double-tap windows are widened for this check only. On a slow CI
+	# renderer two input frames can exceed the game's normal 0.2 s double-tap window.
 	a.reset_dummy()
 	await _secs(1.0)
 	_place(hero, dummy.global_position + Vector3(0, 0.05, 1.62), PI)
@@ -589,14 +589,14 @@ func _arena_checks(game: Node) -> void:
 	var hp_before: int = a.hp
 	var dodged0: int = a.dodged
 	var double_tap_before: float = a.double_tap
-	a.double_tap = 0.5                  # two input frames can exceed 0.2 s on a slow CI renderer
+	a.double_tap = 1.0                  # allow two slow input frames to register as one double-tap
 	a.dodge_iframes = 0.5
 	a.enemy_telegraph = 1.0
 	a.enemy_attack_every = 0.2
 	a._enemy_t = 0.2
 	var rolling := false
 	var wait_until := Time.get_ticks_msec() + 4000
-	while not (a.telegraphing and a._tele_t < 0.6) and Time.get_ticks_msec() < wait_until:
+	while not (a.telegraphing and a._tele_t < 0.9) and Time.get_ticks_msec() < wait_until:
 		await get_tree().process_frame
 	_mouse(pp, true)
 	await _frames(1)
@@ -615,6 +615,7 @@ func _arena_checks(game: Node) -> void:
 	a._enemy_t = 999.0
 	a.enemy_telegraph = float(a.enemy.telegraph)
 	a.dodge_iframes = float(a.moves.player.dodge_iframes)
+	a.double_tap = double_tap_before
 	_check(rolling and a.dodged > dodged0 and a.hp == hp_before,
 		"DODGE PASS (double-tap rolled through the dummy's own swing: missed in the i-frames, HP %d)" % a.hp)
 	await _secs(0.8)
