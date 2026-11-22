@@ -81,7 +81,28 @@ func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float, damage
 	actor.can_climb = false
 	actor.can_vault = false
 	add_child(actor)
-	_foes.append({"actor": actor, "hp": hp_value, "damage": damage, "attack_cd": 1.2, "windup": 0.0, "dead": false, "kind": label})
+	var warning := Label3D.new()
+	warning.text = "!"
+	warning.font_size = 110
+	warning.outline_size = 30
+	warning.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	warning.no_depth_test = true
+	warning.modulate = UI.key("bad")
+	warning.position = Vector3(0, 2.2, 0)
+	warning.visible = false
+	actor.add_child(warning)
+	if label == "Choir":
+		var aura := MeshInstance3D.new()
+		var ring := CylinderMesh.new()
+		ring.top_radius = 1.15
+		ring.bottom_radius = 1.15
+		ring.height = 0.025
+		ring.radial_segments = 24
+		aura.mesh = ring
+		aura.material_override = _toon(Color("74658f"), false)
+		aura.position.y = 0.04
+		actor.add_child(aura)
+	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "damage": damage, "attack_cd": 1.2, "windup": 0.0, "dead": false, "kind": label})
 
 
 func _spawn_realm_props() -> void:
@@ -198,13 +219,16 @@ func _foe_ai(dt: float) -> void:
 			foe.windup -= dt
 			if foe.windup <= 0.0:
 				actor.act("enemy_swing")
+				foe.warn.visible = false
 				var boosted: bool = foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < 5.5
-				_damage_hero(int(foe.damage) + (4 if boosted else 0), actor.global_position)
+				if hero.global_position.distance_to(actor.global_position) < 2.1:
+					_damage_hero(int(foe.damage) + (4 if boosted else 0), actor.global_position)
 				foe.attack_cd = 2.4
 		else:
 			foe.attack_cd -= dt
 			if d < 1.9 and foe.attack_cd <= 0.0:
 				foe.windup = 0.55
+				foe.warn.visible = true
 				get_node("/root/Subs").cue("[zealot raises its hands]" if foe.kind == "Zealot" else "[choir begins to sing]")
 		_foes[i] = foe
 
@@ -282,6 +306,7 @@ func _check_hit() -> void:
 		get_node("/root/Feel").impact(actor.global_position + Vector3(0, 1.3, 0), float(result.power), self)
 		if foe.hp <= 0.0:
 			foe.dead = true
+			foe.warn.visible = false
 			actor.die((actor.global_position - hero.global_position).normalized() * 2.0 + Vector3(0, 1.0, 0))
 			get_node("/root/Subs").cue("[%s falls]" % foe.kind.to_lower())
 		_foes[i] = foe
@@ -307,8 +332,16 @@ func _ko(result: Dictionary) -> void:
 
 
 func _input_move(q: Dictionary) -> void:
-	if not encounter_started or boss_defeated:
+	if boss_defeated:
 		return
+	if not encounter_started:
+		var nearby_foe := false
+		for foe in _foes:
+			if not foe.dead and hero.global_position.distance_to(foe.actor.global_position) < 3.2:
+				nearby_foe = true
+				break
+		if not nearby_foe:
+			return
 	var free_opener: bool = _ambush_free_special and q.get("kind", "") == "special"
 	super._input_move(q)
 	if free_opener and not last_special.is_empty():
