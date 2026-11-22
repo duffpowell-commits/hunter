@@ -671,3 +671,50 @@ func test_death_cannot_escape_through_save() -> void:
 	await process_frame
 	save.clear()
 	save.path = "user://run.json"
+
+
+# ---------------------------------------------------------------- Hunter M2: The Pews domain rules
+
+func test_pews_stalking_rules() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var studied := 0.0
+	studied = p.tick_stalking(studied, 4.0, 0.0, false, false, 1.0)
+	check(studied > 0.0 and studied < 100.0, "visible target inside 6m but outside 60-degree cone studies")
+	var sneaking := p.tick_stalking(0.0, 4.0, 0.0, true, false, 1.0)
+	check(sneaking > studied, "sneaking studies faster")
+	var reset := p.tick_stalking(80.0, 4.0, 0.0, false, true, 0.1)
+	check(reset == 0.0, "being seen resets stalking")
+	var full := p.tick_stalking(99.0, 4.0, PI, false, false, 1.0)
+	check(full == 100.0, "studied meter caps at 100")
+	var outside := p.tick_stalking(0.0, 7.0, PI, false, false, 1.0)
+	check(outside == 0.0, "outside study radius does not fill meter")
+
+func test_pews_boss_two_phases_and_finishers() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var first: Dictionary = p.hit_boss(999.0)
+	check(first.get("phase_changed", false) and int(first.get("phase", 0)) == 2, "Vesper enters phase two instead of dying after phase one")
+	var second: Dictionary = p.hit_boss(999.0)
+	check(second.get("defeated", false), "Vesper is defeated only after phase two")
+	var clean = Pews.new()
+	clean.hit_boss(999.0)
+	clean.hit_boss(999.0)
+	var clean_result: Dictionary = clean.finish("CLEAN")
+	check(clean_result.get("corruption", -1) == 5 and clean_result.get("parts", 0) > 0 and clean_result.get("trophy", false), "CLEAN gives intact trophy, parts and +5 corruption")
+	check(clean_result.get("extra_special_slots", 0) == 0, "CLEAN does not grant a brutal slot")
+	var brutal = Pews.new()
+	brutal.hit_boss(999.0)
+	brutal.hit_boss(999.0)
+	var brutal_result: Dictionary = brutal.finish("BRUTAL")
+	check(brutal_result.get("corruption", -1) == 15 and brutal_result.get("extra_special_slots", 0) == 1, "BRUTAL grants +1 special slot and +15 corruption")
+	check(brutal_result.get("parts", 999) < clean_result.get("parts", 0), "BRUTAL yields fewer crafting parts")
+	check(brutal.eat().get("voice_unlocked", false), "EAT unlocks Vesper as a voice")
+	check(not brutal.eat().get("voice_unlocked", true), "EAT cannot unlock the same voice twice")
+
+func test_pews_collection_plate_hazard() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var result: Dictionary = p.collect_plate()
+	check(result.get("cash", 0) > 0, "collection plate yields cash")
+	check(result.get("heat", 0) > 0, "collection plate raises heat")
