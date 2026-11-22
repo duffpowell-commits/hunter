@@ -15,6 +15,7 @@ const SettingsSheet = preload("res://scripts/settings_sheet.gd")
 const BugReport = preload("res://scripts/bug_report.gd")
 const ControlsLegend = preload("res://scripts/controls_legend.gd")
 const Arena = preload("res://scripts/arena.gd")
+const PewsArena = preload("res://scripts/pews_arena.gd")
 const VirtualStick = preload("res://scripts/virtual_stick.gd")
 const SwipePad = preload("res://scripts/swipe_pad.gd")
 
@@ -52,13 +53,19 @@ func _ready() -> void:
 		score = int(d.get("score", 0))
 		_saved_hp = int(d.get("hp", -1))
 	# The 3D arena lives for the whole scene; _build() only rebuilds the 2D layer on top.
-	arena = Arena.new()
+	arena = Arena.new() if OS.get_cmdline_user_args().has("--autoplay") else PewsArena.new()
 	arena.add_to_group("keep")
 	add_child(arena)
 	if _saved_hp > 0:
 		arena.hp = mini(_saved_hp, arena.max_hp)
 	arena.ko.connect(_on_ko)
 	arena.hero_died.connect(_on_hero_died)
+	if arena.has_signal("finish_requested"):
+		arena.finish_requested.connect(_on_finish_requested)
+		arena.voice_unlocked.connect(_on_voice_unlocked)
+		arena.portal_opened.connect(_on_portal_opened)
+	if arena.has_method("restore_state"):
+		arena.restore_state(d.get("pews", {}))
 	_build()
 	checkpoint()
 	get_node("/root/Audio").music_layers("music_loop", "music_combat")
@@ -67,7 +74,10 @@ func _ready() -> void:
 # ---------------------------------------------------------------- state + saving
 
 func state() -> Dictionary:
-	return {"level": level, "score": score, "hp": arena.hp if arena != null else 100}
+	var result := {"level": level, "score": score, "hp": arena.hp if arena != null else 100}
+	if arena != null and arena.has_method("save_state"):
+		result["pews"] = arena.save_state()
+	return result
 
 
 ## Never saves a dead hero: dying escaped GAME OVER through PAUSE -> QUIT -> CONTINUE (review of 95847e0).
@@ -136,7 +146,7 @@ func _build() -> void:
 	pause_btn = UI.button("PAUSE", pause)
 	_corner(pause_btn, left, true, 150)
 	# Context button above the pad (BUILD_SPEC: INTERACT / SCAVENGE / FINISH go here).
-	pick_btn = UI.button("PICK UP", func(): arena.pick_up(), 96)
+	pick_btn = UI.button("PICK UP", _context_action, 96)
 	pick_btn.name = "PickUp"
 	_corner(pick_btn, not left, false, 200)
 	pick_btn.offset_top -= 260
@@ -181,7 +191,12 @@ func _refresh_hud() -> void:
 	combo_label.text = "%d HITS" % c if c >= 2 else ""
 	var w: String = arena.combat.weapon
 	weapon_label.text = "%s %d/%d" % [arena.weapon_data[w].name, arena.combat.durability, int(arena.weapon_data[w].durability)] if w != "" else ""
-	pick_btn.visible = arena.can_pick_up
+	if arena.has_method("context_label"):
+		pick_btn.text = arena.context_label()
+		pick_btn.visible = arena.context_visible()
+	else:
+		pick_btn.text = "PICK UP"
+		pick_btn.visible = arena.can_pick_up
 
 
 # ---------------------------------------------------------------- PLAY (Hunter M1)
@@ -220,6 +235,45 @@ func _unhandled_input(e: InputEvent) -> void:
 		arena.stick_special(v)
 	elif e.is_action_pressed("dodge"):
 		arena.dodge()
+
+
+func _context_action() -> void:
+	if arena != null and arena.has_method("context_action"):
+		arena.context_action()
+	else:
+		arena.pick_up()
+	_refresh_hud()
+
+
+func _on_finish_requested() -> void:
+	var sh := UI.sheet(self)
+	sh.add_child(UI.label("VESPER IS BROKEN", 28, UI.ACCENT))
+	sh.add_child(UI.label("Choose what remains of him.", 18))
+	sh.add_child(UI.button("CLEAN", func(): _choose_finish(sh, "CLEAN"), 88))
+	sh.add_child(UI.button("BRUTAL", func(): _choose_finish(sh, "BRUTAL"), 88))
+
+
+func _choose_finish(sh: VBoxContainer, method: String) -> void:
+	UI.close_sheet(sh)
+	var result: Dictionary = arena.choose_finisher(method)
+	if not result.is_empty():
+		get_node("/root/Subs").cue("[%s finisher]" % method.to_lower())
+	_refresh_hud()
+
+
+func _on_voice_unlocked() -> void:
+	var sh := UI.sheet(self)
+	var voice: Dictionary = arena.rules.config.get("voice", {})
+	sh.add_child(UI.label(str(voice.get("name", "BROTHER VESPER LYLE")), 26, UI.ACCENT))
+	sh.add_child(UI.label(str(voice.get("dialogue", "You ate me mid-sermon. The congregation will hear of this.")), 19))
+	sh.add_child(UI.button("CLOSE", func(): UI.close_sheet(sh), 88))
+	get_node("/root/Subs").cue("[a new voice speaks in your head]")
+
+
+func _on_portal_opened() -> void:
+	get_node("/root/Subs").cue("[portal home opens]")
+	# The lair is Milestone 3; until then the title screen is the safe-home placeholder.
+	get_tree().change_scene_to_file("res://scenes/title.tscn")
 
 
 func _on_ko(_count: int) -> void:
