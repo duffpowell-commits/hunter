@@ -386,8 +386,9 @@ func save_state() -> Dictionary:
 	return {"studied": rules.studied, "phase": rules.boss_phase, "boss_hp": rules.boss_hp,
 		"boss_defeated": rules.boss_defeated, "engaged": rules.engaged, "ambush_started": rules.ambush_started,
 		"cash": rules.cash, "heat": rules.heat, "parts": rules.parts, "corruption": rules.corruption,
-		"inventory": rules.inventory.duplicate(), "finisher": rules.finisher, "eaten": rules.eaten,
-		"plates_collected": rules.plates_collected}
+		"inventory": rules.inventory.duplicate(), "trophies": rules.trophies.duplicate(),
+		"unlocked_voices": rules.unlocked_voices.duplicate(), "extra_special_slots": rules.extra_special_slots.duplicate(),
+		"finisher": rules.finisher, "eaten": rules.eaten, "plates_collected": rules.plates_collected}
 
 
 func restore_state(state: Dictionary) -> void:
@@ -404,6 +405,13 @@ func restore_state(state: Dictionary) -> void:
 	rules.parts = int(state.get("parts", 0))
 	rules.corruption = int(state.get("corruption", 0))
 	rules.inventory = state.get("inventory", {}).duplicate()
+	rules.trophies.clear()
+	for trophy in state.get("trophies", []):
+		rules.trophies.append(str(trophy))
+	rules.unlocked_voices.clear()
+	for voice_id in state.get("unlocked_voices", []):
+		rules.unlocked_voices.append(str(voice_id))
+	rules.extra_special_slots = state.get("extra_special_slots", {}).duplicate()
 	rules.finisher = str(state.get("finisher", ""))
 	rules.eaten = bool(state.get("eaten", false))
 	rules.plates_collected = int(state.get("plates_collected", 0))
@@ -413,3 +421,9 @@ func restore_state(state: Dictionary) -> void:
 	dummy_hp = rules.boss_hp
 	if boss_defeated:
 		dummy.die(Vector3.ZERO)
+	if rules.plates_collected > 0 and has_node("CollectionPlate"):
+		get_node("CollectionPlate").queue_free()
+	for prop in _loot_nodes.duplicate():
+		if rules.inventory.has(str(prop.get_meta("loot_id"))):
+			prop.queue_free()
+			_loot_nodes.erase(prop)
