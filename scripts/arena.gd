@@ -483,7 +483,7 @@ func _input_move(q: Dictionary) -> void:
 	match q.kind:
 		"light": m = combat.light()
 		"heavy": m = combat.heavy()
-		"special": m = combat.special(q.dir)
+		"special": m = _special_move(q.dir)
 	if m.is_empty():
 		return                                # special on cooldown: nothing spent
 	if m.kind != "light":
@@ -499,6 +499,10 @@ func _input_move(q: Dictionary) -> void:
 	elif m.kind == "light":
 		_last_light_landed = false
 	_start(m)
+
+
+func _special_move(dir: String) -> Dictionary:
+	return combat.special(dir)
 
 
 ## A swipe on the pad (canvas vector) -> the special it means, relative to the dummy on screen.

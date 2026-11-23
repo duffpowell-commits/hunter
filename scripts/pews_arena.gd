@@ -390,7 +390,7 @@ func _foe_ai(dt: float) -> void:
 		if d > 1.4 and d < 5.0:
 			actor.heading = atan2(to.x, to.z)
 			actor.model.rotation.y = actor.heading
-			actor.move_input = Vector2(0, 0.7)
+			actor.move_input = Vector2(to.x, to.z).normalized() * 0.7
 		else:
 			actor.move_input = Vector2.ZERO
 		if foe.windup > 0.0:
@@ -529,6 +529,9 @@ func _ko(_result: Dictionary) -> void:
 		_cancel_boss_attack()
 		_clear_flock()
 		boss_defeated = true
+		for foe in _foes:
+			foe.actor.move_input = Vector2.ZERO
+			foe.warn.visible = false
 		dummy.die(Vector3(0, 1.2, 2.0))
 		get_node("/root/Subs").cue("[Vesper collapses]")
 		ko.emit(kos + 1)
@@ -573,6 +576,10 @@ func _input_move(q: Dictionary) -> void:
 	if _ambush_free_special and not is_same(last_special, previous_special):
 		combat.cooldowns.erase(last_special.get("id", ""))
 		_ambush_free_special = false
+
+
+func _special_move(dir: String) -> Dictionary:
+	return combat.special(dir, _ambush_free_special)
 
 
 func context_label() -> String:

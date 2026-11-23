@@ -824,3 +824,40 @@ func test_pews_pre_engagement_minion_hit() -> void:
 		"the minion hit breaks and replaces the pipe")
 	a.queue_free()
 	await process_frame
+
+
+func test_pews_minions_pursue_and_stand_down() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	var foe: Dictionary = a._foes[0]
+	a.hero.position = foe.actor.position + Vector3(3, 0, 0)
+	a._foe_ai(0.0)
+	check(foe.actor.move_input.is_equal_approx(Vector2(0.7, 0.0)), "minion pursues on the player's axis")
+	foe.warn.visible = true
+	a.rules.boss_phase = 2
+	a.dummy_hp = 0.0
+	a._ko({})
+	check(a.boss_defeated and foe.actor.move_input == Vector2.ZERO and not foe.warn.visible,
+		"minions stop moving and drop their warning at Vesper's defeat")
+	a.queue_free()
+	await process_frame
+
+
+func test_pews_ambush_ignores_existing_cooldown() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a._nearest_plate = null
+	a._nearest_loot = null
+	a.can_pick_up = false
+	a.rules.studied = 100.0
+	a.context_action()
+	var move_id: String = a.moves.specials.toward.id
+	a.combat.cooldowns[move_id] = 5.0
+	a.special("toward")
+	check(a.last_special.get("id", "") == move_id and not a._ambush_free_special,
+		"ambush starts the same special even while it is cooling down")
+	check(not a.combat.cooldowns.has(move_id), "the free opener starts no new cooldown")
+	a.queue_free()
+	await process_frame
