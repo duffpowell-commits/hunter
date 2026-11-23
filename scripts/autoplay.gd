@@ -220,6 +220,11 @@ func _pews_checks() -> void:
 	_check(arena._boss_move == "sermon" and arena._warn.visible and arena._occult_halo.is_visible_in_tree(),
 		"PEWS OCCULT PASS (the sermon telegraph shows Vesper's halo and warning symbol)")
 	await _shot("pews_occult")
+	var budget: Dictionary = preload("res://scripts/character_test.gd").BUDGET
+	var draws := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	var triangles := int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
+	_check(draws > 0 and draws <= budget.draw_calls and triangles > 0 and triangles <= budget.primitives,
+		"PEWS RENDER BUDGET PASS (%d draw calls, %d triangles during the sermon)" % [draws, triangles])
 	var sermon_by := Time.get_ticks_msec() + 4000
 	while arena._boss_telegraph > 0.0 and Time.get_ticks_msec() < sermon_by:
 		await get_tree().process_frame

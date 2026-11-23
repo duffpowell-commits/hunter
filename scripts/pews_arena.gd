@@ -41,7 +41,10 @@ func _build_world() -> void:
 	for child in get_children():
 		if child is WorldEnvironment:
 			environment = child.environment
-			break
+		elif child is DirectionalLight3D:
+			# The fixed top-down camera needs shadows only across the nearby aisle.
+			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			child.directional_shadow_max_distance = 22.0
 	environment.background_color = Color("151a22")
 	environment.ambient_light_color = Color("657181")
 	_box(Vector3(-1.1, 0, -9.0), Vector3(1.1, 1.8, -8.7), Color("414653"))

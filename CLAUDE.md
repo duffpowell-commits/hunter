@@ -7,7 +7,7 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
 
 ## Gothic Ink Realism environment pass (Nov 22, 2026)
 
-- The Pews has cracked blue-gray flagstones, outlined worn-wood seats, a dressed altar, broken stained glass, and gold candle clusters. The art uses the existing collision layout and top-down camera. Character designs are still pending Duff's approval.
+- The Pews has cracked blue-gray flagstones, outlined worn-wood seats, a dressed altar, broken stained glass, and gold candle clusters. The art uses the existing collision layout and top-down camera. High graphics uses two shadow splits focused on the aisle, and autoplay checks the Pews draw-call and triangle budget during the sermon. Character designs are still pending Duff's approval.
 - Vesper's existing halo uses one instanced mesh and is visible during his ability telegraphs. The autoplay renders in `docs/renders/` show the aisle, combat, the sermon windup, and the scene after it clears.
 - Actions run 45083524356 landed three jabs because slow render frames let the light-string timer expire between autoplay taps. Autoplay now taps as soon as each swing recovers, verifies jab, cross, and hook in order, and still checks the hook's physical knockback.
 
