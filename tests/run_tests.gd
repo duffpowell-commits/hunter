@@ -786,12 +786,41 @@ func test_pews_cumulative_boss_damage() -> void:
 	a.dummy_hp = 110.0
 	a.rules.boss_hp = a.dummy_hp
 	check(is_equal_approx(a.rules.boss_hp, 110.0), "partial damage visible to boss rules")
+	a._begin_boss_move()
+	check(a._boss_telegraph > 0.0 and a._warn.visible, "Vesper starts a visibly telegraphed move")
 	a.dummy_hp = -5.0
 	a._ko({"damage": 10.0})
+	check(a._boss_telegraph == 0.0 and a._boss_move.is_empty() and not a._warn.visible,
+		"phase break cancels the active telegraph and its move")
 	check(a.rules.boss_phase == 2 and not a.rules.boss_defeated, "cumulative phase one damage triggers phase two")
 	check(a.dummy_hp > 0.0 and is_equal_approx(a.dummy_hp, a.rules.boss_hp), "phase two starts at synchronized HP")
 	a.dummy_hp = -2.0
 	a._ko({"damage": 12.0})
 	check(a.boss_defeated and a.rules.boss_defeated, "cumulative phase two damage defeats Vesper")
+	a.queue_free()
+	await process_frame
+
+
+func test_pews_pre_engagement_minion_hit() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	var foe: Dictionary = a._foes[0]
+	a.hero.position = a.dummy.position + Vector3(0, 0, 1)
+	foe.actor.position = a.dummy.position + Vector3(0.3, 0, 0)
+	a.can_pick_up = true
+	a.pick_up()
+	a.combat.durability = 0
+	var boss_hp: float = a.dummy_hp
+	a.light()
+	await physics_frame
+	await physics_frame
+	a._move_age = float(a._move.hit_at)
+	a._check_hit()
+	check(a.hits_landed == 1 and a.dummy_hp == boss_hp and foe.hp < foe.max_hp and not a.encounter_started,
+		"the defensive swing hits the minion without damaging or engaging Vesper")
+	check(a.combat.weapon.is_empty() and a._held == null and a._pickup != null,
+		"the minion hit breaks and replaces the pipe")
 	a.queue_free()
 	await process_frame

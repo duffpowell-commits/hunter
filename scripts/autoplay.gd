@@ -207,8 +207,9 @@ func _pews_checks() -> void:
 	await _wait_scene("Game")
 	var game := get_tree().current_scene
 	var arena = game.arena
-	_check(arena.has_method("restore_state"), "PEWS SCENE PASS (NEW GAME opens The Pews)")
-	if failed:
+	var in_pews: bool = arena.has_method("restore_state")
+	_check(in_pews, "PEWS SCENE PASS (NEW GAME opens The Pews)")
+	if not in_pews:
 		return
 	await _frames(25)
 	arena.rig.cam.make_current()
@@ -240,10 +241,13 @@ func _pews_checks() -> void:
 		"PEWS TUNE PASS (changes to the sermon slider reach the active rules)")
 	tuning.set("sermon_damage", sermon_damage)
 
-	var studied: float = arena.rules.tick_stalking(0.0, 4.0, PI, false, false, 12.5)
-	_check(studied == 100.0 and arena.context_label() == "AMBUSH",
-		"PEWS STALK PASS (outside the 60-degree view cone, full study opens ambush)")
-	arena.context_action()
+	arena.rules.studied = 99.0
+	var study_by := Time.get_ticks_msec() + 2500
+	while _find("AMBUSH") == null and Time.get_ticks_msec() < study_by:
+		await get_tree().process_frame
+	_check(arena.rules.studied == 100.0 and _find("AMBUSH") != null,
+		"PEWS STALK PASS (study %.1f%%, context %s)" % [arena.rules.studied, arena.context_label()])
+	await _click("AMBUSH")
 	_check(arena.encounter_started and arena._ambush_free_special,
 		"PEWS AMBUSH PASS (Vesper staggered, first special free)")
 
@@ -281,12 +285,16 @@ func _pews_checks() -> void:
 	debug.god_mode = false
 	_check(arena.boss_defeated and arena.rules.boss_defeated,
 		"PEWS BOSS PASS (pad attacks defeat phase two)")
-	var plate: Dictionary = arena.rules.collect_plate()
-	var loot: Dictionary = arena.rules.scavenge("stained_glass")
-	_check(plate.get("cash", 0) > 0 and plate.get("heat", 0) > 0
-		and loot.get("item", "") == "stained_glass",
-		"PEWS SCAVENGE PASS (collection plate tradeoff and realm loot)")
-
+	_place(arena.hero, arena.get_node("CollectionPlate").position + Vector3.UP * 0.05, PI)
+	arena.rig.snap()
+	await _frames(3)
+	await _click("COLLECT PLATE")
+	_place(arena.hero, arena.get_node("stained_glass").position + Vector3.UP * 0.05, PI)
+	arena.rig.snap()
+	await _frames(3)
+	await _click("SCAVENGE")
+	_check(arena.rules.cash > 0 and arena.rules.heat > 0 and arena.rules.inventory.has("stained_glass"),
+		"PEWS SCAVENGE PASS (field buttons collect the plate and realm loot)")
 	await _frames(2)
 	await _click("FINISH")
 	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)

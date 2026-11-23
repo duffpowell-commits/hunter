@@ -478,7 +478,9 @@ func _damage_hero(amount: int, from_pos: Vector3) -> void:
 
 func _check_hit() -> void:
 	var before := hits_landed
-	super._check_hit()
+	# Until the hunt starts, defensive attacks can hit minions only.
+	if encounter_started:
+		super._check_hit()
 	# Arena subtracts nonlethal damage from dummy_hp. Keep the boss rules,
 	# HUD and checkpoint in sync before returning from this hit.
 	if hits_landed != before and not boss_defeated and dummy_hp > 0.0:
@@ -499,11 +501,8 @@ func _check_hit() -> void:
 		var arc := float(_move.get("arc", 120))
 		if to.length() > reach or (arc < 360.0 and forward.dot(to.normalized()) <= cos(deg_to_rad(arc / 2.0))):
 			continue
-		_landed = true
-		var result := combat.land(_move)
+		var result := _land_hit(actor)
 		foe.hp = float(foe.hp) - float(result.damage)
-		actor.hit(hero.global_position + Vector3(0, 1.2, 0), float(result.power))
-		get_node("/root/Feel").impact(actor.global_position + Vector3(0, 1.3, 0), float(result.power), self)
 		if foe.hp <= 0.0:
 			foe.dead = true
 			foe.warn.visible = false
@@ -519,36 +518,56 @@ func _ko(_result: Dictionary) -> void:
 	var state := rules.hit_boss(maxf(0.0, rules.boss_hp - dummy_hp))
 	dummy_hp = rules.boss_hp
 	if state.phase_changed:
-		_set_occult_halo(false)
+		_cancel_boss_attack()
+		_clear_flock()
 		dummy.revive()
 		dummy.position = Vector3(0, 0, -6.0)
 		dummy.heading = PI
 		dummy.model.rotation.y = PI
-		_warn.visible = false
 		get_node("/root/Subs").cue("[Vesper reveals his second form]")
 	elif state.defeated:
-		_set_occult_halo(false)
+		_cancel_boss_attack()
+		_clear_flock()
 		boss_defeated = true
-		if _flock_node != null:
-			_flock_node.queue_free()
-			_flock_node = null
 		dummy.die(Vector3(0, 1.2, 2.0))
-		_warn.visible = false
 		get_node("/root/Subs").cue("[Vesper collapses]")
 		ko.emit(kos + 1)
 
 
+func _cancel_boss_attack() -> void:
+	if _boss_telegraph > 0.0:
+		_boss_cd = float(rules.config.boss.moves[_boss_move].cooldown)
+	_boss_telegraph = 0.0
+	_boss_move = ""
+	_set_occult_halo(false)
+	_warn.visible = false
+
+
+func _clear_flock() -> void:
+	_flock_time = 0.0
+	if _flock_node != null:
+		_flock_node.queue_free()
+		_flock_node = null
+
+
+func _attack_target() -> Character3D:
+	if encounter_started:
+		return super._attack_target()
+	var target: Character3D
+	var nearest := 3.2
+	for foe in _foes:
+		if foe.dead:
+			continue
+		var distance: float = hero.global_position.distance_to(foe.actor.global_position)
+		if distance < nearest:
+			nearest = distance
+			target = foe.actor
+	return target
+
+
 func _input_move(q: Dictionary) -> void:
-	if boss_defeated:
+	if boss_defeated or (not encounter_started and _attack_target() == null):
 		return
-	if not encounter_started:
-		var nearby_foe := false
-		for foe in _foes:
-			if not foe.dead and hero.global_position.distance_to(foe.actor.global_position) < 3.2:
-				nearby_foe = true
-				break
-		if not nearby_foe:
-			return
 	var previous_special := last_special
 	super._input_move(q)
 	if _ambush_free_special and not is_same(last_special, previous_special):
