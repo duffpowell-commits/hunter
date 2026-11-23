@@ -1,5 +1,11 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-23 — Studio publisher
+
+Startup shows the approved weathered 3 Eyed Fox Studios logo from the studio Drive folder
+during the existing boot. The player can skip the card with the button, Enter, Escape, or
+Android Back. Settings → Credits names the publisher.
+
 Newest first. Dates are America/Chicago. Each entry: what changed, why, where the idea came from,
 what review found, and what is still open. Add an entry whenever a session changes how agents
 work here or settles a design question. AGENTS.md lists this file in its reading order.

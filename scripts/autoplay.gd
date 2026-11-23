@@ -35,6 +35,10 @@ func _ready() -> void:
 # ---------------------------------------------------------------- the run
 
 func _run() -> void:
+	await _wait_scene("Boot")
+	await _shot("studio_splash")
+	await _click("Skip splash")
+	_check(_find("Skip splash") == null, "STUDIO SPLASH PASS (Skip splash dismisses the publisher card)")
 	await _wait_scene("Intro")
 	var intro_ms := Time.get_ticks_msec()
 	await _frames(10)
@@ -59,6 +63,11 @@ func _run() -> void:
 	await _frames(10)
 	_shot("title")
 	_check(_find("CONTINUE") == null, "TITLE PASS (no save yet)")
+	await _click("SETTINGS")
+	await _click("CREDITS")
+	_check(_has_label("Published by 3 Eyed Fox Studios"), "PUBLISHER CREDITS PASS")
+	await _click("DONE")
+	await _click("DONE")
 	# Why (Hunter M0, Nov 21): BUILD_SPEC says the title shows "HUNTER" and the canvas is 720x1280.
 	var vp_w: int = ProjectSettings.get_setting("display/window/size/viewport_width")
 	var vp_h: int = ProjectSettings.get_setting("display/window/size/viewport_height")
