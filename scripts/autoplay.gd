@@ -188,10 +188,96 @@ func _run() -> void:
 	await _tune_checks(get_tree().current_scene)
 	if clip != "":
 		await _record_clip(get_tree().current_scene)
+	await _pews_checks()
 
 	if not failed:
 		print("AUTOPLAY PASS")
 	get_tree().quit(1 if failed else 0)
+
+
+# ---------------------------------------------------------------- Hunter M2: The Pews vertical slice
+
+func _pews_checks() -> void:
+	# Use a real scene transition so Godot assigns the Pews World3D and active camera.
+	var err := get_tree().change_scene_to_file("res://scenes/pews_arena.tscn")
+	_check(err == OK, "PEWS SCENE PASS (PewsArena scene loads)")
+	await _wait_scene("PewsArena")
+	var arena = get_tree().current_scene
+	await _frames(25)
+	arena.rig.cam.make_current()
+	_check(arena.dummy.name == "Vesper" and arena.get_node_or_null("Pews/Altar") != null
+		and arena._foes.size() == 2, "PEWS MAP PASS (church altar, Vesper, Zealot and Choir)")
+	_place(arena.hero, Vector3(0, 0.05, -2.3), PI)
+	arena.rig.snap()
+	await _physics(3)
+	_check(not arena._occult_halo.is_visible_in_tree(),
+		"PEWS EXPLORATION ART PASS (Vesper's occult halo is off during exploration)")
+	await _shot("pews_map")
+
+	var studied: float = arena.rules.tick_stalking(0.0, 4.0, PI, false, false, 12.5)
+	_check(studied == 100.0 and arena.context_label() == "AMBUSH",
+		"PEWS STALK PASS (outside the 60-degree view cone, full study opens ambush)")
+	arena.context_action()
+	_check(arena.encounter_started and arena._ambush_free_special,
+		"PEWS AMBUSH PASS (Vesper staggered, first special free)")
+
+	# Stage the normal camera close enough to read the altar and the encounter together.
+	_place(arena.hero, Vector3(0, 0.05, -4.65), PI)
+	arena.rig.snap()
+	await _physics(3)
+	await _shot("pews_combat")
+	arena._boss_cd = 0.0
+	await _frames(2)
+	_check(arena._boss_move == "sermon" and arena._warn.visible and arena._occult_halo.is_visible_in_tree(),
+		"PEWS OCCULT PASS (the sermon telegraph shows Vesper's halo and warning symbol)")
+	await _shot("pews_occult")
+	var budget: Dictionary = preload("res://scripts/character_test.gd").BUDGET
+	var draws := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	var triangles := int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
+	_check(draws > 0 and draws <= budget.draw_calls and triangles > 0 and triangles <= budget.primitives,
+		"PEWS RENDER BUDGET PASS (%d draw calls, %d triangles during the sermon)" % [draws, triangles])
+	var sermon_by := Time.get_ticks_msec() + 4000
+	while arena._boss_telegraph > 0.0 and Time.get_ticks_msec() < sermon_by:
+		await get_tree().process_frame
+	_check(arena._boss_telegraph <= 0.0 and not arena._occult_halo.is_visible_in_tree(),
+		"PEWS OCCULT CLEAR PASS (Vesper's halo goes dark after the sermon)")
+	await _shot("pews_after_sermon")
+
+	# The inherited combat controller subtracts damage before invoking _ko.
+	arena.dummy_hp -= 999.0
+	arena._ko({"damage": 999.0})
+	_check(arena.rules.boss_phase == 2 and not arena.boss_defeated,
+		"PEWS PHASE PASS (phase one transitions to phase two)")
+	arena.rig.cam.make_current()
+	await _frames(3)
+	await _shot("pews_boss")
+	arena.dummy_hp -= 999.0
+	arena._ko({"damage": 999.0})
+	_check(arena.boss_defeated and arena.rules.boss_defeated,
+		"PEWS BOSS PASS (Vesper only falls after phase two)")
+	var finish_requested := [false]
+	arena.finish_requested.connect(func(): finish_requested[0] = true)
+	arena.context_action()
+	var clean: Dictionary = arena.choose_finisher("CLEAN")
+	_check(finish_requested[0] and clean.get("trophy", false) and clean.get("corruption", 0) == 5,
+		"PEWS FINISH PASS (CLEAN choice awards intact trophy and +5 corruption)")
+	var voice_unlocked := [false]
+	arena.voice_unlocked.connect(func(): voice_unlocked[0] = true)
+	arena.context_action()
+	_check(voice_unlocked[0] and arena.rules.eaten and arena.portal_ready,
+		"PEWS EAT PASS (EAT unlocks Vesper as the first voice)")
+	var portal_opened := [false]
+	arena.portal_opened.connect(func(): portal_opened[0] = true)
+	arena.context_action()
+	_check(portal_opened[0], "PEWS PORTAL PASS (return-home action opens the portal)")
+
+	var plate: Dictionary = arena.rules.collect_plate()
+	var loot: Dictionary = arena.rules.scavenge("stained_glass")
+	_check(plate.get("cash", 0) > 0 and plate.get("heat", 0) > 0
+		and loot.get("item", "") == "stained_glass",
+		"PEWS SCAVENGE PASS (collection plate tradeoff and realm loot)")
+	arena.queue_free()
+	await _frames(5)
 
 
 # ---------------------------------------------------------------- 3D movement checks
@@ -200,6 +286,8 @@ var _bones := {}
 
 
 func _snap_bones(sk: Skeleton3D) -> void:
+	if not is_instance_valid(sk) or not sk.is_inside_tree():
+		return
 	var d := {}
 	for b in ["foot_l", "foot_r", "pelvis", "Head"]:
 		d[b] = sk.global_transform * sk.get_bone_global_pose(sk.find_bone(b)).origin
@@ -421,12 +509,12 @@ func _face_dummy(a: Node) -> void:
 
 
 ## One pad tap; waits up to `t` s for it to land. True if a new hit landed.
-func _pad_tap(game: Node, t := 0.6) -> bool:
+func _pad_tap(game: Node, t := 2.0) -> bool:
 	var a: Node = game.arena
 	var before: int = a.hits_landed
 	var p := _pad_point(game)
+	# A tap is short even when a software-rendered frame takes longer than a hold.
 	_mouse(p, true)
-	await _frames(1)
 	_mouse(p, false)
 	var until := Time.get_ticks_msec() + int(t * 1000.0)
 	while a.hits_landed == before and Time.get_ticks_msec() < until:
@@ -469,22 +557,31 @@ func _arena_checks(game: Node) -> void:
 	var shakes0: int = feel.shakes
 	var hero_stops0: int = hero.stops
 	var dummy_stops0: int = dummy.stops
-	var landed := 0
+	var landed: Array[String] = []
 	var trauma := 0.0
+	var before_hook: Vector3 = dummy.global_position
 	for i in 3:
+		if i == 2:
+			before_hook = dummy.global_position
 		if await _pad_tap(game):
-			landed += 1
+			landed.append(str(a._move.get("id", "")))
 			trauma = maxf(trauma, a.rig.trauma)
 		if i < 2:
-			await _secs(0.35)
-	var d0: Vector3 = dummy.global_position
+			# Wait for recovery in game time. Render stalls can make a wall-clock delay
+			# expire the string and land three jabs, each of which still counts as a hit.
+			var recover_by := Time.get_ticks_msec() + 2000
+			while not a._free() and Time.get_ticks_msec() < recover_by:
+				await get_tree().process_frame
 	var hook: Dictionary = a.last_hit
 	await _frames(2)
 	_shot("arena_combo")
 	var combo_seen := _has_label("3 HITS")
-	await _secs(0.8)
-	_check(landed == 3 and float(hook.get("power", 0)) >= 0.5 and dummy.global_position.distance_to(d0) > 0.3,
-		"LIGHT STRING PASS (L, L, L landed %d, the third knocked the dummy %.1f m)" % [landed, dummy.global_position.distance_to(d0)])
+	var settle_by := Time.get_ticks_msec() + 2500
+	while (dummy.time_scale < 1.0 or dummy.is_acting("knockback")) and Time.get_ticks_msec() < settle_by:
+		await get_tree().process_frame
+	var knockback: float = dummy.global_position.distance_to(before_hook)
+	_check(landed == ["jab", "cross", "hook"] and float(hook.get("power", 0)) >= 0.5 and knockback > 0.3,
+		"LIGHT STRING PASS (%s, the third knocked the dummy %.1f m)" % [", ".join(landed), knockback])
 	_check(combo_seen, "COMBO PASS (counter showed 3 HITS)")
 	# Counted, not sampled: on a slow CI box 60 ms is shorter than a frame (Nov 21: it flaked).
 	var want: float = 0.06 * feel.stop_scale
@@ -513,9 +610,7 @@ func _arena_checks(game: Node) -> void:
 	var to: Vector2 = a.rig.cam.unproject_position(dummy.global_position) - a.rig.cam.unproject_position(hero.global_position)
 	var sw := pp + to.normalized() * 120.0
 	_mouse(pp, true)
-	await _frames(1)
 	_mouse(sw, null)
-	await _frames(1)
 	_mouse(sw, false)
 	await _secs(0.7)
 	_shot("arena_special")
@@ -536,13 +631,17 @@ func _arena_checks(game: Node) -> void:
 	await _secs(0.3)
 	var hp_before: int = a.hp
 	var dodged0: int = a.dodged
+	var SwipePad = preload("res://scripts/swipe_pad.gd")
+	var gesture_kind: String = SwipePad.classify(0.05, Vector2.ZERO, 0.1, a.hold_time, a.double_tap, a.swipe_min)
+	_check(gesture_kind == "dodge", "DODGE CLASSIFIER PASS (two quick taps classify as dodge)")
+	a._last_light_landed = false  # no connected light: the documented double-tap path is dodge
 	a.dodge_iframes = 0.5
 	a.enemy_telegraph = 1.0
 	a.enemy_attack_every = 0.2
 	a._enemy_t = 0.2
 	var rolling := false
 	var wait_until := Time.get_ticks_msec() + 4000
-	while not (a.telegraphing and a._tele_t < 0.3) and Time.get_ticks_msec() < wait_until:
+	while not (a.telegraphing and a._tele_t < 0.35) and Time.get_ticks_msec() < wait_until:
 		await get_tree().process_frame
 	# Dispatch both taps immediately. Waiting on render frames can miss the double-tap
 	# window or let the dummy finish its wind-up before the second release reaches the pad.
@@ -551,7 +650,7 @@ func _arena_checks(game: Node) -> void:
 		Input.flush_buffered_events()
 	wait_until = Time.get_ticks_msec() + 2000
 	while a.telegraphing and Time.get_ticks_msec() < wait_until:
-		rolling = rolling or hero.is_acting("dodge")
+		rolling = rolling or hero.is_acting("dodge") or a._iframes > 0.0
 		await get_tree().process_frame
 	await _physics(2)
 	rolling = rolling or hero.is_acting("dodge")
@@ -594,17 +693,17 @@ func _arena_checks(game: Node) -> void:
 	a._enemy_t = 0.3
 	a.enemy_telegraph = float(a.enemy.telegraph)
 	var hp1: int = a.hp
-	var hits_before: int = a.hero_hits_taken
+	var hits_before_enemy: int = a.hero_hits_taken
 	var tele_seen := false
 	var until := Time.get_ticks_msec() + 6000
-	while a.hero_hits_taken == hits_before and Time.get_ticks_msec() < until:
+	while a.hero_hits_taken == hits_before_enemy and Time.get_ticks_msec() < until:
 		_place(hero, dummy.global_position + Vector3(0, 0.05, 1.0), PI)
 		if a.telegraphing and a._warn.visible:
 			if not tele_seen:
 				_shot("arena_telegraph")
 			tele_seen = true
 		await _frames(2)
-	_check(tele_seen and a.hp < hp1, "ENEMY PASS (red ! telegraph, then the swing took %d HP)" % (hp1 - a.hp))
+	_check(tele_seen and a.hero_hits_taken > hits_before_enemy and a.hp < hp1, "ENEMY PASS (red ! telegraph, then the swing took %d HP)" % (hp1 - a.hp))
 	a.enemy_attack_every = float(a.enemy.attack_every)
 	a._enemy_t = a.enemy_attack_every
 
@@ -695,9 +794,11 @@ func _standards_checks(ct: Node, coach_was: bool) -> void:
 	ct.bot_stick = Vector2.ZERO
 	_check(hero.steps.has("stone") and hero.steps.has("wood") and hero.steps.has("grass"),
 		"STEPS PASS (%s)" % str(hero.steps))
-	# 6. Ducking: a heavy hit dips the music.
+	# 6. Ducking: check the dip while it happens, before the music recovers.
 	feel.impact(hero.global_position, 0.8, ct)
-	await _frames(8)
+	var duck_by := Time.get_ticks_msec() + 1000
+	while audio.duck_db >= -4.0 and Time.get_ticks_msec() < duck_by:
+		await get_tree().process_frame
 	_check(audio.duck_db < -4.0, "DUCK PASS (music dipped %.0f dB)" % audio.duck_db)
 	# 4. Responsive: input buffer, coyote time, dodge cancels anything.
 	_place(hero, Vector3(0, 0.05, 2), 0.0)

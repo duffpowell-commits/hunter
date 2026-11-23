@@ -671,3 +671,116 @@ func test_death_cannot_escape_through_save() -> void:
 	await process_frame
 	save.clear()
 	save.path = "user://run.json"
+
+
+# ---------------------------------------------------------------- Hunter M2: The Pews domain rules
+
+func test_pews_stalking_rules() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var studied := 0.0
+	studied = p.tick_stalking(studied, 4.0, PI, false, false, 1.0)
+	check(studied > 0.0 and studied < 100.0, "target behind the enemy inside 6m and outside its 60-degree view cone studies")
+	var sneaking := p.tick_stalking(0.0, 4.0, PI, true, false, 1.0)
+	check(sneaking > studied, "sneaking studies faster")
+	var reset := p.tick_stalking(80.0, 4.0, 0.0, false, true, 0.1)
+	check(reset == 0.0, "being seen resets stalking")
+	var full := p.tick_stalking(99.0, 4.0, PI, false, false, 1.0)
+	check(full == 100.0, "studied meter caps at 100")
+	var outside := p.tick_stalking(0.0, 7.0, PI, false, false, 1.0)
+	check(outside == 0.0, "outside study radius does not fill meter")
+
+func test_pews_boss_two_phases_and_finishers() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var first: Dictionary = p.hit_boss(999.0)
+	check(first.get("phase_changed", false) and int(first.get("phase", 0)) == 2, "Vesper enters phase two instead of dying after phase one")
+	var second: Dictionary = p.hit_boss(999.0)
+	check(second.get("defeated", false), "Vesper is defeated only after phase two")
+	var clean = Pews.new()
+	clean.hit_boss(999.0)
+	clean.hit_boss(999.0)
+	var clean_result: Dictionary = clean.finish("CLEAN")
+	check(clean_result.get("corruption", -1) == 5 and clean_result.get("parts", 0) > 0 and clean_result.get("trophy", false), "CLEAN gives intact trophy, parts and +5 corruption")
+	check(clean_result.get("extra_special_slots", 0) == 0, "CLEAN does not grant a brutal slot")
+	var trophies: Variant = clean.get("trophies")
+	check(trophies is Array and trophies.has("vesper"), "CLEAN permanently records Vesper's intact trophy")
+	var brutal = Pews.new()
+	brutal.hit_boss(999.0)
+	brutal.hit_boss(999.0)
+	var brutal_result: Dictionary = brutal.finish("BRUTAL")
+	check(brutal_result.get("corruption", -1) == 15 and brutal_result.get("extra_special_slots", 0) == 1, "BRUTAL grants +1 special slot and +15 corruption")
+	check(brutal_result.get("parts", 999) < clean_result.get("parts", 0), "BRUTAL yields fewer crafting parts")
+	var slots: Variant = brutal.get("extra_special_slots")
+	check(slots is Dictionary and int(slots.get("vesper", 0)) == 1, "BRUTAL permanently records Vesper's extra special slot")
+	check(brutal.eat().get("voice_unlocked", false), "EAT unlocks Vesper as a voice")
+	var voices: Variant = brutal.get("unlocked_voices")
+	check(voices is Array and voices.has("vesper"), "EAT permanently records Vesper in the voice collection")
+	check(not brutal.eat().get("voice_unlocked", true), "EAT cannot unlock the same voice twice")
+	check(brutal.heal_boss(999.0) == 0.0, "defeated boss cannot heal")
+	var wounded = Pews.new()
+	wounded.hit_boss(30.0)
+	check(wounded.heal_boss(999.0) == 30.0, "Laying of Hands heals only missing HP up to the phase cap")
+	check(wounded.boss_hp == 140.0, "boss healing cannot exceed current phase maximum")
+
+func test_pews_collection_plate_hazard() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var result: Dictionary = p.collect_plate()
+	check(result.get("cash", 0) > 0, "collection plate yields cash")
+	check(result.get("heat", 0) > 0, "collection plate raises heat")
+
+
+func test_pews_ambush_and_scavenging() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	p.tick_stalking(0.0, 4.0, PI, false, false, 20.0)
+	check(p.ambush_ready(), "full study enables an ambush")
+	check(p.start_ambush().get("free_first_special", false), "ambush staggers the target and grants a free opener")
+	var loot: Dictionary = p.scavenge("stained_glass")
+	check(loot.get("item", "") == "stained_glass" and loot.get("parts", 0) == 2, "scavenge collects realm-specific materials")
+	check(not p.scavenge("not_real").has("item"), "unknown loot cannot be collected")
+
+
+func test_pews_content_is_data_driven() -> void:
+	var data: Dictionary = GameData.load_json("pews")
+	check(data.get("boss", {}).get("id", "") == "vesper", "Pews boss comes from data")
+	check(data.get("boss", {}).get("phase_hp", []).size() == 2, "Vesper has exactly two data-driven phases")
+	for move: Dictionary in data.get("boss", {}).get("moves", {}).values():
+		check(float(move.get("telegraph", 0.0)) >= 0.5, "every Vesper move has a telegraph of at least half a second")
+	check(data.get("loot", []).size() >= 3, "Pews has realm-specific scavenging loot")
+
+
+func test_pews_arena_starts_in_the_church() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var arena = PewsArena.new()
+	root.add_child(arena)
+	await process_frame
+	check(arena.dummy.name == "Vesper", "Pews arena loads Vesper instead of the training dummy")
+	check(arena.rules != null and arena.rules.boss_phase == 1, "Pews arena owns a fresh two-phase boss encounter")
+	check(arena.get_node_or_null("Pews/Altar") != null, "Pews arena builds the church altar")
+	arena.queue_free()
+	await process_frame
+
+
+## Scene regression: cumulative hits must transition both boss phases.
+func test_pews_cumulative_boss_damage() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.rules.engaged = true
+	# Simulate a nonlethal parent hit: the inherited controller owns dummy_hp.
+	a.dummy_hp = 110.0
+	a.rules.boss_hp = a.dummy_hp
+	check(is_equal_approx(a.rules.boss_hp, 110.0), "partial damage visible to boss rules")
+	a.dummy_hp = -5.0
+	a._ko({"damage": 10.0})
+	check(a.rules.boss_phase == 2 and not a.rules.boss_defeated, "cumulative phase one damage triggers phase two")
+	check(a.dummy_hp > 0.0 and is_equal_approx(a.dummy_hp, a.rules.boss_hp), "phase two starts at synchronized HP")
+	a.dummy_hp = -2.0
+	a._ko({"damage": 12.0})
+	check(a.boss_defeated and a.rules.boss_defeated, "cumulative phase two damage defeats Vesper")
+	a.queue_free()
+	await process_frame

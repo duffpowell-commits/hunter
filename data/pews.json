@@ -1,0 +1,34 @@
+{
+  "_why": "Hunter M2: The Pews. Values are deliberately data-driven; starting rates are tuned for a readable first hunt.",
+  "stalking": {
+    "study_radius": 6.0,
+    "view_cone_degrees": 60.0,
+    "study_per_second": 8.0,
+    "sneak_multiplier": 2.0
+  },
+  "boss": {
+    "id": "vesper",
+    "name": "BROTHER VESPER LYLE",
+    "phase_hp": [140, 180],
+    "moves": {
+      "sermon": {"damage": 14, "telegraph": 0.8, "cooldown": 5.0},
+      "flock": {"damage": 8, "telegraph": 0.7, "cooldown": 7.0},
+      "laying_of_hands": {"heal": 18, "telegraph": 0.6, "cooldown": 9.0}
+    }
+  },
+  "finishers": {
+    "clean": {"corruption": 5, "parts": 8, "trophy": true, "extra_special_slots": 0},
+    "brutal": {"corruption": 15, "parts": 3, "trophy": false, "extra_special_slots": 1}
+  },
+  "collection_plate": {"cash": 10, "heat": 8},
+  "loot": [
+    {"id": "candle", "name": "Candle", "parts": 1},
+    {"id": "stained_glass", "name": "Stained Glass", "parts": 2},
+    {"id": "censer_chain", "name": "Censer Chain", "parts": 2}
+  ],
+  "voice": {
+    "id": "vesper",
+    "name": "BROTHER VESPER LYLE",
+    "dialogue": "You ate me mid-sermon. The congregation will hear of this. And now, regrettably, so will you."
+  }
+}
