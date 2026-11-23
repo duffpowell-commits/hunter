@@ -528,8 +528,7 @@ func _arena_checks(game: Node) -> void:
 		float(a.last_hit.get("damage", 0))])
 	# Dodge: a real enemy swing (review of 95847e0: no calling _swing by hand). The hero stands 1.62 m
 	# off: past the jab's 1.5 m reach, inside the dummy's 1.7 m. Double-tap late in the telegraph.
-	# The i-frames slider goes to 0.5 s for this check only: a slow CI frame can be 0.1 s, and the
-	# two taps take three frames.
+	# Use 0.5 s of i-frames for this check so the upcoming swing can land during the roll.
 	a.reset_dummy()
 	await _secs(1.0)
 	_place(hero, dummy.global_position + Vector3(0, 0.05, 1.62), PI)
@@ -545,13 +544,11 @@ func _arena_checks(game: Node) -> void:
 	var wait_until := Time.get_ticks_msec() + 4000
 	while not (a.telegraphing and a._tele_t < 0.3) and Time.get_ticks_msec() < wait_until:
 		await get_tree().process_frame
-	_mouse(pp, true)
-	await _frames(1)
-	_mouse(pp, false)
-	await _frames(1)
-	_mouse(pp, true)
-	await _frames(1)
-	_mouse(pp, false)
+	# Dispatch both taps immediately. Waiting on render frames can miss the double-tap
+	# window or let the dummy finish its wind-up before the second release reaches the pad.
+	for pressed: bool in [true, false, true, false]:
+		_mouse(pp, pressed)
+		Input.flush_buffered_events()
 	wait_until = Time.get_ticks_msec() + 2000
 	while a.telegraphing and Time.get_ticks_msec() < wait_until:
 		rolling = rolling or hero.is_acting("dodge")
@@ -597,9 +594,10 @@ func _arena_checks(game: Node) -> void:
 	a._enemy_t = 0.3
 	a.enemy_telegraph = float(a.enemy.telegraph)
 	var hp1: int = a.hp
+	var hits_before: int = a.hero_hits_taken
 	var tele_seen := false
 	var until := Time.get_ticks_msec() + 6000
-	while a.hero_hits_taken == 0 and Time.get_ticks_msec() < until:
+	while a.hero_hits_taken == hits_before and Time.get_ticks_msec() < until:
 		_place(hero, dummy.global_position + Vector3(0, 0.05, 1.0), PI)
 		if a.telegraphing and a._warn.visible:
 			if not tele_seen:
