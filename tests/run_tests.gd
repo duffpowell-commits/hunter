@@ -762,6 +762,56 @@ func test_pews_content_is_data_driven() -> void:
 	check(data.get("loot", []).size() >= 3, "Pews has realm-specific scavenging loot")
 
 
+## Nov 23 (PR #20 review): Pews numbers must live in data with a slider, not as literals in the scene.
+func test_pews_numbers_have_data_and_sliders() -> void:
+	var Tuning = preload("res://scripts/pews_tuning.gd")
+	var data: Dictionary = GameData.load_json("pews")
+	var missing: Array = []
+	for key: String in Tuning.PATHS:
+		var at: Variant = data
+		for step in Tuning.PATHS[key]:
+			at = at[step] if (at is Array and int(step) < at.size()) or (at is Dictionary and at.has(step)) else null
+			if at == null:
+				break
+		if at == null or not Tuning.TUNE.has(key):
+			missing.append(key)
+	check(missing.is_empty(), "every Pews tuning path resolves in data/pews.json and has a slider range %s" % [missing])
+	for key in ["sermon_radius", "flock_radius", "flock_duration", "flock_tick", "minion_attack_range",
+			"minion_hit_range", "minion_chase_max", "interact_radius", "boss_first_cooldown"]:
+		check(Tuning.PATHS.has(key), "Pews slider exists: " + key)
+	var src := FileAccess.get_file_as_string("res://scripts/pews_arena.gd")
+	for literal in ["distance < 4.0", "_flock_time = 4.0", "_flock_cd = 1.25", "< 2.4", "d < 1.9", "< 2.1", "d < 5.0"]:
+		check(not src.contains(literal), "no bare gameplay number left in pews_arena.gd: " + literal)
+
+
+## Nov 23 (PR #20 review): a mid-fight CONTINUE brought dead minions back, and Vesper kept the dummy's colour.
+func test_pews_dead_minions_stay_dead_and_vesper_is_tinted() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	var albedo: Color = a.dummy._mats[0].get_shader_parameter("albedo")
+	check(albedo.is_equal_approx(Color("8b718f")), "Vesper's material carries his own tint")
+	a._foes[0].dead = true
+	var state: Dictionary = a.save_state()
+	check(state.get("dead_foes", []) == ["Zealot"], "checkpoint records the dead Zealot")
+	var b = PewsArena.new()
+	root.add_child(b)
+	await process_frame
+	b.restore_state(state)
+	check(b._foes[0].dead and not b._foes[1].dead, "CONTINUE keeps the Zealot dead and the Choir alive")
+	var old: Dictionary = state.duplicate()
+	old.erase("dead_foes")
+	var c = PewsArena.new()
+	root.add_child(c)
+	await process_frame
+	c.restore_state(old)
+	check(not c._foes[0].dead, "a v3 save from before dead_foes still loads")
+	for n in [a, b, c]:
+		n.queue_free()
+	await process_frame
+
+
 func test_pews_arena_starts_in_the_church() -> void:
 	var PewsArena = preload("res://scripts/pews_arena.gd")
 	var arena = PewsArena.new()

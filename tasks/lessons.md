@@ -28,3 +28,12 @@
   slider each frame (arena `push_tune()`, the pad in game.gd `_process`).
 - Nov 21 (M1 review): once contact waits for `hit_at`, a target still sliding from the last knockback
   walks out of reach. Autoplay must let the knockback finish before it sets up the next hit.
+- Nov 23 (M2 review): a boss fight that autoplay wins in God mode with the boss's cooldown parked
+  proves the hero's attacks, not the boss's. Give every enemy power its own PASS line with God mode
+  off, and stage by placing actors and zeroing cooldowns, never by calling the damage code.
+- Nov 23 (M2 review): `Character3D.tint` is read once during setup. Set it before `add_child`, or
+  re-run `apply_toon` after changing it.
+- Nov 23 (M2 review): after a hit the hero is still sliding. An autoplay check that needs the hero
+  in range must wait out the knockback, then place them (same lesson as M1's dummy knockback).
+- Nov 23 (M2): four AIs built M2 on four branches. One integration PR merges; the rest get closed
+  with a pointer to it, or the next session can't tell which branch is the game.

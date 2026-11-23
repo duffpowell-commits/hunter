@@ -25,6 +25,15 @@ var _nearest_plate: Node3D
 var _nearest_loot: Node3D
 var _loot_nodes: Array[Node3D] = []
 var _foes: Array[Dictionary] = []
+var hands_healed := 0.0      # last Laying of Hands heal; read by autoplay (PEWS HANDS PASS)
+var flock_ticks := 0         # Flock damage ticks that reached the hero; read by autoplay
+var last_minion_hit := 0     # damage of the last minion hit on the hero; read by autoplay
+var spotted := false         # Vesper saw the hero before an ambush; read by autoplay
+
+
+## Layout points live in data/pews.json as [x, y, z]. Why (Nov 23 review): content is data.
+static func _v3(a: Array) -> Vector3:
+	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
 func _build_world() -> void:
@@ -177,17 +186,22 @@ func _ready() -> void:
 	add_child(preload("res://scripts/pews_tuning.gd").new(rules.config))
 	rules.boss_hp = float(rules.config.boss.phase_hp[0])
 	dummy.name = "Vesper"
+	# Why re-apply (Nov 23 review): Character3D reads `tint` only while it sets up, so setting it on
+	# a dummy already in the tree left Vesper the training dummy's orange.
 	dummy.tint = Color("8b718f")
-	dummy.position = Vector3(0, 0, -6.0)
+	dummy._mats = Character3D.apply_toon(dummy.model, dummy.tint, dummy.rim, dummy.outline_px)
+	_boss_cd = float(rules.config.boss.first_cooldown)
+	dummy.position = _v3(rules.config.boss.spawn)
 	dummy.heading = PI
 	dummy.model.rotation.y = PI
 	dummy_hp = rules.boss_hp
 	dummy_max_hp = rules.boss_hp
-	hero.position = Vector3(0, 0, 5.0)
+	hero.position = _v3(rules.config.field.hero_spawn)
 	hero.heading = PI
 	hero.model.rotation.y = PI
-	_spawn_foe("Zealot", Vector3(-3.0, 0, -1.0), Color("a84c42"), float(rules.config.minions.zealot_hp))
-	_spawn_foe("Choir", Vector3(3.0, 0, -2.0), Color("b5a0d0"), float(rules.config.minions.choir_hp))
+	# Zealot spawn moved off the pew collider (was z -1.0, inside it; Nov 23 review).
+	_spawn_foe("Zealot", _v3(rules.config.minions.zealot_spawn), Color("a84c42"), float(rules.config.minions.zealot_hp))
+	_spawn_foe("Choir", _v3(rules.config.minions.choir_spawn), Color("b5a0d0"), float(rules.config.minions.choir_hp))
 	_spawn_realm_props()
 	_build_occult_halo()
 	_enemy_t = 999.0
@@ -262,7 +276,7 @@ func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float) -> voi
 		aura.material_override = _toon(Color("74658f"), false)
 		aura.position.y = 0.04
 		actor.add_child(aura)
-	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "max_hp": hp_value, "attack_cd": 1.2, "windup": 0.0, "dead": false, "kind": label})
+	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "max_hp": hp_value, "attack_cd": float(rules.config.minions.first_attack_delay), "windup": 0.0, "dead": false, "kind": label})
 
 
 func _spawn_realm_props() -> void:
@@ -278,10 +292,11 @@ func _spawn_realm_props() -> void:
 	disc.material_override = _toon(Color("b69b58"))
 	plate.add_child(disc)
 	add_child(plate)
-	plate.position = Vector3(-5.0, 0.08, 1.5)
-	for item in [{"id": "candle", "at": Vector3(5.0, 0.12, 2.0), "color": Color("d8c27a")},
-			{"id": "stained_glass", "at": Vector3(-6.0, 0.12, -3.0), "color": Color("5d91a6")},
-			{"id": "censer_chain", "at": Vector3(6.0, 0.12, -5.0), "color": Color("8c8580")}]:
+	var field: Dictionary = rules.config.field
+	plate.position = _v3(field.plate_at)
+	for item in [{"id": "candle", "at": _v3(field.loot_at.candle), "color": Color("d8c27a")},
+			{"id": "stained_glass", "at": _v3(field.loot_at.stained_glass), "color": Color("5d91a6")},
+			{"id": "censer_chain", "at": _v3(field.loot_at.censer_chain), "color": Color("8c8580")}]:
 		var prop := Node3D.new()
 		prop.name = str(item.id)
 		var mi := MeshInstance3D.new()
@@ -314,14 +329,14 @@ func _process(dt: float) -> void:
 		hero.move_input = (stick / sneak_limit).limit_length(1.0)
 	_nearest_plate = null
 	_nearest_loot = null
-	var best_plate := 1.5
+	var best_plate := float(rules.config.field.interact_radius)
 	if has_node("CollectionPlate"):
 		var plate := get_node("CollectionPlate") as Node3D
 		var d := hero.global_position.distance_to(plate.global_position)
 		if d < best_plate:
 			best_plate = d
 			_nearest_plate = plate
-	var best_loot := 1.5
+	var best_loot := float(rules.config.field.interact_radius)
 	for prop in _loot_nodes:
 		if not is_instance_valid(prop):
 			continue
@@ -339,9 +354,11 @@ func _enemy(dt: float) -> void:
 		_flock_time = maxf(0.0, _flock_time - dt)
 		_flock_cd -= dt
 		if _flock_cd <= 0.0:
-			_flock_cd = 1.25
-			if hero.global_position.distance_to(dummy.global_position) < 2.4:
-				_damage_hero(int(rules.config.boss.moves.flock.damage), dummy.global_position)
+			var flock: Dictionary = rules.config.boss.moves.flock
+			_flock_cd = float(flock.tick)
+			if hero.global_position.distance_to(dummy.global_position) < float(flock.radius):
+				if _damage_hero(int(flock.damage), dummy.global_position):
+					flock_ticks += 1
 		if _flock_time <= 0.0 and _flock_node != null:
 			_flock_node.queue_free()
 			_flock_node = null
@@ -355,6 +372,7 @@ func _enemy(dt: float) -> void:
 		rules.tick_stalking(rules.studied, distance, angle, hero.crouching, seen, dt)
 		if rules.engaged:
 			encounter_started = true
+			spotted = true
 			get_node("/root/Subs").cue("[Vesper spots you]")
 		else:
 			return
@@ -387,10 +405,10 @@ func _foe_ai(dt: float) -> void:
 		var to := hero.global_position - actor.global_position
 		to.y = 0.0
 		var d := to.length()
-		if d > 1.4 and d < 5.0:
+		if d > float(minions.chase_min) and d < float(minions.chase_max):
 			actor.heading = atan2(to.x, to.z)
 			actor.model.rotation.y = actor.heading
-			actor.move_input = Vector2(to.x, to.z).normalized() * 0.7
+			actor.move_input = Vector2(to.x, to.z).normalized() * float(minions.chase_speed)
 		else:
 			actor.move_input = Vector2.ZERO
 		if foe.windup > 0.0:
@@ -399,13 +417,14 @@ func _foe_ai(dt: float) -> void:
 				actor.act("enemy_swing")
 				foe.warn.visible = false
 				var boosted: bool = foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < float(minions.choir_buff_radius)
-				if hero.global_position.distance_to(actor.global_position) < 2.1:
-					var damage := int(minions[foe.kind.to_lower() + "_damage"])
-					_damage_hero(damage + (int(minions.choir_bonus_damage) if boosted else 0), actor.global_position)
+				if hero.global_position.distance_to(actor.global_position) < float(minions.hit_range):
+					var damage := int(minions[foe.kind.to_lower() + "_damage"]) + (int(minions.choir_bonus_damage) if boosted else 0)
+					if _damage_hero(damage, actor.global_position):
+						last_minion_hit = damage
 				foe.attack_cd = float(minions.attack_cooldown)
 		else:
 			foe.attack_cd -= dt
-			if d < 1.9 and foe.attack_cd <= 0.0:
+			if d < float(minions.attack_range) and foe.attack_cd <= 0.0:
 				foe.windup = float(minions.attack_windup)
 				foe.warn.visible = true
 				get_node("/root/Subs").cue("[zealot raises its hands]" if foe.kind == "Zealot" else "[choir begins to sing]")
@@ -413,11 +432,11 @@ func _foe_ai(dt: float) -> void:
 
 
 func _begin_boss_move() -> void:
-	var names := ["sermon", "flock", "laying_of_hands"]
+	var names: Array = rules.config.boss.move_order
 	_boss_move = names[_boss_move_index % names.size()]
 	_boss_move_index += 1
 	var data: Dictionary = rules.config.boss.moves.get(_boss_move, {})
-	_boss_telegraph = maxf(0.5, float(data.get("telegraph", 0.7)))
+	_boss_telegraph = maxf(float(rules.config.boss.min_telegraph), float(data.get("telegraph", 0.7)))
 	_set_occult_halo(true)
 	_warn.text = "!"
 	_warn.modulate = UI.key("bad")
@@ -434,11 +453,11 @@ func _execute_boss_move() -> void:
 	var distance := hero.global_position.distance_to(dummy.global_position)
 	match _boss_move:
 		"sermon":
-			if distance < 4.0:
+			if distance < float(data.radius):
 				_damage_hero(int(data.get("damage", 14)), dummy.global_position)
 		"flock":
-			_flock_time = 4.0
-			_flock_cd = 0.5
+			_flock_time = float(data.duration)
+			_flock_cd = float(data.first_tick)
 			if _flock_node != null:
 				_flock_node.queue_free()
 			_flock_node = Node3D.new()
@@ -457,14 +476,16 @@ func _execute_boss_move() -> void:
 			get_node("/root/Subs").cue("[shadows answer the sermon]")
 		"laying_of_hands":
 			var healed := rules.heal_boss(float(data.get("heal", 18)))
+			hands_healed = healed
 			dummy_hp = rules.boss_hp
 			get_node("/root/Subs").cue("[Vesper heals %d]" % int(healed))
 	_boss_cd = float(data.get("cooldown", 5.0))
 
 
-func _damage_hero(amount: int, from_pos: Vector3) -> void:
+## Returns true when the hit landed (not dodged, not God mode), so callers can count real hits.
+func _damage_hero(amount: int, from_pos: Vector3) -> bool:
 	if amount <= 0 or _iframes > 0.0 or hero.dead or get_node("/root/DebugMenu").god_mode:
-		return
+		return false
 	hp = maxi(0, hp - amount)
 	hero_hits_taken += 1
 	combat.drop_combo()
@@ -474,6 +495,7 @@ func _damage_hero(amount: int, from_pos: Vector3) -> void:
 	if hp <= 0:
 		hero.die((hero.global_position - from_pos).normalized() * 3.0 + Vector3(0, 1.5, 0))
 		hero_died.emit()
+	return true
 
 
 func _check_hit() -> void:
@@ -521,7 +543,7 @@ func _ko(_result: Dictionary) -> void:
 		_cancel_boss_attack()
 		_clear_flock()
 		dummy.revive()
-		dummy.position = Vector3(0, 0, -6.0)
+		dummy.position = _v3(rules.config.boss.spawn)
 		dummy.heading = PI
 		dummy.model.rotation.y = PI
 		get_node("/root/Subs").cue("[Vesper reveals his second form]")
@@ -557,7 +579,7 @@ func _attack_target() -> Character3D:
 	if encounter_started:
 		return super._attack_target()
 	var target: Character3D
-	var nearest := 3.2
+	var nearest := float(rules.config.field.prefight_target_range)
 	for foe in _foes:
 		if foe.dead:
 			continue
@@ -655,7 +677,10 @@ func save_state() -> Dictionary:
 		"cash": rules.cash, "heat": rules.heat, "parts": rules.parts, "corruption": rules.corruption,
 		"inventory": rules.inventory.duplicate(), "trophies": rules.trophies.duplicate(),
 		"unlocked_voices": rules.unlocked_voices.duplicate(), "extra_special_slots": rules.extra_special_slots.duplicate(),
-		"finisher": rules.finisher, "eaten": rules.eaten, "plates_collected": rules.plates_collected}
+		"finisher": rules.finisher, "eaten": rules.eaten, "plates_collected": rules.plates_collected,
+		# Why (Nov 23 review): a mid-fight CONTINUE brought dead minions back. Optional key, read
+		# with a default, so older v3 saves still load and Save.VERSION stays 3.
+		"dead_foes": _foes.filter(func(f): return f.dead).map(func(f): return f.kind)}
 
 
 func restore_state(state: Dictionary) -> void:
@@ -689,6 +714,12 @@ func restore_state(state: Dictionary) -> void:
 	dummy_hp = rules.boss_hp
 	if boss_defeated:
 		dummy.die(Vector3.ZERO)
+	var dead_foes: Array = state.get("dead_foes", [])
+	for i in _foes.size():
+		if dead_foes.has(_foes[i].kind):
+			_foes[i].dead = true
+			_foes[i].warn.visible = false
+			_foes[i].actor.die(Vector3.ZERO)
 	if rules.plates_collected > 0 and has_node("CollectionPlate"):
 		get_node("CollectionPlate").queue_free()
 	for prop in _loot_nodes.duplicate():

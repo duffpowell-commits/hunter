@@ -319,6 +319,120 @@ func _pews_checks() -> void:
 	_check(arena.rules.boss_phase == 2 and arena.rules.boss_defeated
 		and arena.rules.eaten and arena.rules.inventory.has("stained_glass"),
 		"PEWS CONTINUE PASS (boss, voice and loot survive the checkpoint)")
+	await _pews_danger_checks()
+
+
+## The parts of The Pews that hurt, with God mode OFF and Vesper's own timers doing the work.
+## Why (Nov 23 fresh-eyes review of PR #20): the fight above runs in God mode with Vesper's
+## cooldown parked, so a script error in Flock, Laying of Hands, the Choir buff, the "spotted" path
+## or GAME OVER inside the church would still have printed AUTOPLAY PASS. Staging here only places
+## actors and zeroes cooldowns; every hit goes through the real telegraph, range and damage code.
+func _pews_danger_checks() -> void:
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
+	await _wait_scene("Title")
+	await _click("NEW GAME")
+	await _wait_scene("Game")
+	var game := get_tree().current_scene
+	var arena = game.arena
+	await _frames(25)
+	arena.rig.cam.make_current()
+	get_node("/root/DebugMenu").god_mode = false
+	var cfg: Dictionary = arena.rules.config
+	var zealot: Dictionary
+	var choir: Dictionary
+	for foe in arena._foes:
+		if foe.kind == "Zealot":
+			zealot = foe
+		else:
+			choir = foe
+	# Park the minions out of chase range so each boss power is measured alone.
+	_place(zealot.actor, Vector3(-2.0, 0.05, 40.0), 0.0)
+	_place(choir.actor, Vector3(2.0, 0.05, 40.0), 0.0)
+	var boss_at: Vector3 = arena.dummy.global_position
+
+	# Walk into Vesper's view cone (he faces the altar): no ambush, the fight starts on his terms.
+	_place(arena.hero, boss_at + Vector3(0, 0.05, -1.9), 0.0)
+	var by := Time.get_ticks_msec() + 2000
+	while not arena.encounter_started and Time.get_ticks_msec() < by:
+		await get_tree().physics_frame
+	_check(arena.spotted and arena.encounter_started and not arena.rules.ambush_started
+		and not arena._ambush_free_special, "PEWS SPOTTED PASS (walking into Vesper's view starts the fight with no ambush bonus)")
+
+	# Sermon: stand inside its radius and take the hit.
+	_place(arena.hero, boss_at + Vector3(0, 0.05, 2.0), PI)
+	var hp0: int = arena.hp
+	arena._boss_cd = 0.0
+	by = Time.get_ticks_msec() + 4000
+	while arena.hp == hp0 and Time.get_ticks_msec() < by:
+		await get_tree().physics_frame
+	_check(hp0 - arena.hp == int(cfg.boss.moves.sermon.damage),
+		"PEWS SERMON PASS (the sermon cost %d HP inside its radius)" % (hp0 - arena.hp))
+
+	# Flock: the shadows appear and a tick lands on a hero who stays close.
+	# The sermon's knockback is still carrying the hero: let it finish, then step back in, and
+	# again as the shadows appear (a player who holds their ground).
+	await _physics(60)
+	_place(arena.hero, boss_at + Vector3(0, 0.05, 1.6), PI)
+	hp0 = arena.hp
+	arena._boss_cd = 0.0
+	var saw_shadows := false
+	by = Time.get_ticks_msec() + 5000
+	while arena.flock_ticks == 0 and Time.get_ticks_msec() < by:
+		if not saw_shadows and arena._flock_node != null and arena._flock_node.get_child_count() == 3:
+			saw_shadows = true
+			_place(arena.hero, boss_at + Vector3(0, 0.05, 1.6), PI)
+		await get_tree().physics_frame
+	_check(saw_shadows and arena.flock_ticks >= 1 and hp0 - arena.hp == int(cfg.boss.moves.flock.damage),
+		"PEWS FLOCK PASS (three shadows, a tick cost %d HP)" % (hp0 - arena.hp))
+	_place(arena.hero, boss_at + Vector3(0, 0.05, 9.0), PI)     # out of the Flock before the next check
+
+	# Laying of Hands: wound Vesper, then his own heal tops him back up, HUD value in sync.
+	arena.rules.boss_hp -= 30.0
+	arena.dummy_hp = arena.rules.boss_hp
+	var boss0: float = arena.rules.boss_hp
+	arena._boss_cd = 0.0
+	by = Time.get_ticks_msec() + 4000
+	while arena.hands_healed == 0.0 and Time.get_ticks_msec() < by:
+		await get_tree().physics_frame
+	_check(arena.hands_healed == float(cfg.boss.moves.laying_of_hands.heal)
+		and arena.rules.boss_hp == boss0 + arena.hands_healed and arena.dummy_hp == arena.rules.boss_hp,
+		"PEWS HANDS PASS (Vesper healed %d, to %d HP)" % [int(arena.hands_healed), int(arena.rules.boss_hp)])
+	arena._boss_cd = 999.0
+
+	# A Zealot with the Choir in buff range (but out of its own chase range) hits harder.
+	by = Time.get_ticks_msec() + 5000
+	while arena._flock_time > 0.0 and Time.get_ticks_msec() < by:
+		await get_tree().physics_frame
+	var spot := Vector3(0, 0.05, 2.0)
+	_place(arena.hero, spot, 0.0)
+	_place(zealot.actor, spot + Vector3(0, 0, 1.5), PI)
+	_place(choir.actor, spot + Vector3(5.2, 0, 1.5), PI)
+	zealot.attack_cd = 0.0
+	hp0 = arena.hp
+	arena.last_minion_hit = 0
+	by = Time.get_ticks_msec() + 4000
+	while arena.last_minion_hit == 0 and Time.get_ticks_msec() < by:
+		await get_tree().physics_frame
+	var boosted := int(cfg.minions.zealot_damage) + int(cfg.minions.choir_bonus_damage)
+	_check(arena.last_minion_hit == boosted and hp0 - arena.hp == boosted,
+		"PEWS CHOIR BUFF PASS (Zealot hit for %d with the Choir singing)" % arena.last_minion_hit)
+
+	# Dying in the church: GAME OVER, and the run's save is gone.
+	arena.hp = 1
+	by = Time.get_ticks_msec() + 12000
+	while not game.over and Time.get_ticks_msec() < by:
+		if not arena.hero.dead:
+			_place(arena.hero, zealot.actor.global_position + Vector3(0, 0, -1.5), 0.0)
+			if zealot.windup <= 0.0:
+				zealot.attack_cd = minf(zealot.attack_cd, 0.0)
+		await _frames(5)
+	await _frames(10)
+	await _shot("pews_gameover")
+	_check(game.over and _find("TRY AGAIN") != null and not get_node("/root/Save").exists(),
+		"PEWS GAMEOVER PASS (the minions can kill; game over screen, save cleared)")
+	await _click("TITLE")
+	await _wait_scene("Title")
 
 
 func _fight_vesper_phase(game: Node, phase: int) -> void:
