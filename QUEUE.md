@@ -1,11 +1,11 @@
 # Queue
 
 ## NOW
-- Code: Milestone 1 (the 3D test arena) was built Nov 21 (PR #14). The review fixes were pushed Nov 21
-  and are waiting on the next fresh-eyes review, then merge. Actions minutes are nearly out until the
-  monthly reset: batch into one push after all local checks pass, and never push docs-only commits. Next is
-  Milestone 2 (docs/BUILD_SPEC.md): The Pews and Vesper. Duff should first review M1's judgment
-  calls (docs/DECISIONS.md).
+- Code: Milestones 0-2 are built (M2, The Pews and Vesper, Nov 23, PR #20). Next is Milestone 3
+  (docs/BUILD_SPEC.md): the lair. Start with the M2 carry-overs in tasks/todo.md (profile-level save
+  first). Actions minutes are tight until the monthly reset: batch into one push after all local
+  checks pass, and never push docs-only commits. Duff still owes a look at M1's judgment calls
+  (docs/DECISIONS.md) and should play the M2 build on his phone.
 - Design, in parallel: hero name (asked Nov 20), then the rest of NEXT. Art is locked: ink on 3D (docs/style-guide.md).
 
 ## NEXT (design, no code)
@@ -15,7 +15,7 @@
 - Endings.
 
 ## LATER
-- Code: Milestones 2-5+ per docs/BUILD_SPEC.md.
+- Code: Milestones 3-5+ per docs/BUILD_SPEC.md.
 
 ## OPEN QUESTIONS (Duff decides; don't change these until he does)
 Why: when the docs disagree and Duff hasn't picked, no session guesses (docs/DECISIONS.md, Nov 21).

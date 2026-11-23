@@ -74,11 +74,11 @@ func heavy() -> Dictionary:
 
 ## {} when that special is still cooling down. Spends nothing: call commit(m) when it starts.
 ## Why (review of 95847e0): a refused move (hero dead) used to burn the cooldown.
-func special(dir: String) -> Dictionary:
+func special(dir: String, ignore_cooldown := false) -> Dictionary:
 	if not moves.specials.has(dir):
 		return {}
 	var m: Dictionary = moves.specials[dir].duplicate()
-	if cooldowns.get(m.id, 0.0) > 0.0:
+	if not ignore_cooldown and cooldowns.get(m.id, 0.0) > 0.0:
 		return {}
 	m["kind"] = "special"
 	m["dir"] = dir

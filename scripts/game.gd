@@ -15,6 +15,7 @@ const SettingsSheet = preload("res://scripts/settings_sheet.gd")
 const BugReport = preload("res://scripts/bug_report.gd")
 const ControlsLegend = preload("res://scripts/controls_legend.gd")
 const Arena = preload("res://scripts/arena.gd")
+const PewsArena = preload("res://scripts/pews_arena.gd")
 const VirtualStick = preload("res://scripts/virtual_stick.gd")
 const SwipePad = preload("res://scripts/swipe_pad.gd")
 
@@ -52,13 +53,20 @@ func _ready() -> void:
 		score = int(d.get("score", 0))
 		_saved_hp = int(d.get("hp", -1))
 	# The 3D arena lives for the whole scene; _build() only rebuilds the 2D layer on top.
-	arena = Arena.new()
+	var autoplay := get_node_or_null("/root/Autoplay")
+	arena = Arena.new() if autoplay != null and autoplay.training_arena else PewsArena.new()
 	arena.add_to_group("keep")
 	add_child(arena)
 	if _saved_hp > 0:
 		arena.hp = mini(_saved_hp, arena.max_hp)
 	arena.ko.connect(_on_ko)
 	arena.hero_died.connect(_on_hero_died)
+	if arena.has_signal("finish_requested"):
+		arena.connect("finish_requested", Callable(self, "_on_finish_requested"))
+		arena.connect("voice_unlocked", Callable(self, "_on_voice_unlocked"))
+		arena.connect("portal_opened", Callable(self, "_on_portal_opened"))
+	if arena.has_method("restore_state"):
+		arena.call("restore_state", d.get("pews", {}))
 	_build()
 	checkpoint()
 	get_node("/root/Audio").music_layers("music_loop", "music_combat")
@@ -67,7 +75,10 @@ func _ready() -> void:
 # ---------------------------------------------------------------- state + saving
 
 func state() -> Dictionary:
-	return {"level": level, "score": score, "hp": arena.hp if arena != null else 100}
+	var result := {"level": level, "score": score, "hp": arena.hp if arena != null else 100}
+	if arena != null and arena.has_method("save_state"):
+		result["pews"] = arena.call("save_state")
+	return result
 
 
 ## Never saves a dead hero: dying escaped GAME OVER through PAUSE -> QUIT -> CONTINUE (review of 95847e0).
@@ -136,7 +147,7 @@ func _build() -> void:
 	pause_btn = UI.button("PAUSE", pause)
 	_corner(pause_btn, left, true, 150)
 	# Context button above the pad (BUILD_SPEC: INTERACT / SCAVENGE / FINISH go here).
-	pick_btn = UI.button("PICK UP", func(): arena.pick_up(), 96)
+	pick_btn = UI.button("PICK UP", _context_action, 96)
 	pick_btn.name = "PickUp"
 	_corner(pick_btn, not left, false, 200)
 	pick_btn.offset_top -= 260
@@ -176,12 +187,18 @@ func _refresh_hud() -> void:
 	if hud == null or arena == null:
 		return
 	var god := " GOD" if get_node("/root/DebugMenu").god_mode else ""
-	hud.text = "ROUND %d\nHP %d%s" % [level, arena.hp, god]
+	var status := str(arena.call("status_text")) if arena.has_method("status_text") else ""
+	hud.text = "ROUND %d\nHP %d%s%s" % [level, arena.hp, god, "\n" + status if not status.is_empty() else ""]
 	var c: int = arena.combo_count()
 	combo_label.text = "%d HITS" % c if c >= 2 else ""
 	var w: String = arena.combat.weapon
 	weapon_label.text = "%s %d/%d" % [arena.weapon_data[w].name, arena.combat.durability, int(arena.weapon_data[w].durability)] if w != "" else ""
-	pick_btn.visible = arena.can_pick_up
+	if arena.has_method("context_label"):
+		pick_btn.text = str(arena.call("context_label"))
+		pick_btn.visible = bool(arena.call("context_visible"))
+	else:
+		pick_btn.text = "PICK UP"
+		pick_btn.visible = arena.can_pick_up
 
 
 # ---------------------------------------------------------------- PLAY (Hunter M1)
@@ -220,6 +237,55 @@ func _unhandled_input(e: InputEvent) -> void:
 		arena.stick_special(v)
 	elif e.is_action_pressed("dodge"):
 		arena.dodge()
+
+
+func _context_action() -> void:
+	if arena != null and arena.has_method("context_action"):
+		arena.call("context_action")
+		checkpoint()
+	else:
+		arena.pick_up()
+	_refresh_hud()
+
+
+func _on_finish_requested() -> void:
+	var sh := UI.sheet(self)
+	var pews_rules: Variant = arena.get("rules")
+	var outcomes: Dictionary = pews_rules.config.get("finishers", {}) if pews_rules != null else {}
+	var clean: Dictionary = outcomes.get("clean", {})
+	var brutal: Dictionary = outcomes.get("brutal", {})
+	sh.add_child(UI.label("VESPER IS BROKEN", 28, UI.ACCENT))
+	sh.add_child(UI.label("Choose what remains of him.", 18))
+	sh.add_child(UI.label("CLEAN: intact trophy, %d parts, +%d corruption" % [int(clean.get("parts", 0)), int(clean.get("corruption", 0))], 15))
+	sh.add_child(UI.button("CLEAN", func(): _choose_finish(sh, "CLEAN"), 88))
+	sh.add_child(UI.label("BRUTAL: +%d voice slot, %d parts, +%d corruption" % [int(brutal.get("extra_special_slots", 0)), int(brutal.get("parts", 0)), int(brutal.get("corruption", 0))], 15))
+	sh.add_child(UI.button("BRUTAL", func(): _choose_finish(sh, "BRUTAL"), 88))
+
+
+func _choose_finish(sh: VBoxContainer, method: String) -> void:
+	UI.close_sheet(sh)
+	var result: Dictionary = arena.call("choose_finisher", method)
+	if not result.is_empty():
+		get_node("/root/Subs").cue("[%s finisher]" % method.to_lower())
+		checkpoint()
+	_refresh_hud()
+
+
+func _on_voice_unlocked() -> void:
+	var sh := UI.sheet(self)
+	var pews_rules: Variant = arena.get("rules")
+	var voice: Dictionary = pews_rules.config.get("voice", {}) if pews_rules != null else {}
+	sh.add_child(UI.label(str(voice.get("name", "BROTHER VESPER LYLE")), 26, UI.ACCENT))
+	sh.add_child(UI.label(str(voice.get("dialogue", "You ate me mid-sermon. The congregation will hear of this.")), 19))
+	sh.add_child(UI.button("CLOSE", func(): UI.close_sheet(sh), 88))
+	get_node("/root/Subs").cue("[a new voice speaks in your head]")
+	checkpoint()
+
+
+func _on_portal_opened() -> void:
+	get_node("/root/Subs").cue("[portal home opens]")
+	# The lair is Milestone 3; until then the title screen is the safe-home placeholder.
+	get_node("/root/Loader").go("res://scenes/title.tscn")
 
 
 func _on_ko(_count: int) -> void:
@@ -302,7 +368,8 @@ func _notification(what: int) -> void:
 
 func _go_back() -> void:
 	var sheets := get_tree().get_nodes_in_group("sheet")
-	if sheets.size() > 1:
+	var base_sheet: Node = sheet_box.get_meta("sheet") if is_instance_valid(sheet_box) else null
+	if not sheets.is_empty() and sheets[-1] != base_sheet:
 		sheets[-1].queue_free()
 	elif paused and not over:
 		resume()
