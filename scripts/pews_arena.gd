@@ -19,6 +19,7 @@ var _boss_telegraph := 0.0
 var _boss_move := ""
 var _flock_time := 0.0
 var _flock_cd := 0.0
+var _occult_halo: Node3D
 var _flock_node: Node3D
 var _nearest_plate: Node3D
 var _nearest_loot: Node3D
@@ -35,18 +36,138 @@ func _build_world() -> void:
 	altar.name = "Altar"
 	altar.position = Vector3(0, 0, -8.0)
 	church.add_child(altar)
-	# A ruined megachurch: a long aisle, broken pews, pulpit and stained-glass windows.
-	_box(Vector3(-1.1, 0, -9.0), Vector3(1.1, 1.8, -8.7), Color("51404b"))
-	_box(Vector3(-0.12, 1.8, -9.05), Vector3(0.12, 4.2, -8.85), Color("6b2634"))
+	# Keep the altar and pew collision footprints from the encounter blockout.
+	var environment: Environment
+	for child in get_children():
+		if child is WorldEnvironment:
+			environment = child.environment
+		elif child is DirectionalLight3D:
+			# The fixed top-down camera needs shadows only across the nearby aisle.
+			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			child.directional_shadow_max_distance = 22.0
+	environment.background_color = Color("151a22")
+	environment.ambient_light_color = Color("657181")
+	_box(Vector3(-1.1, 0, -9.0), Vector3(1.1, 1.8, -8.7), Color("414653"))
+	_box(Vector3(-0.12, 1.8, -9.05), Vector3(0.12, 4.2, -8.85), Color("343842"))
+	_ink_box(Vector3(-1.27, 1.46, -9.11), Vector3(1.27, 1.65, -8.51), Color("565b64"))
+	_ink_box(Vector3(-1.22, 0.0, -9.1), Vector3(1.22, 0.19, -8.56), Color("30343d"))
+
+	var marks := SurfaceTool.new()
+	marks.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ink := Color("19212b")
 	for row in range(3):
 		var z := -1.0 - float(row) * 2.1
 		for side in [-1.0, 1.0]:
 			var x: float = float(side) * 2.5
-			_box(Vector3(x - 1.25, 0.0, z), Vector3(x + 1.25, 0.45, z + 0.28), Color("4b3938"))
-			_box(Vector3(x - 1.25, 0.45, z + 0.22), Vector3(x + 1.25, 1.05, z + 0.48), Color("382b2e"))
+			_box(Vector3(x - 1.25, 0.0, z), Vector3(x + 1.25, 0.45, z + 0.28), Color("493d39"))
+			_box(Vector3(x - 1.25, 0.45, z + 0.22), Vector3(x + 1.25, 1.05, z + 0.48), Color("392f30"))
+			_ink_box(Vector3(x - 1.26, 0.38, z - 0.19), Vector3(x + 1.26, 0.5, z + 0.29), Color("5b4c44"))
+			for end in [-1.0, 1.0]:
+				var post: float = x + end * 1.15
+				_ink_box(Vector3(post - 0.09, 0.0, z - 0.18), Vector3(post + 0.09, 0.87, z + 0.47), Color("433638"))
+			for scratch in 3:
+				var at := Vector3(x - 0.93 + float(scratch) * 0.7, 1.056, z + 0.30 + float(row) * 0.04)
+				_ink_stroke(marks, at, at + Vector3(0.43, 0, 0.012), 0.027, Color("242026"))
+
+	# One vertex-colored surface for flagstones, fractures and wear. No collision or shadows.
+	for row in 12:
+		var z := -8.55 + float(row) * 1.25
+		var seam := -0.26 if row % 2 == 0 else 0.28
+		for column in 2:
+			var left := -1.14 if column == 0 else seam + 0.022
+			var right := seam - 0.022 if column == 0 else 1.14
+			var tint := [Color("424953"), Color("3a424d"), Color("454c55")][(row + column) % 3] as Color
+			_ink_stroke(marks, Vector3(left, 0.002, z + 0.6), Vector3(right, 0.002, z + 0.6), 1.2, tint)
+		if row % 3 != 1:
+			var direction := 1.0 if row % 2 == 0 else -1.0
+			var start := Vector3(-1.12 * direction, 0.005, z + 0.26 + float(row % 4) * 0.09)
+			var chip := start + Vector3(0.39 * direction, 0, 0.22)
+			var bend := chip + Vector3(0.28 * direction, 0, -0.13)
+			_ink_stroke(marks, start, chip, 0.050, ink)
+			_ink_stroke(marks, chip, bend, 0.040, ink)
+			_ink_stroke(marks, bend, bend + Vector3(0.35 * direction, 0, 0.34), 0.029, ink)
+			_ink_stroke(marks, chip, chip + Vector3(0.13 * direction, 0, 0.31), 0.025, ink)
 	for side in [-1.0, 1.0]:
-		var pane := _box(Vector3(side * 8.0 - 0.08, 2.2, -8.0), Vector3(side * 8.0 + 0.08, 5.2, -4.0), Color("57394f"), false)
-		pane.name = "StainedGlass"
+		# A warm patch on each candle plinth, baked into the same surface as the aisle.
+		var x: float = side * 1.52
+		_ink_stroke(marks, Vector3(x - 0.29, 0.685, -8.53), Vector3(x + 0.29, 0.685, -8.53), 0.57, Color("65554a"))
+		_ink_stroke(marks, Vector3(x - 0.24, 0.687, -8.45), Vector3(x + 0.24, 0.687, -8.45), 0.28, Color("8c6a49"))
+	var material := StandardMaterial3D.new()
+	material.vertex_color_use_as_albedo = true
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var details := MeshInstance3D.new()
+	details.name = "StoneAndWoodWear"
+	details.mesh = marks.commit()
+	details.material_override = material
+	details.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	church.add_child(details)
+
+	for side in [-1.0, 1.0]:
+		var x: float = side * 2.9
+		_ink_box(Vector3(x - 0.94, 0, -9.86), Vector3(x + 0.94, 0.23, -9.29), Color("434853"))
+		for offset in [-0.88, 0.88]:
+			var edge: float = x + offset
+			_ink_box(Vector3(edge - 0.13, 0.23, -9.90), Vector3(edge + 0.13, 2.25, -9.46), Color("3d4551"))
+			var cap := _ink_box(Vector3(edge - 0.12, 2.25, -9.81), Vector3(edge + 0.12, 3.47, -9.53), Color("4d5460"))
+			cap.position.x -= signf(offset) * 0.40
+			cap.rotation.z = signf(offset) * 0.70
+		for shard in [Vector3(-0.46, 0.98, -0.22), Vector3(0.0, 1.54, 0.15), Vector3(0.52, 0.99, 0.2)]:
+			var center := Vector3(x + shard.x, shard.y, -9.71)
+			var glass := _ink_box(center - Vector3(0.16, 0.62, 0.035), center + Vector3(0.16, 0.62, 0.035), Color("4f6672"))
+			glass.rotation.z = shard.z
+	_add_candles(church)
+
+
+func _ink_box(a: Vector3, b: Vector3, color: Color) -> MeshInstance3D:
+	var mesh := _box(a, b, color, false) as MeshInstance3D
+	mesh.material_override = _toon(color)
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mesh
+
+
+func _ink_stroke(surface: SurfaceTool, a: Vector3, b: Vector3, width: float, color: Color) -> void:
+	var edge := (b - a).normalized().cross(Vector3.UP) * width * 0.5
+	for point in [a - edge, a + edge, b + edge, a - edge, b + edge, b - edge]:
+		surface.set_color(color)
+		surface.add_vertex(point)
+
+
+func _add_candles(church: Node3D) -> void:
+	var wax := _toon(Color("ae997b"), false)
+	var gold := StandardMaterial3D.new()
+	gold.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gold.albedo_color = Color("e6ae55")
+	var body := CylinderMesh.new()
+	body.top_radius = 0.075
+	body.bottom_radius = 0.088
+	body.height = 0.30
+	body.radial_segments = 8
+	body.rings = 0
+	var flame := SphereMesh.new()
+	flame.radius = 0.055
+	flame.height = 0.16
+	flame.radial_segments = 8
+	flame.rings = 4
+	for side in [-1.0, 1.0]:
+		var x: float = side * 1.52
+		_ink_box(Vector3(x - 0.31, 0, -8.84), Vector3(x + 0.31, 0.68, -8.22), Color("49434a"))
+		for offset in [-0.18, 0.02, 0.19]:
+			var at := Vector3(x + offset, 0.68, -8.53 + absf(offset))
+			var height := 0.84 + (0.28 if offset == 0.02 else 0.0)
+			var candle := MeshInstance3D.new()
+			candle.mesh = body
+			candle.material_override = wax
+			candle.position = at + Vector3.UP * body.height * height * 0.5
+			candle.scale.y = height
+			candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			church.add_child(candle)
+			var wick := MeshInstance3D.new()
+			wick.mesh = flame
+			wick.material_override = gold
+			wick.position = at + Vector3.UP * (body.height * height + 0.06)
+			wick.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			church.add_child(wick)
 
 
 func _ready() -> void:
@@ -67,7 +188,44 @@ func _ready() -> void:
 	_spawn_foe("Zealot", Vector3(-3.0, 0, -1.0), Color("a84c42"), 36.0, 7)
 	_spawn_foe("Choir", Vector3(3.0, 0, -2.0), Color("b5a0d0"), 44.0, 5)
 	_spawn_realm_props()
+	_build_occult_halo()
 	_enemy_t = 999.0
+
+
+## A tiny mobile-friendly occult halo: unshaded emission, no real-time lights.
+## It is deliberately hidden during exploration and ordinary combat.
+func _build_occult_halo() -> void:
+	_occult_halo = Node3D.new()
+	_occult_halo.name = "OccultHalo"
+	_occult_halo.position = Vector3(0.0, 2.35, 0.0)
+	dummy.add_child(_occult_halo)
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = Color("df56bd")
+	var candle := SphereMesh.new()
+	candle.radius = 0.075
+	candle.height = 0.15
+	candle.radial_segments = 8
+	candle.rings = 4
+	var points := MultiMesh.new()
+	points.transform_format = MultiMesh.TRANSFORM_3D
+	points.mesh = candle
+	points.instance_count = 10
+	for i in points.instance_count:
+		var angle := TAU * float(i) / float(points.instance_count)
+		var at := Vector3(cos(angle) * 0.72, sin(angle) * 0.72, 0.0)
+		points.set_instance_transform(i, Transform3D(Basis.IDENTITY, at))
+	var wicks := MultiMeshInstance3D.new()
+	wicks.multimesh = points
+	wicks.material_override = glow
+	wicks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_occult_halo.add_child(wicks)
+	_occult_halo.visible = false
+
+
+func _set_occult_halo(active: bool) -> void:
+	if _occult_halo != null:
+		_occult_halo.visible = active
 
 
 func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float, damage: int) -> void:
@@ -243,6 +401,7 @@ func _begin_boss_move() -> void:
 	_boss_move_index += 1
 	var data: Dictionary = rules.config.boss.moves.get(_boss_move, {})
 	_boss_telegraph = maxf(0.5, float(data.get("telegraph", 0.7)))
+	_set_occult_halo(true)
 	_warn.text = "!"
 	_warn.modulate = UI.key("bad")
 	_warn.visible = true
@@ -251,6 +410,7 @@ func _begin_boss_move() -> void:
 
 
 func _execute_boss_move() -> void:
+	_set_occult_halo(false)
 	_warn.visible = false
 	var data: Dictionary = rules.config.boss.moves.get(_boss_move, {})
 	dummy.act("enemy_swing")
@@ -342,6 +502,7 @@ func _ko(_result: Dictionary) -> void:
 	var state := rules.hit_boss(maxf(0.0, rules.boss_hp - dummy_hp))
 	dummy_hp = rules.boss_hp
 	if state.phase_changed:
+		_set_occult_halo(false)
 		dummy.revive()
 		dummy.position = Vector3(0, 0, -6.0)
 		dummy.heading = PI
@@ -349,6 +510,7 @@ func _ko(_result: Dictionary) -> void:
 		_warn.visible = false
 		get_node("/root/Subs").cue("[Vesper reveals his second form]")
 	elif state.defeated:
+		_set_occult_halo(false)
 		boss_defeated = true
 		if _flock_node != null:
 			_flock_node.queue_free()
