@@ -4,14 +4,17 @@ extends Control
 signal dismissed
 
 const PUBLISHER := "3 Eyed Fox Studios"
-const DISPLAY_SECONDS := 0.75
+const UI = preload("res://scripts/ui.gd")
 
 var finished := false
 
 
 func _ready() -> void:
-	%Skip.pressed.connect(_dismiss)
-	get_tree().create_timer(DISPLAY_SECONDS).timeout.connect(_dismiss)
+	theme = UI.theme()
+	var skip := UI.button("Skip splash")
+	skip.custom_minimum_size.x = 184
+	skip.pressed.connect(_dismiss)
+	%Actions.add_child(skip)
 
 
 func _input(event: InputEvent) -> void:

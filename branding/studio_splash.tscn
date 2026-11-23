@@ -32,14 +32,19 @@ texture = ExtResource("2")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Skip" type="Button" parent="."]
+[node name="Actions" type="CenterContainer" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(184, 72)
 layout_mode = 1
 anchor_left = 0.5
 anchor_top = 0.84
 anchor_right = 0.5
 anchor_bottom = 0.84
-offset_left = -92.0
-offset_right = 92.0
-text = "Skip splash"
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="DisplayTimer" type="Timer" parent="."]
+wait_time = 0.75
+one_shot = true
+autostart = true
+
+[connection signal="timeout" from="DisplayTimer" to="." method="_dismiss"]

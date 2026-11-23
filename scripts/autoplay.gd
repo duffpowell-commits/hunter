@@ -36,6 +36,8 @@ func _ready() -> void:
 
 func _run() -> void:
 	await _wait_scene("Boot")
+	# Disable the timer in this run so only the tap can dismiss the card.
+	get_tree().current_scene.get_node("StudioSplash/DisplayTimer").stop()
 	await _shot("studio_splash")
 	await _click("Skip splash")
 	_check(_find("Skip splash") == null, "STUDIO SPLASH PASS (Skip splash dismisses the publisher card)")
