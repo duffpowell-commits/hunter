@@ -5,8 +5,8 @@ extends CanvasLayer
 ## CI stamps every APK with a counting build number (res://build_code.txt + Android
 ## version/code = the workflow run number) and on main uploads <repo>.apk plus version.json
 ## ({"code": N, "sha": "abc1234"}) to the repo's public "dev" release, version.json LAST.
-## On launch and when the app comes back to the front this reads version.json; if its code
-## is higher it offers UPDATE NOW, downloads the APK into user:// and hands it to Android's
+## On launch, when the app comes back to the front, and every RECHECK_S while it stays open, this
+## reads version.json; if its code is higher it offers UPDATE NOW, downloads the APK into user:// and hands it to Android's
 ## installer (OS.shell_open; Godot's FileProvider makes the content:// URI).
 ##
 ## Needs: REQUEST_INSTALL_PACKAGES + INTERNET in the Android preset, and every build signed
@@ -17,6 +17,10 @@ const UI = preload("res://scripts/ui.gd")
 const Config = preload("res://scripts/config.gd")
 const APK_PATH := "user://update.apk"
 const RECHECK_S := 120.0
+## Why POLL_S < RECHECK_S (Nov 23 review): a 120 s timer against a 120 s gate skipped every other
+## tick, so checks really came every ~240 s. Tick often, let _check_if_due decide.
+const POLL_S := 30.0
+const PLAY_SCENE := "Game"
 
 var my_code := 0
 var new_code := 0
@@ -27,10 +31,18 @@ var box: VBoxContainer
 var line: Label
 var go_btn: Button
 var installing := false
+## Build the player said LATER to. Why (Nov 23 review): LATER has to hold; without this the
+## open-app poll re-offered the same build every few minutes. Cleared on resume.
+var dismissed := 0
 
 
 static func is_newer(remote: int, local: int) -> bool:
 	return local > 0 and remote > local
+
+
+## Offer only a newer build the player hasn't already put off.
+static func should_offer(remote: int, local: int, put_off: int) -> bool:
+	return is_newer(remote, local) and remote > put_off
 
 
 func _ready() -> void:
@@ -43,13 +55,13 @@ func _ready() -> void:
 		return
 	if FileAccess.file_exists(APK_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(APK_PATH))
-	var poll := Timer.new()
-	poll.wait_time = RECHECK_S
-	poll.timeout.connect(_check_if_due)
-	add_child(poll)
-	poll.start()
 	await get_tree().create_timer(1.5).timeout
 	check()
+	var poll := Timer.new()
+	poll.wait_time = POLL_S
+	poll.timeout.connect(_on_poll)
+	add_child(poll)
+	poll.start()
 
 
 func _enabled() -> bool:
@@ -64,7 +76,21 @@ func _local_code() -> int:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_RESUMED:
+		dismissed = 0
 		_check_if_due()
+
+
+## Why (Nov 23 review): the sheet is a full-screen input blocker that doesn't pause the game, so
+## the open-app poll never interrupts live play; it waits for a menu or the pause screen.
+## Launch and resume checks still run (the game auto-pauses on focus-out).
+func _on_poll() -> void:
+	if not _in_play():
+		_check_if_due()
+
+
+func _in_play() -> bool:
+	var scene := get_tree().current_scene
+	return scene != null and scene.name == PLAY_SCENE and not get_tree().paused
 
 
 func _check_if_due() -> void:
@@ -106,7 +132,7 @@ func _on_version(result: int, code: int, _h: PackedStringArray, body: PackedByte
 		return
 	new_code = int(data["code"])
 	print("UPDATER mine %d, release %d" % [my_code, new_code])
-	if is_newer(new_code, my_code):
+	if should_offer(new_code, my_code, dismissed):
 		_offer()
 
 
@@ -127,6 +153,8 @@ func _offer() -> void:
 
 
 func _close() -> void:
+	if not installing:
+		dismissed = new_code
 	installing = false
 	if http != null and busy:
 		http.cancel_request()

@@ -80,6 +80,10 @@ func _run() -> void:
 	await _click("NEW GAME")
 	await _wait_scene("Game")
 	var game := get_tree().current_scene
+	# Why (Nov 23 review): the open-app update poll must never cover live play.
+	var upd: Node = get_node("/root/Updater")
+	_check(upd._in_play() and not upd.should_offer(5, 4, 5),
+		"UPDATER QUIET PASS (poll waits during play, LATER holds)")
 	var ld: Node = get_node("/root/Loader")
 	_check(ld.loads >= 2 and not ld.busy(), "LOAD PASS (%d scenes loaded in the background, %d frames drawn meanwhile)" % [ld.loads, ld.frames_while_loading])
 
