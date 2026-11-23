@@ -4,6 +4,7 @@ extends RefCounted
 
 const UI = preload("res://scripts/ui.gd")
 const Quality = preload("res://scripts/quality.gd")
+const StudioSplash = preload("res://branding/studio_splash.gd")
 
 
 static func open(parent: Node) -> VBoxContainer:
@@ -46,8 +47,16 @@ static func open(parent: Node) -> VBoxContainer:
 	_toggle(col, s, "BATTERY SAVER", "battery_saver")
 	_toggle(col, s, "SHARE ANONYMOUS STATS", "share_stats")
 	col.add_child(UI.button("CONTROLS", func(): open_controls(parent)))
+	col.add_child(UI.button("CREDITS", func(): _open_credits(parent)))
 	box.add_child(UI.button("DONE", func(): UI.close_sheet(box)))
 	return box
+
+
+static func _open_credits(parent: Node) -> void:
+	var box := UI.sheet(parent, 500)
+	box.add_child(UI.label("CREDITS", 28, UI.ACCENT))
+	box.add_child(UI.label("Published by " + StudioSplash.PUBLISHER))
+	box.add_child(UI.button("DONE", func(): UI.close_sheet(box)))
 
 
 static func _reopen(box: VBoxContainer, parent: Node) -> void:
