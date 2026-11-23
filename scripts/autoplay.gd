@@ -221,6 +221,25 @@ func _pews_checks() -> void:
 		"PEWS EXPLORATION ART PASS (Vesper's occult halo is off during exploration)")
 	await _shot("pews_map")
 
+	var stick_point: Vector2 = game.stick.get_global_rect().get_center()
+	_mouse(stick_point, true)
+	_mouse(stick_point + Vector2(24, 0), null)
+	await _frames(3)
+	_check(arena.hero.crouching, "PEWS SNEAK PASS (light stick input crouch-walks)")
+	_mouse(stick_point + Vector2(24, 0), false)
+	await _frames(3)
+	_check(not arena.hero.crouching, "PEWS WALK PASS (releasing the stick stands up)")
+	var tuning: Node = get_tree().get_first_node_in_group("tunable")
+	for candidate in get_tree().get_nodes_in_group("tunable"):
+		if candidate.get_parent() == arena and candidate.get("sermon_damage") != null:
+			tuning = candidate
+			break
+	var sermon_damage: float = float(arena.rules.config.boss.moves.sermon.damage)
+	tuning.set("sermon_damage", sermon_damage + 1.0)
+	_check(arena.rules.config.boss.moves.sermon.damage == sermon_damage + 1.0,
+		"PEWS TUNE PASS (changes to the sermon slider reach the active rules)")
+	tuning.set("sermon_damage", sermon_damage)
+
 	var studied: float = arena.rules.tick_stalking(0.0, 4.0, PI, false, false, 12.5)
 	_check(studied == 100.0 and arena.context_label() == "AMBUSH",
 		"PEWS STALK PASS (outside the 60-degree view cone, full study opens ambush)")
@@ -250,18 +269,18 @@ func _pews_checks() -> void:
 		"PEWS OCCULT CLEAR PASS (Vesper's halo goes dark after the sermon)")
 	await _shot("pews_after_sermon")
 
-	# The inherited combat controller subtracts damage before invoking _ko.
-	arena.dummy_hp -= 999.0
-	arena._ko({"damage": 999.0})
+	# Keep the encounter deterministic while using stock damage and the real attack pad.
+	var debug := get_node("/root/DebugMenu")
+	debug.god_mode = true
+	arena._boss_cd = 999.0
+	await _fight_vesper_phase(game, 1)
 	_check(arena.rules.boss_phase == 2 and not arena.boss_defeated,
-		"PEWS PHASE PASS (phase one transitions to phase two)")
-	arena.rig.cam.make_current()
-	await _frames(3)
+		"PEWS PHASE PASS (pad attacks break phase one)")
 	await _shot("pews_boss")
-	arena.dummy_hp -= 999.0
-	arena._ko({"damage": 999.0})
+	await _fight_vesper_phase(game, 2)
+	debug.god_mode = false
 	_check(arena.boss_defeated and arena.rules.boss_defeated,
-		"PEWS BOSS PASS (Vesper only falls after phase two)")
+		"PEWS BOSS PASS (pad attacks defeat phase two)")
 	var plate: Dictionary = arena.rules.collect_plate()
 	var loot: Dictionary = arena.rules.scavenge("stained_glass")
 	_check(plate.get("cash", 0) > 0 and plate.get("heat", 0) > 0
@@ -292,6 +311,25 @@ func _pews_checks() -> void:
 	_check(arena.rules.boss_phase == 2 and arena.rules.boss_defeated
 		and arena.rules.eaten and arena.rules.inventory.has("stained_glass"),
 		"PEWS CONTINUE PASS (boss, voice and loot survive the checkpoint)")
+
+
+func _fight_vesper_phase(game: Node, phase: int) -> void:
+	var arena: Node = game.arena
+	var point := _pad_point(game)
+	for attempt in 14:
+		if arena.rules.boss_phase != phase or arena.boss_defeated:
+			return
+		var ready_by := Time.get_ticks_msec() + 2500
+		while (not arena._free() or arena.dummy.is_acting("knockback")) and Time.get_ticks_msec() < ready_by:
+			await get_tree().process_frame
+		await _face_dummy(arena)
+		var before: float = arena.dummy_hp
+		_mouse(point, true)
+		await _secs(0.45)
+		_mouse(point, false)
+		var hit_by := Time.get_ticks_msec() + 1200
+		while arena.dummy_hp == before and Time.get_ticks_msec() < hit_by:
+			await get_tree().process_frame
 
 
 # ---------------------------------------------------------------- 3D movement checks

@@ -15,6 +15,8 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
 
 - The integration branch combines the branded startup from main with The Pews and Vesper from PR #17, including the Gothic Ink environment work in PR #18.
 - NEW GAME opens The Pews in normal play. Autoplay also loads the training arena to retain the Milestone 1 combat checks. The dodge check sends real taps through the swipe pad.
+- In The Pews, a light stick tilt crouch-walks before Vesper engages. The shared TUNE panel exposes stalking, Vesper phase health and spell timing, and minion balance. Tuning edits affect the active encounter configuration.
+- Autoplay uses real attack-pad holds to clear Vesper’s two phases, with fixed positioning and God mode after the sermon check.
 - The return-home portal leads to the title until the Milestone 3 lair is built. Review the integration branch and verify its Android build before merging.
 
 ## Where things stand (Nov 21, 2026)

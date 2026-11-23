@@ -25,7 +25,7 @@ var ambush_started := false
 
 
 func _init(data: Dictionary = {}) -> void:
-	config = data if not data.is_empty() else GameData.load_json("pews")
+	config = (data if not data.is_empty() else GameData.load_json("pews")).duplicate(true)
 	boss_hp = float(config.get("boss", {}).get("phase_hp", [140, 180])[0])
 
 

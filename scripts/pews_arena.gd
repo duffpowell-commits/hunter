@@ -1,6 +1,6 @@
 extends "res://scripts/arena.gd"
 ## The Pews: a playable church encounter built on Hunter's tested combat controller.
-## The training arena remains the autoplay target; normal NEW GAME enters this realm.
+## NEW GAME enters this realm. Autoplay also visits the original training arena.
 
 const PewsRules = preload("res://scripts/pews_rules.gd")
 
@@ -174,19 +174,20 @@ func _ready() -> void:
 	super._ready()
 	name = "PewsArena"
 	rules = PewsRules.new()
+	add_child(preload("res://scripts/pews_tuning.gd").new(rules.config))
+	rules.boss_hp = float(rules.config.boss.phase_hp[0])
 	dummy.name = "Vesper"
 	dummy.tint = Color("8b718f")
 	dummy.position = Vector3(0, 0, -6.0)
 	dummy.heading = PI
 	dummy.model.rotation.y = PI
 	dummy_hp = rules.boss_hp
-	var phase_hp: Array = rules.config.get("boss", {}).get("phase_hp", [140, 180])
-	dummy_max_hp = float(phase_hp[phase_hp.size() - 1]) if not phase_hp.is_empty() else rules.boss_hp
+	dummy_max_hp = rules.boss_hp
 	hero.position = Vector3(0, 0, 5.0)
 	hero.heading = PI
 	hero.model.rotation.y = PI
-	_spawn_foe("Zealot", Vector3(-3.0, 0, -1.0), Color("a84c42"), 36.0, 7)
-	_spawn_foe("Choir", Vector3(3.0, 0, -2.0), Color("b5a0d0"), 44.0, 5)
+	_spawn_foe("Zealot", Vector3(-3.0, 0, -1.0), Color("a84c42"), float(rules.config.minions.zealot_hp))
+	_spawn_foe("Choir", Vector3(3.0, 0, -2.0), Color("b5a0d0"), float(rules.config.minions.choir_hp))
 	_spawn_realm_props()
 	_build_occult_halo()
 	_enemy_t = 999.0
@@ -228,7 +229,7 @@ func _set_occult_halo(active: bool) -> void:
 		_occult_halo.visible = active
 
 
-func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float, damage: int) -> void:
+func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float) -> void:
 	var clips: Dictionary = moves.clips.duplicate()
 	clips.erase("_why")
 	var actor := Character3D.new()
@@ -261,7 +262,7 @@ func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float, damage
 		aura.material_override = _toon(Color("74658f"), false)
 		aura.position.y = 0.04
 		actor.add_child(aura)
-	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "damage": damage, "attack_cd": 1.2, "windup": 0.0, "dead": false, "kind": label})
+	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "max_hp": hp_value, "attack_cd": 1.2, "windup": 0.0, "dead": false, "kind": label})
 
 
 func _spawn_realm_props() -> void:
@@ -296,10 +297,21 @@ func _spawn_realm_props() -> void:
 	_nearest_plate = plate
 
 
+func push_tune() -> void:
+	dummy_max_hp = float(rules.config.boss.phase_hp[rules.boss_phase - 1])
+	super.push_tune()
+	rules.boss_hp = minf(rules.boss_hp, dummy_max_hp)
+
+
 func _process(dt: float) -> void:
+	var push := stick.length()
+	var sneak_limit := float(rules.config.stalking.sneak_stick_max)
+	var sneaking := not encounter_started and push > 0.05 and push <= sneak_limit
+	hero.set_crouch(sneaking)
 	super._process(dt)
-	if rules == null:
-		return
+	if sneaking:
+		# Remap the light half of the stick to the full crouch-walk speed.
+		hero.move_input = (stick / sneak_limit).limit_length(1.0)
 	_nearest_plate = null
 	_nearest_loot = null
 	var best_plate := 1.5
@@ -329,7 +341,7 @@ func _enemy(dt: float) -> void:
 		if _flock_cd <= 0.0:
 			_flock_cd = 1.25
 			if hero.global_position.distance_to(dummy.global_position) < 2.4:
-				_damage_hero(5, dummy.global_position)
+				_damage_hero(int(rules.config.boss.moves.flock.damage), dummy.global_position)
 		if _flock_time <= 0.0 and _flock_node != null:
 			_flock_node.queue_free()
 			_flock_node = null
@@ -339,7 +351,7 @@ func _enemy(dt: float) -> void:
 		var distance := to_hero.length()
 		var forward := Vector3(sin(dummy.heading), 0, cos(dummy.heading))
 		var angle := acos(clampf(forward.dot(to_hero.normalized()), -1.0, 1.0)) if distance > 0.001 else 0.0
-		var seen := distance <= 5.0 and angle <= deg_to_rad(30.0)
+		var seen := distance <= float(rules.config.stalking.sight_radius) and angle <= deg_to_rad(float(rules.config.stalking.view_cone_degrees) / 2.0)
 		rules.tick_stalking(rules.studied, distance, angle, hero.crouching, seen, dt)
 		if rules.engaged:
 			encounter_started = true
@@ -357,6 +369,7 @@ func _enemy(dt: float) -> void:
 
 
 func _foe_ai(dt: float) -> void:
+	var minions: Dictionary = rules.config.minions
 	var choir_alive := false
 	var choir_pos := Vector3.ZERO
 	for foe in _foes:
@@ -367,6 +380,9 @@ func _foe_ai(dt: float) -> void:
 		var foe: Dictionary = _foes[i]
 		if foe.dead:
 			continue
+		var tuned_hp := float(minions[foe.kind.to_lower() + "_hp"])
+		foe.hp = clampf(foe.hp + tuned_hp - foe.max_hp, 1.0, tuned_hp)
+		foe.max_hp = tuned_hp
 		var actor: Character3D = foe.actor
 		var to := hero.global_position - actor.global_position
 		to.y = 0.0
@@ -382,14 +398,15 @@ func _foe_ai(dt: float) -> void:
 			if foe.windup <= 0.0:
 				actor.act("enemy_swing")
 				foe.warn.visible = false
-				var boosted: bool = foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < 5.5
+				var boosted: bool = foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < float(minions.choir_buff_radius)
 				if hero.global_position.distance_to(actor.global_position) < 2.1:
-					_damage_hero(int(foe.damage) + (4 if boosted else 0), actor.global_position)
-				foe.attack_cd = 2.4
+					var damage := int(minions[foe.kind.to_lower() + "_damage"])
+					_damage_hero(damage + (int(minions.choir_bonus_damage) if boosted else 0), actor.global_position)
+				foe.attack_cd = float(minions.attack_cooldown)
 		else:
 			foe.attack_cd -= dt
 			if d < 1.9 and foe.attack_cd <= 0.0:
-				foe.windup = 0.55
+				foe.windup = float(minions.attack_windup)
 				foe.warn.visible = true
 				get_node("/root/Subs").cue("[zealot raises its hands]" if foe.kind == "Zealot" else "[choir begins to sing]")
 		_foes[i] = foe

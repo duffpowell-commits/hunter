@@ -4,7 +4,9 @@
     "study_radius": 6.0,
     "view_cone_degrees": 60.0,
     "study_per_second": 8.0,
-    "sneak_multiplier": 2.0
+    "sneak_multiplier": 2.0,
+    "sneak_stick_max": 0.5,
+    "sight_radius": 5.0
   },
   "boss": {
     "id": "vesper",
@@ -12,9 +14,15 @@
     "phase_hp": [140, 180],
     "moves": {
       "sermon": {"damage": 14, "telegraph": 0.8, "cooldown": 5.0},
-      "flock": {"damage": 8, "telegraph": 0.7, "cooldown": 7.0},
+      "flock": {"damage": 5, "telegraph": 0.7, "cooldown": 7.0},
       "laying_of_hands": {"heal": 18, "telegraph": 0.6, "cooldown": 9.0}
     }
+  },
+  "minions": {
+    "zealot_hp": 36, "zealot_damage": 7,
+    "choir_hp": 44, "choir_damage": 5,
+    "choir_bonus_damage": 4, "choir_buff_radius": 5.5,
+    "attack_cooldown": 2.4, "attack_windup": 0.55
   },
   "finishers": {
     "clean": {"corruption": 5, "parts": 8, "trophy": true, "extra_special_slots": 0},
