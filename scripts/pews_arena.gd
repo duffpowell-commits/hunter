@@ -45,6 +45,50 @@ func _build_world() -> void:
 			var x: float = float(side) * 2.5
 			_box(Vector3(x - 1.25, 0.0, z), Vector3(x + 1.25, 0.45, z + 0.28), Color("4b3938"))
 			_box(Vector3(x - 1.25, 0.45, z + 0.22), Vector3(x + 1.25, 1.05, z + 0.48), Color("382b2e"))
+	# Gothic Ink Realism environment pass: low-cost geometry, no extra lights.
+	# Broad ink cracks are slightly raised to avoid z-fighting with the arena floor.
+	for i in 8:
+		var z := -7.1 + float(i) * 1.65
+		var offset := -0.75 if i % 2 == 0 else 0.48
+		_box(Vector3(offset - 0.37, 0.035, z), Vector3(offset + 0.34, 0.049, z + 0.045), Color("151419"), false)
+		_box(Vector3(offset + 0.27, 0.035, z - 0.27), Vector3(offset + 0.31, 0.049, z + 0.04), Color("151419"), false)
+	# Weathered wood strips are decorative only; pew collision remains unchanged.
+	for row in range(3):
+		var z := -1.0 - float(row) * 2.1
+		for side in [-1.0, 1.0]:
+			var x := float(side) * 2.5
+			for scratch in 3:
+				var sx := x - 0.9 + float(scratch) * 0.75
+				_box(Vector3(sx, 1.055, z + 0.31), Vector3(sx + 0.37, 1.066, z + 0.335), Color("211d21"), false)
+	# Ordinary candle flames use warm, unshaded emission, never occult magenta.
+	var flame_mat := StandardMaterial3D.new()
+	flame_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flame_mat.albedo_color = Color("e6ae55")
+	flame_mat.emission_enabled = true
+	flame_mat.emission = Color("d4a028")
+	flame_mat.emission_energy_multiplier = 1.1
+	for at in [Vector3(-1.45, 1.12, -8.45), Vector3(1.45, 1.12, -8.45),
+			Vector3(-5.8, 0.65, -6.0), Vector3(5.8, 0.65, -6.0)]:
+		var candle := MeshInstance3D.new()
+		var body_mesh := CylinderMesh.new()
+		body_mesh.top_radius = 0.09
+		body_mesh.bottom_radius = 0.1
+		body_mesh.height = 0.35
+		body_mesh.radial_segments = 8
+		candle.mesh = body_mesh
+		candle.material_override = _toon(Color("b8a78b"), false)
+		candle.position = at
+		add_child(candle)
+		var flame := MeshInstance3D.new()
+		var flame_mesh := SphereMesh.new()
+		flame_mesh.radius = 0.055
+		flame_mesh.height = 0.17
+		flame_mesh.radial_segments = 8
+		flame_mesh.rings = 4
+		flame.mesh = flame_mesh
+		flame.material_override = flame_mat
+		flame.position = at + Vector3(0.0, 0.24, 0.0)
+		add_child(flame)
 	for side in [-1.0, 1.0]:
 		var pane := _box(Vector3(side * 8.0 - 0.08, 2.2, -8.0), Vector3(side * 8.0 + 0.08, 5.2, -4.0), Color("57394f"), false)
 		pane.name = "StainedGlass"
