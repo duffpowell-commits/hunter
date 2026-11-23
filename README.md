@@ -1,4 +1,4 @@
-# Hunter (working title)
+# The Devil You Owe
 
 Duff's top-down 3D action RPG for Android phones: a half-demon who hunts demons. Godot 4.6.3,
 GDScript, portrait 720x1280, Compatibility renderer.

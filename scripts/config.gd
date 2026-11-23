@@ -40,7 +40,7 @@ static func release_url() -> String:
 
 
 static func game_title() -> String:
-	return str(ProjectSettings.get_setting("application/config/name", "Game"))
+	return str(ProjectSettings.get_setting("application/config/display_title", "Hunter"))
 
 
 ## "v0.1.42" in a CI build, "dev" in the editor. Shown on the title screen.

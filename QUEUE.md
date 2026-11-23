@@ -13,7 +13,6 @@
 - Mom: name, hunter past.
 - The hunter/detective on your tail.
 - Endings.
-- Title.
 
 ## LATER
 - Code: Milestones 2-5+ per docs/BUILD_SPEC.md.

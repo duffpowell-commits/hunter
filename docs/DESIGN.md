@@ -1,4 +1,4 @@
-# Hunter: design decisions
+# The Devil You Owe — design decisions
 
 Everything here was decided or approved by Duff (Nov 19-20, 2026). Anything marked OPEN is not decided.
 

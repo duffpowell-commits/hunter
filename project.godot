@@ -1,5 +1,5 @@
 ; Engine configuration file.
-; Hunter, made from godot-game-starter (Milestone 0, Nov 21, 2026). Package name, APK name and
+; Hunter, made from godot-game-starter (Milestone 0, Nov 21, 2026). Package ID, APK filename and
 ; updater URL are filled in by CI from the GitHub repo name.
 ; Why 720x1280 (docs/BUILD_SPEC.md hard rules): Hunter's base canvas is 720x1280, not the starter's
 ; 540x960. stretch/scale 1.3333 keeps every starter screen and button the same size on the phone
@@ -12,6 +12,7 @@ config_version=5
 [application]
 
 config/name="Hunter"
+config/display_title="The Devil You Owe"
 run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 run/max_fps=60

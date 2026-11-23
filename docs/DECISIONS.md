@@ -1,5 +1,9 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-23 — Game title
+
+Duff chose **The Devil You Owe**. The title refers to the soul contract behind the hunts.
+
 ## 2026-11-23 — Studio publisher
 
 Startup shows the approved weathered 3 Eyed Fox Studios logo from the studio Drive folder

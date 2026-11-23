@@ -38,9 +38,7 @@ func _build() -> void:
 	col.grow_vertical = Control.GROW_DIRECTION_BOTH
 	col.add_theme_constant_override("separation", UI.GAP)
 	add_child(col)
-	# Why to_upper (Hunter, Nov 21): docs/BUILD_SPEC.md M0 says the title shows "HUNTER" while
-	# config/name stays "Hunter" (that name also goes on the APK and in bug reports).
-	col.add_child(UI.label(Config.game_title().to_upper(), 44, UI.ACCENT))
+	col.add_child(UI.label(Config.game_title().to_upper(), 32, UI.ACCENT))
 	col.add_child(Control.new())
 	var save: Node = get_node("/root/Save")
 	if save.exists():
