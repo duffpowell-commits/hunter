@@ -469,7 +469,7 @@ func test_data_files_ship() -> void:
 	check("data/*.json" in str(cfg.get_value("preset.0", "include_filter", "")), "export includes data/*.json")
 
 
-## Save v1 (Orb Catch) still loads as v2.
+## Save v1 (Orb Catch) still loads in Hunter.
 func test_save_migrates_v1() -> void:
 	var save: Node = root.get_node("Save")
 	save.path = "user://test_v1.json"
@@ -477,9 +477,20 @@ func test_save_migrates_v1() -> void:
 	f.store_string(JSON.stringify({"level": 3, "score": 7, "lives": 2, "_version": 1}))
 	f.close()
 	var d: Dictionary = save.read()
-	check(save.VERSION == 2 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3, "v1 -> v2")
+	check(int(d.get("_version", 0)) == 3 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3 and d.get("pews") == {}, "v1 -> v3")
 	save.clear()
 	save.path = "user://run.json"
+
+
+func test_save_migrates_v2() -> void:
+	var save: Node = root.get_node("Save")
+	var base := {"level": 3, "score": 7, "hp": 48, "_version": 2}
+	var migrated: Dictionary = save._migrate(base.duplicate())
+	check(migrated._version == 3 and migrated.hp == 48 and migrated.level == 3
+		and migrated.score == 7 and migrated.get("pews") == {}, "v2 arena save keeps progress")
+	base["pews"] = {"phase": 2, "boss_hp": 39}
+	migrated = save._migrate(base.duplicate())
+	check(migrated._version == 3 and migrated.pews == base.pews, "v2 Pews preview keeps encounter")
 
 
 ## The arena: ink look on every surface, the 50-degree camera, the hero's rim, tunable.

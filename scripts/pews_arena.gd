@@ -446,7 +446,7 @@ func _execute_boss_move() -> void:
 
 
 func _damage_hero(amount: int, from_pos: Vector3) -> void:
-	if amount <= 0 or _iframes > 0.0 or hero.dead:
+	if amount <= 0 or _iframes > 0.0 or hero.dead or get_node("/root/DebugMenu").god_mode:
 		return
 	hp = maxi(0, hp - amount)
 	hero_hits_taken += 1
@@ -532,9 +532,9 @@ func _input_move(q: Dictionary) -> void:
 				break
 		if not nearby_foe:
 			return
-	var free_opener: bool = _ambush_free_special and q.get("kind", "") == "special"
+	var previous_special := last_special
 	super._input_move(q)
-	if free_opener and not last_special.is_empty():
+	if _ambush_free_special and not is_same(last_special, previous_special):
 		combat.cooldowns.erase(last_special.get("id", ""))
 		_ambush_free_special = false
 
@@ -608,6 +608,7 @@ func status_text() -> String:
 func save_state() -> Dictionary:
 	return {"studied": rules.studied, "phase": rules.boss_phase, "boss_hp": rules.boss_hp,
 		"boss_defeated": rules.boss_defeated, "engaged": rules.engaged, "ambush_started": rules.ambush_started,
+		"ambush_free_special": _ambush_free_special,
 		"cash": rules.cash, "heat": rules.heat, "parts": rules.parts, "corruption": rules.corruption,
 		"inventory": rules.inventory.duplicate(), "trophies": rules.trophies.duplicate(),
 		"unlocked_voices": rules.unlocked_voices.duplicate(), "extra_special_slots": rules.extra_special_slots.duplicate(),
@@ -623,6 +624,7 @@ func restore_state(state: Dictionary) -> void:
 	rules.boss_defeated = bool(state.get("boss_defeated", false))
 	rules.engaged = bool(state.get("engaged", false))
 	rules.ambush_started = bool(state.get("ambush_started", false))
+	_ambush_free_special = bool(state.get("ambush_free_special", false))
 	rules.cash = int(state.get("cash", 0))
 	rules.heat = int(state.get("heat", 0))
 	rules.parts = int(state.get("parts", 0))

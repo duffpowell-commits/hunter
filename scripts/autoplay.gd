@@ -12,6 +12,7 @@ var shots := ""
 var clip := ""                          # --clip=DIR: save a gameplay clip's frames there
 const CLIP_SECS := 15.0                 # vertical 9:16 (the game is portrait), sized for Shorts/Reels/TikTok
 var failed := false
+var training_arena := false
 var _start_ms := 0                      # when game code first runs (engine/driver start-up excluded)
 
 
@@ -20,6 +21,7 @@ func _ready() -> void:
 	if not "--autoplay" in OS.get_cmdline_user_args():
 		queue_free()
 		return
+	training_arena = true
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shots="):
@@ -198,11 +200,16 @@ func _run() -> void:
 # ---------------------------------------------------------------- Hunter M2: The Pews vertical slice
 
 func _pews_checks() -> void:
-	# Use a real scene transition so Godot assigns the Pews World3D and active camera.
-	var err := get_tree().change_scene_to_file("res://scenes/pews_arena.tscn")
-	_check(err == OK, "PEWS SCENE PASS (PewsArena scene loads)")
-	await _wait_scene("PewsArena")
-	var arena = get_tree().current_scene
+	training_arena = false
+	await _click("BACK")
+	await _wait_scene("Title")
+	await _click("NEW GAME")
+	await _wait_scene("Game")
+	var game := get_tree().current_scene
+	var arena = game.arena
+	_check(arena.has_method("restore_state"), "PEWS SCENE PASS (NEW GAME opens The Pews)")
+	if failed:
+		return
 	await _frames(25)
 	arena.rig.cam.make_current()
 	_check(arena.dummy.name == "Vesper" and arena.get_node_or_null("Pews/Altar") != null
@@ -255,29 +262,36 @@ func _pews_checks() -> void:
 	arena._ko({"damage": 999.0})
 	_check(arena.boss_defeated and arena.rules.boss_defeated,
 		"PEWS BOSS PASS (Vesper only falls after phase two)")
-	var finish_requested := [false]
-	arena.finish_requested.connect(func(): finish_requested[0] = true)
-	arena.context_action()
-	var clean: Dictionary = arena.choose_finisher("CLEAN")
-	_check(finish_requested[0] and clean.get("trophy", false) and clean.get("corruption", 0) == 5,
-		"PEWS FINISH PASS (CLEAN choice awards intact trophy and +5 corruption)")
-	var voice_unlocked := [false]
-	arena.voice_unlocked.connect(func(): voice_unlocked[0] = true)
-	arena.context_action()
-	_check(voice_unlocked[0] and arena.rules.eaten and arena.portal_ready,
-		"PEWS EAT PASS (EAT unlocks Vesper as the first voice)")
-	var portal_opened := [false]
-	arena.portal_opened.connect(func(): portal_opened[0] = true)
-	arena.context_action()
-	_check(portal_opened[0], "PEWS PORTAL PASS (return-home action opens the portal)")
-
 	var plate: Dictionary = arena.rules.collect_plate()
 	var loot: Dictionary = arena.rules.scavenge("stained_glass")
 	_check(plate.get("cash", 0) > 0 and plate.get("heat", 0) > 0
 		and loot.get("item", "") == "stained_glass",
 		"PEWS SCAVENGE PASS (collection plate tradeoff and realm loot)")
-	arena.queue_free()
-	await _frames(5)
+
+	await _frames(2)
+	await _click("FINISH")
+	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	await _frames(2)
+	_check(_find("CLEAN") == null and not game.paused, "PEWS BACK PASS (Back dismisses the finisher sheet)")
+	await _click("FINISH")
+	await _click("CLEAN")
+	_check(arena.rules.trophies.has("vesper") and arena.rules.corruption == 5,
+		"PEWS FINISH PASS (CLEAN choice awards intact trophy and +5 corruption)")
+	await _frames(2)
+	await _click("EAT")
+	_check(arena.rules.eaten and arena.portal_ready and _has_label("BROTHER VESPER LYLE"),
+		"PEWS EAT PASS (EAT opens the voice sheet)")
+	await _click("CLOSE")
+	await _click("RETURN HOME")
+	await _wait_scene("Title")
+	_check(get_tree().current_scene.name == "Title", "PEWS PORTAL PASS (return-home action opens the title)")
+	await _click("CONTINUE")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	_check(arena.rules.boss_phase == 2 and arena.rules.boss_defeated
+		and arena.rules.eaten and arena.rules.inventory.has("stained_glass"),
+		"PEWS CONTINUE PASS (boss, voice and loot survive the checkpoint)")
 
 
 # ---------------------------------------------------------------- 3D movement checks

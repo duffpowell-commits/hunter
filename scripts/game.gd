@@ -53,7 +53,8 @@ func _ready() -> void:
 		score = int(d.get("score", 0))
 		_saved_hp = int(d.get("hp", -1))
 	# The 3D arena lives for the whole scene; _build() only rebuilds the 2D layer on top.
-	arena = Arena.new() if OS.get_cmdline_user_args().has("--autoplay") else PewsArena.new()
+	var autoplay := get_node_or_null("/root/Autoplay")
+	arena = Arena.new() if autoplay != null and autoplay.training_arena else PewsArena.new()
 	arena.add_to_group("keep")
 	add_child(arena)
 	if _saved_hp > 0:
@@ -284,7 +285,7 @@ func _on_voice_unlocked() -> void:
 func _on_portal_opened() -> void:
 	get_node("/root/Subs").cue("[portal home opens]")
 	# The lair is Milestone 3; until then the title screen is the safe-home placeholder.
-	get_tree().change_scene_to_file("res://scenes/title.tscn")
+	get_node("/root/Loader").go("res://scenes/title.tscn")
 
 
 func _on_ko(_count: int) -> void:
@@ -367,7 +368,8 @@ func _notification(what: int) -> void:
 
 func _go_back() -> void:
 	var sheets := get_tree().get_nodes_in_group("sheet")
-	if sheets.size() > 1:
+	var base_sheet: Node = sheet_box.get_meta("sheet") if is_instance_valid(sheet_box) else null
+	if not sheets.is_empty() and sheets[-1] != base_sheet:
 		sheets[-1].queue_free()
 	elif paused and not over:
 		resume()
