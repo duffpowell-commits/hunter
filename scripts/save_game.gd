@@ -8,7 +8,8 @@ extends Node
 ## a half-written save.
 
 ## 2 = Hunter M1 (Nov 21): {"level" = round, "score" = knockouts, "hp"}; v1 had Orb Catch "lives".
-const VERSION := 2
+## 3 = Hunter M2: optional encounter checkpoint under "pews".
+const VERSION := 3
 var path := "user://run.json"
 
 
@@ -56,4 +57,8 @@ func _migrate(d: Dictionary) -> Dictionary:
 		d.erase("lives")
 		d["hp"] = 100
 		d["_version"] = 2
+	if int(d.get("_version", 1)) < 3:
+		if not d.has("pews"):
+			d["pews"] = {}
+		d["_version"] = 3
 	return d

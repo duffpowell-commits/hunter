@@ -469,7 +469,7 @@ func test_data_files_ship() -> void:
 	check("data/*.json" in str(cfg.get_value("preset.0", "include_filter", "")), "export includes data/*.json")
 
 
-## Save v1 (Orb Catch) still loads as v2.
+## Save v1 (Orb Catch) still loads in Hunter.
 func test_save_migrates_v1() -> void:
 	var save: Node = root.get_node("Save")
 	save.path = "user://test_v1.json"
@@ -477,9 +477,20 @@ func test_save_migrates_v1() -> void:
 	f.store_string(JSON.stringify({"level": 3, "score": 7, "lives": 2, "_version": 1}))
 	f.close()
 	var d: Dictionary = save.read()
-	check(save.VERSION == 2 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3, "v1 -> v2")
+	check(int(d.get("_version", 0)) == 3 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3 and d.get("pews") == {}, "v1 -> v3")
 	save.clear()
 	save.path = "user://run.json"
+
+
+func test_save_migrates_v2() -> void:
+	var save: Node = root.get_node("Save")
+	var base := {"level": 3, "score": 7, "hp": 48, "_version": 2}
+	var migrated: Dictionary = save._migrate(base.duplicate())
+	check(migrated._version == 3 and migrated.hp == 48 and migrated.level == 3
+		and migrated.score == 7 and migrated.get("pews") == {}, "v2 arena save keeps progress")
+	base["pews"] = {"phase": 2, "boss_hp": 39}
+	migrated = save._migrate(base.duplicate())
+	check(migrated._version == 3 and migrated.pews == base.pews, "v2 Pews preview keeps encounter")
 
 
 ## The arena: ink look on every surface, the 50-degree camera, the hero's rim, tunable.
@@ -671,3 +682,232 @@ func test_death_cannot_escape_through_save() -> void:
 	await process_frame
 	save.clear()
 	save.path = "user://run.json"
+
+
+# ---------------------------------------------------------------- Hunter M2: The Pews domain rules
+
+func test_pews_stalking_rules() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var studied := 0.0
+	studied = p.tick_stalking(studied, 4.0, PI, false, false, 1.0)
+	check(studied > 0.0 and studied < 100.0, "target behind the enemy inside 6m and outside its 60-degree view cone studies")
+	var sneaking := p.tick_stalking(0.0, 4.0, PI, true, false, 1.0)
+	check(sneaking > studied, "sneaking studies faster")
+	var reset := p.tick_stalking(80.0, 4.0, 0.0, false, true, 0.1)
+	check(reset == 0.0, "being seen resets stalking")
+	var full := p.tick_stalking(99.0, 4.0, PI, false, false, 1.0)
+	check(full == 100.0, "studied meter caps at 100")
+	var outside := p.tick_stalking(0.0, 7.0, PI, false, false, 1.0)
+	check(outside == 0.0, "outside study radius does not fill meter")
+
+func test_pews_boss_two_phases_and_finishers() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var first: Dictionary = p.hit_boss(999.0)
+	check(first.get("phase_changed", false) and int(first.get("phase", 0)) == 2, "Vesper enters phase two instead of dying after phase one")
+	var second: Dictionary = p.hit_boss(999.0)
+	check(second.get("defeated", false), "Vesper is defeated only after phase two")
+	var clean = Pews.new()
+	clean.hit_boss(999.0)
+	clean.hit_boss(999.0)
+	var clean_result: Dictionary = clean.finish("CLEAN")
+	check(clean_result.get("corruption", -1) == 5 and clean_result.get("parts", 0) > 0 and clean_result.get("trophy", false), "CLEAN gives intact trophy, parts and +5 corruption")
+	check(clean_result.get("extra_special_slots", 0) == 0, "CLEAN does not grant a brutal slot")
+	var trophies: Variant = clean.get("trophies")
+	check(trophies is Array and trophies.has("vesper"), "CLEAN permanently records Vesper's intact trophy")
+	var brutal = Pews.new()
+	brutal.hit_boss(999.0)
+	brutal.hit_boss(999.0)
+	var brutal_result: Dictionary = brutal.finish("BRUTAL")
+	check(brutal_result.get("corruption", -1) == 15 and brutal_result.get("extra_special_slots", 0) == 1, "BRUTAL grants +1 special slot and +15 corruption")
+	check(brutal_result.get("parts", 999) < clean_result.get("parts", 0), "BRUTAL yields fewer crafting parts")
+	var slots: Variant = brutal.get("extra_special_slots")
+	check(slots is Dictionary and int(slots.get("vesper", 0)) == 1, "BRUTAL permanently records Vesper's extra special slot")
+	check(brutal.eat().get("voice_unlocked", false), "EAT unlocks Vesper as a voice")
+	var voices: Variant = brutal.get("unlocked_voices")
+	check(voices is Array and voices.has("vesper"), "EAT permanently records Vesper in the voice collection")
+	check(not brutal.eat().get("voice_unlocked", true), "EAT cannot unlock the same voice twice")
+	check(brutal.heal_boss(999.0) == 0.0, "defeated boss cannot heal")
+	var wounded = Pews.new()
+	wounded.hit_boss(30.0)
+	check(wounded.heal_boss(999.0) == 30.0, "Laying of Hands heals only missing HP up to the phase cap")
+	check(wounded.boss_hp == 140.0, "boss healing cannot exceed current phase maximum")
+
+func test_pews_collection_plate_hazard() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	var result: Dictionary = p.collect_plate()
+	check(result.get("cash", 0) > 0, "collection plate yields cash")
+	check(result.get("heat", 0) > 0, "collection plate raises heat")
+
+
+func test_pews_ambush_and_scavenging() -> void:
+	var Pews = preload("res://scripts/pews_rules.gd")
+	var p = Pews.new()
+	p.tick_stalking(0.0, 4.0, PI, false, false, 20.0)
+	check(p.ambush_ready(), "full study enables an ambush")
+	check(p.start_ambush().get("free_first_special", false), "ambush staggers the target and grants a free opener")
+	var loot: Dictionary = p.scavenge("stained_glass")
+	check(loot.get("item", "") == "stained_glass" and loot.get("parts", 0) == 2, "scavenge collects realm-specific materials")
+	check(not p.scavenge("not_real").has("item"), "unknown loot cannot be collected")
+
+
+func test_pews_content_is_data_driven() -> void:
+	var data: Dictionary = GameData.load_json("pews")
+	check(data.get("boss", {}).get("id", "") == "vesper", "Pews boss comes from data")
+	check(data.get("boss", {}).get("phase_hp", []).size() == 2, "Vesper has exactly two data-driven phases")
+	for move: Dictionary in data.get("boss", {}).get("moves", {}).values():
+		check(float(move.get("telegraph", 0.0)) >= 0.5, "every Vesper move has a telegraph of at least half a second")
+	check(data.get("loot", []).size() >= 3, "Pews has realm-specific scavenging loot")
+
+
+## Nov 23 (PR #20 review): Pews numbers must live in data with a slider, not as literals in the scene.
+func test_pews_numbers_have_data_and_sliders() -> void:
+	var Tuning = preload("res://scripts/pews_tuning.gd")
+	var data: Dictionary = GameData.load_json("pews")
+	var missing: Array = []
+	for key: String in Tuning.PATHS:
+		var at: Variant = data
+		for step in Tuning.PATHS[key]:
+			at = at[step] if (at is Array and int(step) < at.size()) or (at is Dictionary and at.has(step)) else null
+			if at == null:
+				break
+		if at == null or not Tuning.TUNE.has(key):
+			missing.append(key)
+	check(missing.is_empty(), "every Pews tuning path resolves in data/pews.json and has a slider range %s" % [missing])
+	for key in ["sermon_radius", "flock_radius", "flock_duration", "flock_tick", "minion_attack_range",
+			"minion_hit_range", "minion_chase_max", "interact_radius", "boss_first_cooldown"]:
+		check(Tuning.PATHS.has(key), "Pews slider exists: " + key)
+	var src := FileAccess.get_file_as_string("res://scripts/pews_arena.gd")
+	for literal in ["distance < 4.0", "_flock_time = 4.0", "_flock_cd = 1.25", "< 2.4", "d < 1.9", "< 2.1", "d < 5.0"]:
+		check(not src.contains(literal), "no bare gameplay number left in pews_arena.gd: " + literal)
+
+
+## Nov 23 (PR #20 review): a mid-fight CONTINUE brought dead minions back, and Vesper kept the dummy's colour.
+func test_pews_dead_minions_stay_dead_and_vesper_is_tinted() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	var albedo: Color = a.dummy._mats[0].get_shader_parameter("albedo")
+	check(albedo.is_equal_approx(Color("8b718f")), "Vesper's material carries his own tint")
+	a._foes[0].dead = true
+	var state: Dictionary = a.save_state()
+	check(state.get("dead_foes", []) == ["Zealot"], "checkpoint records the dead Zealot")
+	var b = PewsArena.new()
+	root.add_child(b)
+	await process_frame
+	b.restore_state(state)
+	check(b._foes[0].dead and not b._foes[1].dead, "CONTINUE keeps the Zealot dead and the Choir alive")
+	var old: Dictionary = state.duplicate()
+	old.erase("dead_foes")
+	var c = PewsArena.new()
+	root.add_child(c)
+	await process_frame
+	c.restore_state(old)
+	check(not c._foes[0].dead, "a v3 save from before dead_foes still loads")
+	for n in [a, b, c]:
+		n.queue_free()
+	await process_frame
+
+
+func test_pews_arena_starts_in_the_church() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var arena = PewsArena.new()
+	root.add_child(arena)
+	await process_frame
+	check(arena.dummy.name == "Vesper", "Pews arena loads Vesper instead of the training dummy")
+	check(arena.rules != null and arena.rules.boss_phase == 1, "Pews arena owns a fresh two-phase boss encounter")
+	check(arena.get_node_or_null("Pews/Altar") != null, "Pews arena builds the church altar")
+	arena.queue_free()
+	await process_frame
+
+
+## Scene regression: cumulative hits must transition both boss phases.
+func test_pews_cumulative_boss_damage() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.rules.engaged = true
+	# Simulate a nonlethal parent hit: the inherited controller owns dummy_hp.
+	a.dummy_hp = 110.0
+	a.rules.boss_hp = a.dummy_hp
+	check(is_equal_approx(a.rules.boss_hp, 110.0), "partial damage visible to boss rules")
+	a._begin_boss_move()
+	check(a._boss_telegraph > 0.0 and a._warn.visible, "Vesper starts a visibly telegraphed move")
+	a.dummy_hp = -5.0
+	a._ko({"damage": 10.0})
+	check(a._boss_telegraph == 0.0 and a._boss_move.is_empty() and not a._warn.visible,
+		"phase break cancels the active telegraph and its move")
+	check(a.rules.boss_phase == 2 and not a.rules.boss_defeated, "cumulative phase one damage triggers phase two")
+	check(a.dummy_hp > 0.0 and is_equal_approx(a.dummy_hp, a.rules.boss_hp), "phase two starts at synchronized HP")
+	a.dummy_hp = -2.0
+	a._ko({"damage": 12.0})
+	check(a.boss_defeated and a.rules.boss_defeated, "cumulative phase two damage defeats Vesper")
+	a.queue_free()
+	await process_frame
+
+
+func test_pews_pre_engagement_minion_hit() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	var foe: Dictionary = a._foes[0]
+	a.hero.position = a.dummy.position + Vector3(0, 0, 1)
+	foe.actor.position = a.dummy.position + Vector3(0.3, 0, 0)
+	a.can_pick_up = true
+	a.pick_up()
+	a.combat.durability = 0
+	var boss_hp: float = a.dummy_hp
+	a.light()
+	await physics_frame
+	await physics_frame
+	a._move_age = float(a._move.hit_at)
+	a._check_hit()
+	check(a.hits_landed == 1 and a.dummy_hp == boss_hp and foe.hp < foe.max_hp and not a.encounter_started,
+		"the defensive swing hits the minion without damaging or engaging Vesper")
+	check(a.combat.weapon.is_empty() and a._held == null and a._pickup != null,
+		"the minion hit breaks and replaces the pipe")
+	a.queue_free()
+	await process_frame
+
+
+func test_pews_minions_pursue_and_stand_down() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	var foe: Dictionary = a._foes[0]
+	a.hero.position = foe.actor.position + Vector3(3, 0, 0)
+	a._foe_ai(0.0)
+	check(foe.actor.move_input.is_equal_approx(Vector2(0.7, 0.0)), "minion pursues on the player's axis")
+	foe.warn.visible = true
+	a.rules.boss_phase = 2
+	a.dummy_hp = 0.0
+	a._ko({})
+	check(a.boss_defeated and foe.actor.move_input == Vector2.ZERO and not foe.warn.visible,
+		"minions stop moving and drop their warning at Vesper's defeat")
+	a.queue_free()
+	await process_frame
+
+
+func test_pews_ambush_ignores_existing_cooldown() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a._nearest_plate = null
+	a._nearest_loot = null
+	a.can_pick_up = false
+	a.rules.studied = 100.0
+	a.context_action()
+	var move_id: String = a.moves.specials.toward.id
+	a.combat.cooldowns[move_id] = 5.0
+	a.special("toward")
+	check(a.last_special.get("id", "") == move_id and not a._ambush_free_special,
+		"ambush starts the same special even while it is cooling down")
+	check(not a.combat.cooldowns.has(move_id), "the free opener starts no new cooldown")
+	a.queue_free()
+	await process_frame

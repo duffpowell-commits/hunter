@@ -1,0 +1,57 @@
+{
+  "_why": "Hunter M2: The Pews. Values are deliberately data-driven; starting rates are tuned for a readable first hunt.",
+  "stalking": {
+    "study_radius": 6.0,
+    "view_cone_degrees": 60.0,
+    "study_per_second": 8.0,
+    "sneak_multiplier": 2.0,
+    "sneak_stick_max": 0.5,
+    "sight_radius": 5.0
+  },
+  "_why_field": "Nov 23 review of PR #20: ranges, timings and spawn points lived as bare numbers in pews_arena.gd, so Duff could not tune them from his phone. Numbers get TUNE sliders (pews_tuning.gd); positions are layout data.",
+  "field": {
+    "interact_radius": 1.5,
+    "prefight_target_range": 3.2,
+    "hero_spawn": [0.0, 0.0, 5.0],
+    "plate_at": [-5.0, 0.08, 1.5],
+    "loot_at": {"candle": [5.0, 0.12, 2.0], "stained_glass": [-6.0, 0.12, -3.0], "censer_chain": [6.0, 0.12, -5.0]}
+  },
+  "boss": {
+    "id": "vesper",
+    "name": "BROTHER VESPER LYLE",
+    "phase_hp": [140, 180],
+    "spawn": [0.0, 0.0, -6.0],
+    "first_cooldown": 1.5,
+    "min_telegraph": 0.5,
+    "move_order": ["sermon", "flock", "laying_of_hands"],
+    "moves": {
+      "sermon": {"damage": 14, "telegraph": 0.8, "cooldown": 5.0, "radius": 4.0},
+      "flock": {"damage": 5, "telegraph": 0.7, "cooldown": 7.0, "radius": 2.4, "duration": 4.0, "first_tick": 0.5, "tick": 1.25},
+      "laying_of_hands": {"heal": 18, "telegraph": 0.6, "cooldown": 9.0}
+    }
+  },
+  "minions": {
+    "zealot_hp": 36, "zealot_damage": 7,
+    "choir_hp": 44, "choir_damage": 5,
+    "choir_bonus_damage": 4, "choir_buff_radius": 5.5,
+    "attack_cooldown": 2.4, "attack_windup": 0.55,
+    "first_attack_delay": 1.2, "attack_range": 1.9, "hit_range": 2.1,
+    "chase_min": 1.4, "chase_max": 5.0, "chase_speed": 0.7,
+    "zealot_spawn": [-3.0, 0.0, -1.6], "choir_spawn": [3.0, 0.0, -2.0]
+  },
+  "finishers": {
+    "clean": {"corruption": 5, "parts": 8, "trophy": true, "extra_special_slots": 0},
+    "brutal": {"corruption": 15, "parts": 3, "trophy": false, "extra_special_slots": 1}
+  },
+  "collection_plate": {"cash": 10, "heat": 8},
+  "loot": [
+    {"id": "candle", "name": "Candle", "parts": 1},
+    {"id": "stained_glass", "name": "Stained Glass", "parts": 2},
+    {"id": "censer_chain", "name": "Censer Chain", "parts": 2}
+  ],
+  "voice": {
+    "id": "vesper",
+    "name": "BROTHER VESPER LYLE",
+    "dialogue": "You ate me mid-sermon. The congregation will hear of this. And now, regrettably, so will you."
+  }
+}

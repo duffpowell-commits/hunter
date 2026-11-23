@@ -315,25 +315,30 @@ func _check_hit() -> void:
 	var in_arc := arc >= 360.0 or fwd.dot(to.normalized()) > cos(deg_to_rad(arc / 2.0))
 	if to.length() > combat.reach(_move) or not in_arc:
 		return
+	var r := _land_hit(dummy)
+	dummy_hp -= float(r.damage)
+	if dummy_hp <= 0.0:
+		_ko(r)
+
+
+func _land_hit(target: Character3D) -> Dictionary:
 	_landed = true
 	var r := combat.land(_move)
 	r["cancel"] = _move.get("cancel", false)
 	r["kind"] = _move.kind
 	last_hit = r
 	hits_landed += 1
-	dummy_hp -= float(r.damage)
 	var feel: Node = get_node("/root/Feel")
-	dummy.hit(hero.global_position + Vector3(0, 1.2, 0), float(r.power))    # victim: flash + 60 ms stop
-	hero.hit_stop(0.06 * feel.stop_scale)                                  # attacker freezes too
-	feel.impact(dummy.global_position + Vector3(0, 1.3, 0), float(r.power), self)
+	target.hit(hero.global_position + Vector3(0, 1.2, 0), float(r.power))
+	hero.hit_stop(0.06 * feel.stop_scale)
+	feel.impact(target.global_position + Vector3(0, 1.3, 0), float(r.power), self)
 	if r.kind == "light":
 		_last_light_landed = true
 	if r.broke:
 		_break_weapon()
 	else:
 		weapon_changed.emit(combat.weapon, combat.durability)
-	if dummy_hp <= 0.0:
-		_ko(r)
+	return r
 
 
 func _ko(r: Dictionary) -> void:
@@ -478,7 +483,7 @@ func _input_move(q: Dictionary) -> void:
 	match q.kind:
 		"light": m = combat.light()
 		"heavy": m = combat.heavy()
-		"special": m = combat.special(q.dir)
+		"special": m = _special_move(q.dir)
 	if m.is_empty():
 		return                                # special on cooldown: nothing spent
 	if m.kind != "light":
@@ -496,6 +501,10 @@ func _input_move(q: Dictionary) -> void:
 	_start(m)
 
 
+func _special_move(dir: String) -> Dictionary:
+	return combat.special(dir)
+
+
 ## A swipe on the pad (canvas vector) -> the special it means, relative to the dummy on screen.
 func swipe(v: Vector2) -> void:
 	special(Combat.swipe_dir(v, target_screen_dir()))
@@ -507,11 +516,16 @@ func stick_special(v: Vector2) -> void:
 
 
 ## From the hero to the dummy on screen (canvas units, y down); zero when the dummy is down.
+func _attack_target() -> Character3D:
+	return null if dummy.dead else dummy
+
+
 func target_screen_dir() -> Vector2:
 	var cam := rig.cam
-	if cam == null or dummy.dead:
+	var target := _attack_target()
+	if cam == null or target == null:
 		return Vector2.ZERO
-	return cam.unproject_position(dummy.global_position) - cam.unproject_position(hero.global_position)
+	return cam.unproject_position(target.global_position) - cam.unproject_position(hero.global_position)
 
 
 func dodge() -> void:
@@ -548,9 +562,10 @@ func pick_up() -> void:
 func _start(m: Dictionary) -> void:
 	if m.is_empty() or hero.dead:
 		return
-	# Snap to face the dummy when it's close: touch players can't aim a swing precisely.
-	if not dummy.dead:
-		var to := dummy.global_position - hero.global_position
+	# Snap to face a close target so touch input can aim the swing.
+	var target := _attack_target()
+	if target != null:
+		var to := target.global_position - hero.global_position
 		if Vector2(to.x, to.z).length() < float(moves.arena.auto_face):
 			hero.heading = atan2(to.x, to.z)
 			hero.model.rotation.y = hero.heading
