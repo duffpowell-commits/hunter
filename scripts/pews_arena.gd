@@ -19,6 +19,7 @@ var _boss_telegraph := 0.0
 var _boss_move := ""
 var _flock_time := 0.0
 var _flock_cd := 0.0
+var _occult_halo: Node3D
 var _flock_node: Node3D
 var _nearest_plate: Node3D
 var _nearest_loot: Node3D
@@ -67,7 +68,42 @@ func _ready() -> void:
 	_spawn_foe("Zealot", Vector3(-3.0, 0, -1.0), Color("a84c42"), 36.0, 7)
 	_spawn_foe("Choir", Vector3(3.0, 0, -2.0), Color("b5a0d0"), 44.0, 5)
 	_spawn_realm_props()
+	_build_occult_halo()
 	_enemy_t = 999.0
+
+
+
+## A tiny mobile-friendly occult halo: unshaded emission, no real-time lights.
+## It is deliberately hidden during exploration and ordinary combat.
+func _build_occult_halo() -> void:
+	_occult_halo = Node3D.new()
+	_occult_halo.name = "OccultHalo"
+	_occult_halo.position = Vector3(0.0, 2.35, 0.0)
+	dummy.add_child(_occult_halo)
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = Color("ad398b")
+	glow.emission_enabled = true
+	glow.emission = Color("e63bbf")
+	glow.emission_energy_multiplier = 1.8
+	for i in 10:
+		var wick := MeshInstance3D.new()
+		var candle := SphereMesh.new()
+		candle.radius = 0.075
+		candle.height = 0.15
+		candle.radial_segments = 8
+		candle.rings = 4
+		wick.mesh = candle
+		wick.material_override = glow
+		var angle := TAU * float(i) / 10.0
+		wick.position = Vector3(cos(angle) * 0.72, sin(angle) * 0.72, 0.0)
+		_occult_halo.add_child(wick)
+	_occult_halo.visible = false
+
+
+func _set_occult_halo(active: bool) -> void:
+	if _occult_halo != null:
+		_occult_halo.visible = active
 
 
 func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float, damage: int) -> void:
@@ -243,6 +279,7 @@ func _begin_boss_move() -> void:
 	_boss_move_index += 1
 	var data: Dictionary = rules.config.boss.moves.get(_boss_move, {})
 	_boss_telegraph = maxf(0.5, float(data.get("telegraph", 0.7)))
+	_set_occult_halo(true)
 	_warn.text = "!"
 	_warn.modulate = UI.key("bad")
 	_warn.visible = true
@@ -251,6 +288,7 @@ func _begin_boss_move() -> void:
 
 
 func _execute_boss_move() -> void:
+	_set_occult_halo(false)
 	_warn.visible = false
 	var data: Dictionary = rules.config.boss.moves.get(_boss_move, {})
 	dummy.act("enemy_swing")
@@ -342,6 +380,7 @@ func _ko(_result: Dictionary) -> void:
 	var state := rules.hit_boss(maxf(0.0, rules.boss_hp - dummy_hp))
 	dummy_hp = rules.boss_hp
 	if state.phase_changed:
+		_set_occult_halo(false)
 		dummy.revive()
 		dummy.position = Vector3(0, 0, -6.0)
 		dummy.heading = PI
@@ -349,6 +388,7 @@ func _ko(_result: Dictionary) -> void:
 		_warn.visible = false
 		get_node("/root/Subs").cue("[Vesper reveals his second form]")
 	elif state.defeated:
+		_set_occult_halo(false)
 		boss_defeated = true
 		if _flock_node != null:
 			_flock_node.queue_free()
