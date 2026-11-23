@@ -98,6 +98,9 @@ arena (`arena.gd` + `combat.gd`, numbers in `data/*.json`).
 - Hunter code (M1, Nov 21): `arena.gd` (3D arena, hero, dummy, pipe), `combat.gd` (rules, no
   nodes), `swipe_pad.gd`, `virtual_stick.gd`, `game_data.gd` (reads `data/*.json`: moves,
   enemies, weapons). Content is data: a new enemy or weapon is a JSON edit.
+- Hunter code (M2, Nov 23): `pews_arena.gd` (The Pews, extends `arena.gd`: Vesper, minions, plate,
+  loot, finishers), `pews_rules.gd` (rules, no nodes), `pews_tuning.gd` (TUNE sliders onto
+  `data/pews.json`). `game.gd` loads the Pews on NEW GAME; autoplay still visits the training arena.
 - `tests/run_tests.gd` rule tests. `tools/` check_scripts.gd, test.sh, autoplay.sh, gen_audio.py.
 - `assets/audio/` (list every clip in SOURCES.md), `assets/art/`, `assets/models/`. `grok_art/` never ships.
 - `signing/` keystone (encrypted) + `unlock.sh`. `docs/renders/` autoplay screenshots, committed at

@@ -1,5 +1,30 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-23: Milestone 2 merged through PR #20; fresh-eyes fixes (Claude)
+
+What: The Pews and Vesper (Grok PR #15, ChatGPT PRs #16-#18, Codex integration PR #20) went through a
+fresh-context review on f37c8c4. Verdict: CHANGES REQUESTED, three house-rule blockers, no crash or
+save-loss bug. Fixed in one push:
+- Numbers out of `pews_arena.gd`: sermon radius; flock radius, duration and tick times; minion chase
+  band, speed, attack and hit ranges, first attack delay; interact radius; pre-fight target range;
+  Vesper's first cooldown and telegraph floor now live in `data/pews.json` with TUNE sliders
+  (`pews_tuning.gd`). Spawn points, loot points and the boss move order are data too (no sliders:
+  they are layout, not feel). Why: "every gameplay number gets a TUNE slider"; Duff tunes on his phone.
+- Autoplay: six new PASS lines with God mode off (SPOTTED, SERMON, FLOCK, HANDS, CHOIR BUFF, GAMEOVER).
+  Why: the boss fight ran in God mode with Vesper's cooldown parked, so his powers were never run.
+- Renders refreshed from the real NEW GAME flow; the unused `scenes/pews_arena.tscn` deleted.
+- Also fixed (cheap, from the notes): Vesper's tint never applied; dead minions came back on CONTINUE
+  (`dead_foes` in the pews save, optional key, `Save.VERSION` stays 3); Zealot spawned inside a pew.
+- Two new rule tests (51 total), both seen failing against the old files.
+
+Judgment calls for Duff:
+- PRs #15, #16 and #17 are superseded by #20 and should be closed, not merged.
+- PR #22 (working title "The Devil You Owe") was left out of M2: it is his naming call.
+- Vesper is now mauve (8b718f, the colour already in the code) instead of the dummy's orange. Still a
+  placeholder mannequin until the character designs are approved.
+- The rest of the review's notes are in tasks/todo.md "From the M2 review". The big one: rewards only
+  live in the run save, so M3 has to start with a profile-level save.
+
 ## 2026-11-23 — Studio publisher
 
 Startup shows the approved weathered 3 Eyed Fox Studios logo from the studio Drive folder
