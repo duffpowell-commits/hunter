@@ -20,20 +20,23 @@
 - [ ] Copy `Character3D.extra_actions` back to godot-game-starter.
 - [ ] Gesture hints + pause-menu gesture card (BUILD_SPEC pipeline rules), before or with M2.
 - [x] Milestone 2: The Pews and Vesper (Nov 23, PR #20).
+- [x] Milestone 3: the lair + profile save (Nov 24).
+- [ ] Duff: Flock is fixed (damage on the shadows, no knockback) but still his tune/redesign call.
+- [ ] PR #21: fix "update sheet can open mid-fight" + add a test, then fresh-eyes again.
 
 ## From the M2 review (Nov 23 fresh-eyes on PR #20; do these at the start of M3)
-- [ ] Profile-level save: cash, heat, parts, corruption, trophies and voices live only in the run
+- [x] Profile-level save: cash, heat, parts, corruption, trophies and voices live only in the run
   save's "pews" blob and NEW GAME wipes them. The lair needs them to persist. Show them on the HUD too.
-- [ ] Training-arena leftovers in the Pews: HUD says "ROUND n", killing Vesper plays the round chime,
+- [x] Training-arena leftovers in the Pews: HUD says "ROUND n", killing Vesper plays the round chime,
   GAME OVER says "Round 1, 0 knockouts", `debug_skip_level` only bumps the round, and four inherited
   TUNE sliders (enemy_attack_every, enemy_telegraph, enemy_damage, dummy_max_hp) do nothing there.
-- [ ] Flock is nearly harmless: the first tick knocks the hero out of its radius, and the shadows stay
+- [x] Flock is nearly harmless: the first tick knocks the hero out of its radius, and the shadows stay
   where they were cast while damage follows Vesper. Duff: tune it (flock sliders) or redesign it.
-- [ ] AMBUSH has no distance check: at 100% study it can be pressed from anywhere in the church.
-- [ ] Vesper never moves or turns; phase 2 differs only in HP. No checkpoint at the phase break.
-- [ ] Minions walk straight at the hero with no pathing and can snag on pews.
-- [ ] BRUTAL is covered by rule tests only: add an autoplay PASS line.
-- [ ] Autoplay shortcuts to tighten: the stalk check presets study to 99%; the M1 dodge check sets
+- [x] AMBUSH has no distance check: at 100% study it can be pressed from anywhere in the church.
+- [x] Vesper never moves or turns; phase 2 differs only in HP. No checkpoint at the phase break.
+- [x] Minions walk straight at the hero with no pathing and can snag on pews.
+- [x] BRUTAL is covered by rule tests only: add an autoplay PASS line.
+- [x] Autoplay shortcuts to tighten: the stalk check presets study to 99%; the M1 dodge check sets
   `_last_light_landed` directly and counts i-frames as "rolling".
-- [ ] "COLLECT PLATE" and "RETURN HOME" are wider than the 200 px context button.
-- [ ] Mid-fight CONTINUE puts the hero back at the door (boss HP, phase and dead minions are kept).
+- [x] "COLLECT PLATE" and "RETURN HOME" are wider than the 200 px context button.
+- [x] Mid-fight CONTINUE puts the hero back at the door (boss HP, phase and dead minions are kept).

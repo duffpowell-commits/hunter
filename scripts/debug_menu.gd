@@ -42,7 +42,7 @@ func apply_tune(n: Object) -> void:
 	if not ("TUNE" in n):
 		return
 	var k := Tune.kind_of(n)
-	for prop in n.TUNE:
+	for prop in Tune.spec_of(n):
 		if not tune_defaults.has(k + "." + prop):
 			tune_defaults[k + "." + prop] = n.get(prop)
 	if enabled:

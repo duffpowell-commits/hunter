@@ -17,12 +17,17 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
 - NEW GAME opens The Pews in normal play. Autoplay also loads the training arena to retain the Milestone 1 combat checks. The dodge check sends real taps through the swipe pad.
 - In The Pews, a light stick tilt crouch-walks before Vesper engages. The shared TUNE panel exposes stalking, Vesper phase health and spell timing, and minion balance. Tuning edits affect the active encounter configuration.
 - Autoplay uses real attack-pad holds to clear Vesper’s two phases, with fixed positioning and God mode after the sermon check.
-- The return-home portal leads to the title until the Milestone 3 lair is built.
+- The return-home portal leads to the lair (M3, Nov 24).
 - Nov 23 fresh-eyes fixes (docs/DECISIONS.md): every Pews range and timing is in `data/pews.json` with a
   TUNE slider; autoplay now takes real damage with God mode off (spotted, Sermon, Flock, Hands, Choir
   buff, GAME OVER in the church); dead minions stay dead on CONTINUE; Vesper wears his own colour.
 
-## Where things stand (Nov 23, 2026)
+## Where things stand (Nov 24, 2026)
+- **Nov 24: Milestone 3 built** (Claude, one PR): profile save (Save v4 + `Profile` autoload), every
+  M2-review carry-over, and the lair (trophy wall, workshop, cold room, voice shrine, map room, heat,
+  LAIR RAID, three corruption looks). RETURN HOME now opens the lair. Details + judgment calls:
+  docs/DECISIONS.md. **Next: Milestone 4** (Furfur). PR #21 failed fresh-eyes (update sheet can open
+  mid-fight); #22 and #12 wait on Duff.
 - **Nov 23: Milestone 2 built** (Grok, ChatGPT and Codex built it across PRs #15-#18; PR #20 is the one
   that merges; Claude did the fresh-eyes fixes). NEW GAME opens The Pews: stalk Vesper, ambush or get
   spotted, two boss phases (Sermon, Flock, Laying of Hands), Zealot + Choir, plate and loot, CLEAN/BRUTAL,

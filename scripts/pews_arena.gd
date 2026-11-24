@@ -1,4 +1,4 @@
-extends "res://scripts/arena.gd"
+extends "res://scripts/hunt_arena.gd"
 ## The Pews: a playable church encounter built on Hunter's tested combat controller.
 ## NEW GAME enters this realm. Autoplay also visits the original training arena.
 
@@ -7,6 +7,7 @@ const PewsRules = preload("res://scripts/pews_rules.gd")
 signal finish_requested
 signal voice_unlocked
 signal portal_opened
+signal phase_changed            # Vesper's phase break: game.gd checkpoints (M2 review)
 
 var rules: PewsRules
 var encounter_started := false
@@ -24,7 +25,6 @@ var _flock_node: Node3D
 var _nearest_plate: Node3D
 var _nearest_loot: Node3D
 var _loot_nodes: Array[Node3D] = []
-var _foes: Array[Dictionary] = []
 var hands_healed := 0.0      # last Laying of Hands heal; read by autoplay (PEWS HANDS PASS)
 var flock_ticks := 0         # Flock damage ticks that reached the hero; read by autoplay
 var last_minion_hit := 0     # damage of the last minion hit on the hero; read by autoplay
@@ -205,6 +205,7 @@ func _ready() -> void:
 	_spawn_realm_props()
 	_build_occult_halo()
 	_enemy_t = 999.0
+	apply_profile()
 
 
 ## A tiny mobile-friendly occult halo: unshaded emission, no real-time lights.
@@ -241,42 +242,6 @@ func _build_occult_halo() -> void:
 func _set_occult_halo(active: bool) -> void:
 	if _occult_halo != null:
 		_occult_halo.visible = active
-
-
-func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float) -> void:
-	var clips: Dictionary = moves.clips.duplicate()
-	clips.erase("_why")
-	var actor := Character3D.new()
-	actor.name = label
-	actor.tint = tint
-	actor.extra_actions = clips
-	actor.position = at
-	actor.look_target = hero
-	actor.can_climb = false
-	actor.can_vault = false
-	add_child(actor)
-	var warning := Label3D.new()
-	warning.text = "!"
-	warning.font_size = 110
-	warning.outline_size = 30
-	warning.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	warning.no_depth_test = true
-	warning.modulate = UI.key("bad")
-	warning.position = Vector3(0, 2.2, 0)
-	warning.visible = false
-	actor.add_child(warning)
-	if label == "Choir":
-		var aura := MeshInstance3D.new()
-		var ring := CylinderMesh.new()
-		ring.top_radius = 1.15
-		ring.bottom_radius = 1.15
-		ring.height = 0.025
-		ring.radial_segments = 24
-		aura.mesh = ring
-		aura.material_override = _toon(Color("74658f"), false)
-		aura.position.y = 0.04
-		actor.add_child(aura)
-	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "max_hp": hp_value, "attack_cd": float(rules.config.minions.first_attack_delay), "windup": 0.0, "dead": false, "kind": label})
 
 
 func _spawn_realm_props() -> void:
@@ -356,8 +321,14 @@ func _enemy(dt: float) -> void:
 		if _flock_cd <= 0.0:
 			var flock: Dictionary = rules.config.boss.moves.flock
 			_flock_cd = float(flock.tick)
-			if hero.global_position.distance_to(dummy.global_position) < float(flock.radius):
-				if _damage_hero(int(flock.damage), dummy.global_position):
+			# Why (M2 review): the shadows stayed where they were cast while the damage followed
+			# Vesper, and the first tick's knockback threw the hero out of the radius. The damage
+			# now sits on the shadows, and a tick's knockback is its own slider (default 0).
+			var centre: Vector3 = _flock_node.global_position if _flock_node != null else dummy.global_position
+			var flat := hero.global_position - centre
+			flat.y = 0.0
+			if flat.length() < float(flock.radius):
+				if _damage_hero(int(flock.damage), centre, float(flock.knockback)):
 					flock_ticks += 1
 		if _flock_time <= 0.0 and _flock_node != null:
 			_flock_node.queue_free()
@@ -374,61 +345,61 @@ func _enemy(dt: float) -> void:
 			encounter_started = true
 			spotted = true
 			get_node("/root/Subs").cue("[Vesper spots you]")
+			voice_moment.emit("fight")
 		else:
 			return
 	if _boss_telegraph > 0.0:
+		dummy.move_input = Vector2.ZERO
 		_boss_telegraph -= dt
 		if _boss_telegraph <= 0.0:
 			_execute_boss_move()
 		return
+	_boss_pursue(dt)
 	_boss_cd -= dt
 	if _boss_cd <= 0.0:
 		_begin_boss_move()
 
 
-func _foe_ai(dt: float) -> void:
-	var minions: Dictionary = rules.config.minions
-	var choir_alive := false
-	var choir_pos := Vector3.ZERO
-	for foe in _foes:
-		if foe.kind == "Choir" and not foe.dead:
-			choir_alive = true
-			choir_pos = foe.actor.global_position
-	for i in _foes.size():
-		var foe: Dictionary = _foes[i]
-		if foe.dead:
-			continue
-		var tuned_hp := float(minions[foe.kind.to_lower() + "_hp"])
-		foe.hp = clampf(foe.hp + tuned_hp - foe.max_hp, 1.0, tuned_hp)
-		foe.max_hp = tuned_hp
-		var actor: Character3D = foe.actor
-		var to := hero.global_position - actor.global_position
-		to.y = 0.0
-		var d := to.length()
-		if d > float(minions.chase_min) and d < float(minions.chase_max):
-			actor.heading = atan2(to.x, to.z)
-			actor.model.rotation.y = actor.heading
-			actor.move_input = Vector2(to.x, to.z).normalized() * float(minions.chase_speed)
-		else:
-			actor.move_input = Vector2.ZERO
-		if foe.windup > 0.0:
-			foe.windup -= dt
-			if foe.windup <= 0.0:
-				actor.act("enemy_swing")
-				foe.warn.visible = false
-				var boosted: bool = foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < float(minions.choir_buff_radius)
-				if hero.global_position.distance_to(actor.global_position) < float(minions.hit_range):
-					var damage := int(minions[foe.kind.to_lower() + "_damage"]) + (int(minions.choir_bonus_damage) if boosted else 0)
-					if _damage_hero(damage, actor.global_position):
-						last_minion_hit = damage
-				foe.attack_cd = float(minions.attack_cooldown)
-		else:
-			foe.attack_cd -= dt
-			if d < float(minions.attack_range) and foe.attack_cd <= 0.0:
-				foe.windup = float(minions.attack_windup)
-				foe.warn.visible = true
-				get_node("/root/Subs").cue("[zealot raises its hands]" if foe.kind == "Zealot" else "[choir begins to sing]")
-		_foes[i] = foe
+## Vesper turns to the hero and closes in between powers. Why (M2 review): he never moved or
+## turned, so the fight was a stationary target. Speeds are sliders (boss.turn_speed, walk_speed).
+func _boss_pursue(dt: float) -> void:
+	if dummy.dead or dummy.is_acting("knockback") or dummy.is_acting("hit_chest"):
+		dummy.move_input = Vector2.ZERO
+		return
+	var boss: Dictionary = rules.config.boss
+	var to := hero.global_position - dummy.global_position
+	to.y = 0.0
+	var want := atan2(to.x, to.z)
+	dummy.heading = rotate_toward(dummy.heading, want, float(boss.turn_speed) * dt)
+	dummy.model.rotation.y = dummy.heading
+	if to.length() > float(boss.keep_distance):
+		var way: Array = steer(dummy.global_position, to.normalized(), 0.0, float(rules.config.minions.steer_probe), float(rules.config.minions.steer_margin))
+		dummy.move_input = Vector2(way[0].x, way[0].z) * float(boss.walk_speed)
+	else:
+		dummy.move_input = Vector2.ZERO
+
+
+## Phase two is the same moveset, faster (boss.phase2_cooldown_scale).
+func _cooldown_of(data: Dictionary) -> float:
+	var cd := float(data.get("cooldown", 5.0))
+	return cd * float(rules.config.boss.phase2_cooldown_scale) if rules.boss_phase >= 2 else cd
+
+
+func foe_rules() -> Dictionary:
+	return rules.config.minions
+
+
+func _windup_cue(kind: String) -> String:
+	return "[zealot raises its hands]" if kind == "Zealot" else "[choir begins to sing]"
+
+
+func _on_minion_hit(damage: int) -> void:
+	last_minion_hit = damage
+
+
+## A body left in the church is heat (BUILD_SPEC Heat: "leave bodies").
+func _on_foe_killed(_foe: Dictionary) -> void:
+	_profile_gain({"heat": int(rules.config.heat.body)})
 
 
 func _begin_boss_move() -> void:
@@ -479,23 +450,7 @@ func _execute_boss_move() -> void:
 			hands_healed = healed
 			dummy_hp = rules.boss_hp
 			get_node("/root/Subs").cue("[Vesper heals %d]" % int(healed))
-	_boss_cd = float(data.get("cooldown", 5.0))
-
-
-## Returns true when the hit landed (not dodged, not God mode), so callers can count real hits.
-func _damage_hero(amount: int, from_pos: Vector3) -> bool:
-	if amount <= 0 or _iframes > 0.0 or hero.dead or get_node("/root/DebugMenu").god_mode:
-		return false
-	hp = maxi(0, hp - amount)
-	hero_hits_taken += 1
-	combat.drop_combo()
-	hero.hit(from_pos + Vector3(0, 1.2, 0), 0.5)
-	get_node("/root/Feel").impact(hero.global_position + Vector3(0, 1.3, 0), 0.5, self)
-	hero_hurt.emit(hp)
-	if hp <= 0:
-		hero.die((hero.global_position - from_pos).normalized() * 3.0 + Vector3(0, 1.5, 0))
-		hero_died.emit()
-	return true
+	_boss_cd = _cooldown_of(data)
 
 
 func _check_hit() -> void:
@@ -507,31 +462,9 @@ func _check_hit() -> void:
 	# HUD and checkpoint in sync before returning from this hit.
 	if hits_landed != before and not boss_defeated and dummy_hp > 0.0:
 		rules.boss_hp = dummy_hp
-	if hits_landed != before or _move.is_empty() or _landed or hero.dead:
+	if hits_landed != before:
 		return
-	if not hero.is_acting(_move.action) or _move_age < float(_move.get("hit_at", 0.0)):
-		return
-	var reach := combat.reach(_move)
-	for i in _foes.size():
-		var foe: Dictionary = _foes[i]
-		if foe.dead:
-			continue
-		var actor: Character3D = foe.actor
-		var to := actor.global_position - hero.global_position
-		to.y = 0.0
-		var forward := Vector3(sin(hero.heading), 0, cos(hero.heading))
-		var arc := float(_move.get("arc", 120))
-		if to.length() > reach or (arc < 360.0 and forward.dot(to.normalized()) <= cos(deg_to_rad(arc / 2.0))):
-			continue
-		var result := _land_hit(actor)
-		foe.hp = float(foe.hp) - float(result.damage)
-		if foe.hp <= 0.0:
-			foe.dead = true
-			foe.warn.visible = false
-			actor.die((actor.global_position - hero.global_position).normalized() * 2.0 + Vector3(0, 1.0, 0))
-			get_node("/root/Subs").cue("[%s falls]" % foe.kind.to_lower())
-		_foes[i] = foe
-		return
+	_check_foe_hits()
 
 
 func _ko(_result: Dictionary) -> void:
@@ -547,6 +480,7 @@ func _ko(_result: Dictionary) -> void:
 		dummy.heading = PI
 		dummy.model.rotation.y = PI
 		get_node("/root/Subs").cue("[Vesper reveals his second form]")
+		phase_changed.emit()
 	elif state.defeated:
 		_cancel_boss_attack()
 		_clear_flock()
@@ -554,14 +488,30 @@ func _ko(_result: Dictionary) -> void:
 		for foe in _foes:
 			foe.actor.move_input = Vector2.ZERO
 			foe.warn.visible = false
+		dummy.move_input = Vector2.ZERO
 		dummy.die(Vector3(0, 1.2, 2.0))
 		get_node("/root/Subs").cue("[Vesper collapses]")
+		voice_moment.emit("kill")
 		ko.emit(kos + 1)
+
+
+## DEV MENU SKIP LEVEL: Vesper goes down through the normal phase rules (M2 review: it only
+## bumped the training round).
+func debug_defeat() -> void:
+	if boss_defeated:
+		return
+	encounter_started = true
+	rules.engaged = true
+	if rules.boss_phase == 1:
+		dummy_hp = 0.0
+		_ko({})
+	dummy_hp = 0.0
+	_ko({})
 
 
 func _cancel_boss_attack() -> void:
 	if _boss_telegraph > 0.0:
-		_boss_cd = float(rules.config.boss.moves[_boss_move].cooldown)
+		_boss_cd = _cooldown_of(rules.config.boss.moves[_boss_move])
 	_boss_telegraph = 0.0
 	_boss_move = ""
 	_set_occult_halo(false)
@@ -633,10 +583,16 @@ func context_action() -> void:
 		var result := rules.collect_plate()
 		_nearest_plate.queue_free()
 		_nearest_plate = null
+		_profile_gain({"cash": result.cash, "heat": result.heat})
 		get_node("/root/Subs").cue("[collection plate: %d cash, %d heat]" % [result.cash, result.heat])
 	elif _nearest_loot != null:
 		var id := str(_nearest_loot.get_meta("loot_id"))
 		var result := rules.scavenge(id)
+		# Searching is noisy (BUILD_SPEC Heat). The item goes in the bag if it fits; parts always count.
+		var prof := get_node_or_null("/root/Profile")
+		if prof != null and not result.is_empty():
+			LairRules.add_item(prof.data, id, 1, GameData.load_json("lair"))
+		_profile_gain({"parts": int(result.get("parts", 0)), "heat": int(rules.config.heat.scavenge)})
 		_nearest_loot.queue_free()
 		_loot_nodes.erase(_nearest_loot)
 		_nearest_loot = null
@@ -647,11 +603,16 @@ func context_action() -> void:
 		_ambush_free_special = bool(result.get("free_first_special", false))
 		dummy.act("hit_chest")
 		get_node("/root/Subs").cue("[AMBUSH: Vesper is staggered]")
+		voice_moment.emit("fight")
 	elif boss_defeated and rules.finisher.is_empty():
 		finish_requested.emit()
 	elif boss_defeated and not rules.eaten:
 		var result := rules.eat()
 		if result.get("voice_unlocked", false):
+			var prof := get_node_or_null("/root/Profile")
+			if prof != null:
+				LairRules.add_voice(prof.data, str(result.voice_id))
+			_profile_gain({"corruption": int(result.get("corruption", 0))})
 			portal_ready = true
 			voice_unlocked.emit()
 	elif portal_ready:
@@ -659,7 +620,27 @@ func context_action() -> void:
 
 
 func choose_finisher(method: String) -> Dictionary:
-	return rules.finish(method)
+	var result := rules.finish(method)
+	if result.is_empty():
+		return result
+	var prof := get_node_or_null("/root/Profile")
+	if prof != null:
+		if bool(result.trophy):
+			LairRules.add_trophy(prof.data, str(result.trophy_id))
+		if int(result.extra_special_slots) > 0:
+			var voice_id := str(rules.config.voice.id)
+			prof.data.voice_levels[voice_id] = int(prof.data.voice_levels.get(voice_id, 0)) + int(result.extra_special_slots)
+	_profile_gain({"corruption": int(result.corruption), "parts": int(result.parts)})
+	return result
+
+
+## Rewards go straight into the profile, so NEW GAME and GAME OVER can't take them (M2 review).
+func _profile_gain(delta: Dictionary) -> void:
+	var prof := get_node_or_null("/root/Profile")
+	if prof == null:
+		return
+	LairRules.gain(prof.data, delta)
+	prof.save()
 
 
 func status_text() -> String:
@@ -674,13 +655,15 @@ func save_state() -> Dictionary:
 	return {"studied": rules.studied, "phase": rules.boss_phase, "boss_hp": rules.boss_hp,
 		"boss_defeated": rules.boss_defeated, "engaged": rules.engaged, "ambush_started": rules.ambush_started,
 		"ambush_free_special": _ambush_free_special,
-		"cash": rules.cash, "heat": rules.heat, "parts": rules.parts, "corruption": rules.corruption,
-		"inventory": rules.inventory.duplicate(), "trophies": rules.trophies.duplicate(),
-		"unlocked_voices": rules.unlocked_voices.duplicate(), "extra_special_slots": rules.extra_special_slots.duplicate(),
 		"finisher": rules.finisher, "eaten": rules.eaten, "plates_collected": rules.plates_collected,
-		# Why (Nov 23 review): a mid-fight CONTINUE brought dead minions back. Optional key, read
-		# with a default, so older v3 saves still load and Save.VERSION stays 3.
-		"dead_foes": _foes.filter(func(f): return f.dead).map(func(f): return f.kind)}
+		# Save v4 (M3): rewards live in Profile now; the run keeps only what it looted, so the
+		# props stay gone on CONTINUE.
+		"looted": rules.inventory.keys(),
+		# Why (Nov 23 review): a mid-fight CONTINUE brought dead minions back.
+		"dead_foes": _foes.filter(func(f): return f.dead).map(func(f): return f.kind),
+		# Why (M2 review): a mid-fight CONTINUE put the hero back at the door.
+		"hero_at": [hero.position.x, hero.position.y, hero.position.z],
+		"boss_at": [dummy.position.x, dummy.position.y, dummy.position.z]}
 
 
 func restore_state(state: Dictionary) -> void:
@@ -693,18 +676,9 @@ func restore_state(state: Dictionary) -> void:
 	rules.engaged = bool(state.get("engaged", false))
 	rules.ambush_started = bool(state.get("ambush_started", false))
 	_ambush_free_special = bool(state.get("ambush_free_special", false))
-	rules.cash = int(state.get("cash", 0))
-	rules.heat = int(state.get("heat", 0))
-	rules.parts = int(state.get("parts", 0))
-	rules.corruption = int(state.get("corruption", 0))
-	rules.inventory = state.get("inventory", {}).duplicate()
-	rules.trophies.clear()
-	for trophy in state.get("trophies", []):
-		rules.trophies.append(str(trophy))
-	rules.unlocked_voices.clear()
-	for voice_id in state.get("unlocked_voices", []):
-		rules.unlocked_voices.append(str(voice_id))
-	rules.extra_special_slots = state.get("extra_special_slots", {}).duplicate()
+	rules.inventory = {}
+	for id in state.get("looted", state.get("inventory", {}).keys()):
+		rules.inventory[str(id)] = 1
 	rules.finisher = str(state.get("finisher", ""))
 	rules.eaten = bool(state.get("eaten", false))
 	rules.plates_collected = int(state.get("plates_collected", 0))
@@ -712,6 +686,10 @@ func restore_state(state: Dictionary) -> void:
 	boss_defeated = rules.boss_defeated
 	portal_ready = rules.eaten
 	dummy_hp = rules.boss_hp
+	if state.has("hero_at"):
+		hero.position = _v3(state.hero_at)
+	if state.has("boss_at") and not boss_defeated:
+		dummy.position = _v3(state.boss_at)
 	if boss_defeated:
 		dummy.die(Vector3.ZERO)
 	var dead_foes: Array = state.get("dead_foes", [])

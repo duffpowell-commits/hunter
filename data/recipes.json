@@ -1,0 +1,15 @@
+{
+  "_why": "Hunter M3 (Nov 23): workshop recipes are data (BUILD_SPEC: weapon upgrades, traps for lair defence, healing items). cost.parts comes out of the shared parts pool; other keys are realm materials from the inventory. Costs and effects have TUNE sliders (lair_tuning.gd).",
+  "recipes": [
+    {"id": "reinforced_grip", "name": "REINFORCED GRIP", "kind": "upgrade", "what": "+1 durability on every improvised weapon", "cost": {"parts": 6, "censer_chain": 1}, "durability": 1, "max_level": 3},
+    {"id": "glass_trap", "name": "GLASS SPIKE TRAP", "kind": "trap", "what": "Set it in the lair: it fires on a raider", "cost": {"parts": 4, "stained_glass": 1}, "makes": "glass_trap"},
+    {"id": "wax_poultice", "name": "WAX POULTICE", "kind": "heal", "what": "Tap HEAL in a fight: +30 HP", "cost": {"parts": 3, "candle": 1}, "makes": "wax_poultice", "heal": 30}
+  ],
+  "items": {
+    "candle": {"name": "CANDLE"},
+    "stained_glass": {"name": "STAINED GLASS"},
+    "censer_chain": {"name": "CENSER CHAIN"},
+    "glass_trap": {"name": "GLASS TRAP"},
+    "wax_poultice": {"name": "WAX POULTICE"}
+  }
+}

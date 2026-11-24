@@ -21,6 +21,7 @@ var trophies: Array[String] = []
 var unlocked_voices: Array[String] = []
 var extra_special_slots: Dictionary = {}
 var engaged := false
+var distance := INF               # hero to Vesper at the last stalking tick (ambush range, M2 review)
 var ambush_started := false
 
 
@@ -31,7 +32,8 @@ func _init(data: Dictionary = {}) -> void:
 
 ## angle_rad is the angle between the target's facing direction and the line to the player.
 ## A target studies the player only when the player is outside its view cone.
-func tick_stalking(current: float, distance: float, angle_rad: float, sneaking: bool, seen: bool, dt: float) -> float:
+func tick_stalking(current: float, dist: float, angle_rad: float, sneaking: bool, seen: bool, dt: float) -> float:
+	distance = dist
 	if seen:
 		studied = 0.0
 		engaged = true
@@ -39,7 +41,7 @@ func tick_stalking(current: float, distance: float, angle_rad: float, sneaking: 
 	var rules: Dictionary = config.get("stalking", {})
 	var radius := float(rules.get("study_radius", 6.0))
 	var half_cone := deg_to_rad(float(rules.get("view_cone_degrees", 60.0)) / 2.0)
-	if distance > radius or absf(angle_rad) <= half_cone:
+	if dist > radius or absf(angle_rad) <= half_cone:
 		studied = clampf(current, 0.0, 100.0)
 		return studied
 	var rate := float(rules.get("study_per_second", 8.0))
@@ -101,7 +103,10 @@ func eat() -> Dictionary:
 	var voice_id := str(config.get("voice", {}).get("id", "vesper"))
 	if not unlocked_voices.has(voice_id):
 		unlocked_voices.append(voice_id)
-	return {"voice_unlocked": true, "voice_id": voice_id}
+	# BUILD_SPEC Corruption: eating a boss is +10 (M3; it was missing in M2).
+	var gained := int(config.get("voice", {}).get("eat_corruption", 0))
+	corruption += gained
+	return {"voice_unlocked": true, "voice_id": voice_id, "corruption": gained}
 
 
 ## Collection plates trade cash for heat. Repeated plates are allowed; each has a real cost.
@@ -115,8 +120,10 @@ func collect_plate() -> Dictionary:
 	return {"cash": earned, "heat": gained_heat, "total_cash": cash, "total_heat": heat}
 
 
+## Why the range (M2 review): at 100% study AMBUSH could be pressed from anywhere in the church.
 func ambush_ready() -> bool:
-	return studied >= 100.0 and not engaged and not boss_defeated
+	return studied >= 100.0 and not engaged and not boss_defeated \
+		and distance <= float(config.get("stalking", {}).get("ambush_range", 3.0))
 
 
 ## Start a studied encounter. The first special is free; the caller staggers Vesper in the scene.
