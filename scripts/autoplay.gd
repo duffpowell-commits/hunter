@@ -731,6 +731,20 @@ func _brutal_and_raid_checks() -> void:
 	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	await _frames(5)
 	_check(arena.raid_active and _find("FIGHT") == null, "RAID BACK PASS (Back on the warning starts the raid, it can't dodge it)")
+	# Quit mid-raid and CONTINUE: the same raid, same wave, no warning in between (Nov 24 port).
+	var wave0: int = arena.raid_wave
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
+	await _wait_scene("Title")
+	await _click("CONTINUE")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	await _frames(10)
+	arena.rig.cam.make_current()
+	prof = get_node("/root/Profile").data
+	_check(arena.raid_active and arena.raid_wave == wave0 and _find("FIGHT") == null and bool(prof.raid_pending),
+		"RAID RESUME PASS (CONTINUE picks the raid up at wave %d, no warning)" % arena.raid_wave)
 	var parts0 := int(prof.parts)
 	var lost0 := int(prof.raids_lost)
 	arena.hp = 1

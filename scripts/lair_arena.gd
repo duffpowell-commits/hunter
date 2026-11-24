@@ -21,6 +21,7 @@ var raid_active := false
 var raid_wave := 0
 var traps_fired := 0                   # read by autoplay (LAIR RAID TRAP PASS)
 var _wave_t := 0.0
+var resume_wave := 0                   # a raid left mid-way (run save): CONTINUE picks it up here
 var _near_station := ""
 var _near_trap := -1
 var _env: Environment
@@ -419,11 +420,15 @@ func status_text() -> String:
 
 # ---------------------------------------------------------------- the raid
 
-func start_raid() -> void:
+## from_wave > 1: CONTINUE after quitting mid-raid. That wave comes in fresh; waves already
+## beaten stay beaten, spent traps stay spent. Why (second fresh-eyes note on PR #23, Duff Nov 24):
+## a reload used to restart the whole raid from wave 1.
+func start_raid(from_wave := 1) -> void:
 	if raid_active:
 		return
 	raid_active = true
-	raid_wave = 0
+	raid_wave = maxi(0, from_wave - 1)
+	resume_wave = 0
 	_wave_t = 0.0
 	hero.position = GameData.vec3(cfg.layout.stations.trophy_wall) + Vector3(2.4, 0, 0.6)
 	get_node("/root/Subs").cue("[LAIR RAID: they followed your heat home]")
@@ -461,6 +466,15 @@ func _enemy(dt: float) -> void:
 			_next_wave()
 		return
 	_end_raid(true)
+
+
+## The run save's encounter blob (game.gd stores it under "pews" for every arena).
+func save_state() -> Dictionary:
+	return {"raid_wave": raid_wave if raid_active else resume_wave}
+
+
+func restore_state(state: Dictionary) -> void:
+	resume_wave = clampi(int(state.get("raid_wave", 0)), 0, int(cfg.raid.waves))
 
 
 ## A set trap fires on the first raider inside its radius, then it is spent.
