@@ -39,6 +39,8 @@ static func release_url() -> String:
 	return "https://github.com/%s/releases/download/dev/" % repo()
 
 
+## Why display_title (Nov 23): a custom setting, not Godot's. config/name stays "Hunter" because
+## Godot names the save folder after it; the title Duff picked is "The Devil You Owe".
 static func game_title() -> String:
 	return str(ProjectSettings.get_setting("application/config/display_title", "Hunter"))
 

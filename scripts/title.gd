@@ -38,6 +38,7 @@ func _build() -> void:
 	col.grow_vertical = Control.GROW_DIRECTION_BOTH
 	col.add_theme_constant_override("separation", UI.GAP)
 	add_child(col)
+	# Why 32 (Nov 23): the longer title "THE DEVIL YOU OWE" needs margin on the 540-wide UI canvas.
 	col.add_child(UI.label(Config.game_title().to_upper(), 32, UI.ACCENT))
 	col.add_child(Control.new())
 	var save: Node = get_node("/root/Save")
