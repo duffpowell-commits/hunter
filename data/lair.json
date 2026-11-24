@@ -1,0 +1,155 @@
+{
+  "_why": "Hunter M3 (Nov 23): the lair hub. Numbers live here with TUNE sliders (lair_tuning.gd); positions are layout data. The lair is one room scrolling vertically (BUILD_SPEC): stations stacked along the aisle, entry portal at the bottom, map room at the top.",
+  "layout": {
+    "half_width": 4.2,
+    "south": 7.0,
+    "north": -11.0,
+    "hero_spawn": [
+      0.0,
+      0.0,
+      5.2
+    ],
+    "portal_at": [
+      0.0,
+      0.0,
+      6.2
+    ],
+    "stations": {
+      "trophy_wall": [
+        -3.0,
+        0.0,
+        3.2
+      ],
+      "workshop": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "cold_room": [
+        -3.0,
+        0.0,
+        -3.4
+      ],
+      "voices": [
+        3.0,
+        0.0,
+        -6.0
+      ],
+      "map_room": [
+        0.0,
+        0.0,
+        -9.4
+      ]
+    },
+    "trap_spots": [
+      [
+        -1.4,
+        0.0,
+        4.2
+      ],
+      [
+        1.4,
+        0.0,
+        4.2
+      ],
+      [
+        0.0,
+        0.0,
+        2.4
+      ]
+    ],
+    "raid_spawns": [
+      [
+        -2.4,
+        0.0,
+        6.4
+      ],
+      [
+        2.4,
+        0.0,
+        6.4
+      ],
+      [
+        0.0,
+        0.0,
+        6.6
+      ]
+    ]
+  },
+  "interact_radius": 1.6,
+  "inventory": {
+    "slots": 24,
+    "stack": 9
+  },
+  "heat": {
+    "max": 100,
+    "per_night": 10,
+    "raid_at": 70
+  },
+  "raid": {
+    "waves": 2,
+    "per_wave": 2,
+    "wave_gap": 1.5,
+    "win_heat_drop": 25,
+    "lose_heat_drop": 15,
+    "lose_parts_fraction": 0.3,
+    "trap_damage": 30,
+    "trap_radius": 1.1,
+    "raider_hp": 30,
+    "raider_damage": 6,
+    "attack_cooldown": 2.2,
+    "attack_windup": 0.6,
+    "first_attack_delay": 1.0,
+    "attack_range": 1.8,
+    "hit_range": 2.0,
+    "chase_min": 1.3,
+    "chase_max": 30.0,
+    "chase_speed": 0.75,
+    "choir_bonus_damage": 0,
+    "choir_buff_radius": 0,
+    "steer_probe": 0.8,
+    "steer_margin": 0.35
+  },
+  "_why_corruption": "BUILD_SPEC: three lair looks, 0-33, 34-66, 67-100. band_at holds the lowest value of looks 2 and 3. Each look: room light, floor, ink veins, blood candles; the hero's tint lerps toward hero_tint and horns grow to horn_scale.",
+  "corruption": {
+    "band_at": [
+      34,
+      67
+    ],
+    "looks": [
+      {
+        "name": "HOME",
+        "ambient": "5d6470",
+        "floor": "3b3a40",
+        "wall": "26252b",
+        "light": "f0d2a0",
+        "veins": 0,
+        "hero_tint": "ffffff",
+        "horn_scale": 0.0
+      },
+      {
+        "name": "STAINED",
+        "ambient": "6a5560",
+        "floor": "3a2f33",
+        "wall": "2a1f24",
+        "light": "e8a070",
+        "veins": 6,
+        "hero_tint": "ffd8d0",
+        "horn_scale": 0.6
+      },
+      {
+        "name": "HELLMOUTH",
+        "ambient": "703a40",
+        "floor": "2e1a1c",
+        "wall": "220f12",
+        "light": "e05a3a",
+        "veins": 14,
+        "hero_tint": "ffb0a0",
+        "horn_scale": 1.0
+      }
+    ]
+  },
+  "voice_box": {
+    "secs": 3.0
+  }
+}

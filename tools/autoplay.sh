@@ -7,7 +7,7 @@ set -e
 SHOTS=${1:-$(pwd)/docs/renders}
 XDG=$(mktemp -d)
 CLIP=$(mktemp -d)
-XDG_DATA_HOME=$XDG timeout 300 xvfb-run -a -s "-screen 0 1080x1920x24" godot --path . \
+XDG_DATA_HOME=$XDG timeout 480 xvfb-run -a -s "-screen 0 1080x1920x24" godot --path . \
   --rendering-driver opengl3 --resolution 720x1280 -- --autoplay --shots="$SHOTS" --clip="$CLIP" 2>&1 | tee autoplay.log
 rm -rf "$XDG"
 if command -v ffmpeg >/dev/null && [ -f "$CLIP/fps.txt" ]; then

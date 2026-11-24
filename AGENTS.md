@@ -101,6 +101,10 @@ arena (`arena.gd` + `combat.gd`, numbers in `data/*.json`).
 - Hunter code (M2, Nov 23): `pews_arena.gd` (The Pews, extends `arena.gd`: Vesper, minions, plate,
   loot, finishers), `pews_rules.gd` (rules, no nodes), `pews_tuning.gd` (TUNE sliders onto
   `data/pews.json`). `game.gd` loads the Pews on NEW GAME; autoplay still visits the training arena.
+- Hunter code (M3, Nov 24): `profile.gd` (autoload Profile: what survives runs), `lair_rules.gd`
+  (rules, no nodes), `hunt_arena.gd` (base of the Pews and the lair: foes, steering, perks, voices),
+  `lair_arena.gd`, `lair_sheets.gd` (station sheets), `lair_tuning.gd`, `voice_box.gd`. Data:
+  `lair.json`, `recipes.json`, `trophies.json`, `realms.json`, `voices/<id>.json`.
 - `tests/run_tests.gd` rule tests. `tools/` check_scripts.gd, test.sh, autoplay.sh, gen_audio.py.
 - `assets/audio/` (list every clip in SOURCES.md), `assets/art/`, `assets/models/`. `grok_art/` never ships.
 - `signing/` keystone (encrypted) + `unlock.sh`. `docs/renders/` autoplay screenshots, committed at

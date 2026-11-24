@@ -477,7 +477,7 @@ func test_save_migrates_v1() -> void:
 	f.store_string(JSON.stringify({"level": 3, "score": 7, "lives": 2, "_version": 1}))
 	f.close()
 	var d: Dictionary = save.read()
-	check(int(d.get("_version", 0)) == 3 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3 and d.get("pews") == {}, "v1 -> v3")
+	check(int(d.get("_version", 0)) == 4 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3 and d.get("pews") == {} and d.get("where") == "pews", "v1 -> v4")
 	save.clear()
 	save.path = "user://run.json"
 
@@ -486,11 +486,11 @@ func test_save_migrates_v2() -> void:
 	var save: Node = root.get_node("Save")
 	var base := {"level": 3, "score": 7, "hp": 48, "_version": 2}
 	var migrated: Dictionary = save._migrate(base.duplicate())
-	check(migrated._version == 3 and migrated.hp == 48 and migrated.level == 3
+	check(migrated._version == 4 and migrated.hp == 48 and migrated.level == 3
 		and migrated.score == 7 and migrated.get("pews") == {}, "v2 arena save keeps progress")
 	base["pews"] = {"phase": 2, "boss_hp": 39}
-	migrated = save._migrate(base.duplicate())
-	check(migrated._version == 3 and migrated.pews == base.pews, "v2 Pews preview keeps encounter")
+	migrated = save._migrate(base.duplicate(true))
+	check(migrated._version == 4 and migrated.pews == base.pews, "v2 Pews preview keeps encounter")
 
 
 ## The arena: ink look on every surface, the 50-degree camera, the hero's rim, tunable.
@@ -746,7 +746,9 @@ func test_pews_ambush_and_scavenging() -> void:
 	var Pews = preload("res://scripts/pews_rules.gd")
 	var p = Pews.new()
 	p.tick_stalking(0.0, 4.0, PI, false, false, 20.0)
-	check(p.ambush_ready(), "full study enables an ambush")
+	check(p.studied == 100.0 and not p.ambush_ready(), "full study from 4 m is not close enough to ambush (M2 review)")
+	p.tick_stalking(p.studied, 2.5, PI, false, false, 0.1)
+	check(p.ambush_ready(), "full study within ambush_range enables an ambush")
 	check(p.start_ambush().get("free_first_special", false), "ambush staggers the target and grants a free opener")
 	var loot: Dictionary = p.scavenge("stained_glass")
 	check(loot.get("item", "") == "stained_glass" and loot.get("parts", 0) == 2, "scavenge collects realm-specific materials")
@@ -902,6 +904,7 @@ func test_pews_ambush_ignores_existing_cooldown() -> void:
 	a._nearest_loot = null
 	a.can_pick_up = false
 	a.rules.studied = 100.0
+	a.rules.distance = 2.0
 	a.context_action()
 	var move_id: String = a.moves.specials.toward.id
 	a.combat.cooldowns[move_id] = 5.0
@@ -911,3 +914,245 @@ func test_pews_ambush_ignores_existing_cooldown() -> void:
 	check(not a.combat.cooldowns.has(move_id), "the free opener starts no new cooldown")
 	a.queue_free()
 	await process_frame
+
+
+# ---------------------------------------------------------------- Hunter M3: profile + lair
+
+const LairRules = preload("res://scripts/lair_rules.gd")
+
+
+func _fresh_profile(file: String) -> Node:
+	var prof: Node = root.get_node("Profile")
+	prof.path = "user://%s.json" % file
+	prof.reset()
+	return prof
+
+
+func _restore_profile(prof: Node) -> void:
+	prof.reset()
+	prof.path = "user://profile.json"
+	prof.load_profile()
+
+
+## M2 review: rewards lived in the run save and NEW GAME wiped them.
+func test_profile_survives_new_game_and_death() -> void:
+	var save: Node = root.get_node("Save")
+	save.path = "user://test_prof_run.json"
+	var prof := _fresh_profile("test_prof")
+	LairRules.gain(prof.data, {"cash": 30, "heat": 12, "parts": 7, "corruption": 15})
+	LairRules.add_trophy(prof.data, "vesper")
+	LairRules.add_voice(prof.data, "vesper")
+	prof.save()
+	save.write({"where": "pews", "hp": 50})
+	save.clear()                          # what NEW GAME and GAME OVER do
+	prof.load_profile()
+	check(int(prof.data.cash) == 30 and int(prof.data.heat) == 12 and int(prof.data.parts) == 7
+		and int(prof.data.corruption) == 15 and prof.data.trophies == ["vesper"] and prof.data.voices == ["vesper"],
+		"cash, heat, parts, corruption, trophies and voices survive NEW GAME")
+	var g: Node = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	check(g.where == "pews" and g.profile_label.text.begins_with("$30  HEAT 12  PARTS 7  CORR 15"),
+		"the HUD shows the profile in the Pews: " + g.profile_label.text)
+	check(not g.hud.text.contains("ROUND"), "no training ROUND on the Pews HUD")
+	g.queue_free()
+	await process_frame
+	save.clear()
+	save.path = "user://run.json"
+	_restore_profile(prof)
+
+
+## Save v4: an old v3 run's rewards move into the profile exactly once.
+func test_save_v3_rewards_move_to_profile_once() -> void:
+	var save: Node = root.get_node("Save")
+	save.path = "user://test_v3.json"
+	var prof := _fresh_profile("test_prof_v3")
+	var f := FileAccess.open(save.path, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"level": 1, "score": 0, "hp": 80, "_version": 3, "pews": {"phase": 2,
+		"cash": 10, "heat": 8, "parts": 8, "corruption": 5, "inventory": {"candle": 1},
+		"trophies": ["vesper"], "unlocked_voices": ["vesper"], "extra_special_slots": {"vesper": 1}}}))
+	f.close()
+	var d: Dictionary = save.read()
+	check(int(d._version) == 4 and d.where == "pews" and int(d.pews.phase) == 2 and not d.pews.has("cash"),
+		"v3 -> v4 keeps the encounter, drops the rewards from the run")
+	save.read()
+	check(int(prof.data.cash) == 10 and int(prof.data.parts) == 8 and int(prof.data.inventory.candle) == 1
+		and prof.data.trophies == ["vesper"] and int(prof.data.voice_levels.vesper) == 1,
+		"the old rewards land in the profile once (read twice, cash %d)" % int(prof.data.cash))
+	save.clear()
+	save.path = "user://run.json"
+	_restore_profile(prof)
+
+
+func test_lair_rules_workshop_and_bag() -> void:
+	var p := LairRules.blank()
+	var lair := GameData.load_json("lair")
+	var rec := GameData.load_json("recipes")
+	var trap := LairRules.recipe(rec, "glass_trap")
+	check(LairRules.craft_block(p, trap, lair) == "NEED PARTS", "no parts, no trap")
+	p.parts = 10
+	p.inventory = {"stained_glass": 1}
+	check(LairRules.craft(p, trap, lair) and int(p.parts) == 6 and int(p.inventory.glass_trap) == 1
+		and not p.inventory.has("stained_glass"), "crafting spends parts and glass, makes a trap")
+	var grip := LairRules.recipe(rec, "reinforced_grip")
+	p.parts = 100
+	p.inventory["censer_chain"] = 9
+	for i in 5:
+		LairRules.craft(p, grip, lair)
+	check(int(p.upgrades.reinforced_grip) == int(grip.max_level) and LairRules.craft_block(p, grip, lair) == "MAXED",
+		"upgrades stop at max level")
+	check(LairRules.durability_bonus(p, rec) == int(grip.max_level) * int(grip.durability), "grip adds durability")
+	var q := LairRules.blank()
+	check(LairRules.add_item(q, "candle", 300, lair) == int(lair.inventory.slots) * int(lair.inventory.stack),
+		"the bag holds 24 stacks of 9 and no more")
+	check(LairRules.slots_used(q, int(lair.inventory.stack)) == int(lair.inventory.slots), "24 slots used")
+
+
+func test_lair_rules_wall_voices_heat_raid() -> void:
+	var tro := GameData.load_json("trophies")
+	var lair := GameData.load_json("lair")
+	var p := LairRules.blank()
+	LairRules.add_trophy(p, "vesper")
+	check(p.wall[0] == "vesper" and float(LairRules.perks(p, tro).special_damage) > 0.0, "a new trophy hangs in the offence row")
+	check(LairRules.place_trophy(p, 3, "vesper") and p.wall[0] == "" and p.wall[3] == "vesper"
+		and int(LairRules.perks(p, tro).max_hp) == int(tro.trophies.vesper.defence.max_hp), "moving it is free and the defence row gives HP")
+	LairRules.place_trophy(p, 5, "vesper")
+	check(int(LairRules.perks(p, tro).heat_per_night) == int(tro.trophies.vesper.utility.heat_per_night), "utility row: heat falls faster")
+	check(not LairRules.place_trophy(p, 1, "rook"), "trophies you don't own can't hang")
+	LairRules.add_voice(p, "vesper")
+	check(LairRules.voice_slots(p) == {"up": "vesper"}, "an eaten voice takes slot 1 = UP")
+	LairRules.equip_voice(p, 1, "vesper")
+	check(LairRules.voice_slots(p) == {"down": "vesper"}, "slot 2 = DOWN; a voice sits in one slot")
+	var v := GameData.load_json("voices/vesper")
+	check(float(LairRules.voice_move(v, 2).damage) == float(v.special.damage) + 2.0 * float(v.special.per_level), "BRUTAL levels add damage")
+	# Heat: below the line a night passes; at the line a raid waits.
+	p.heat = 30
+	var r := LairRules.arrive_home(p, lair, LairRules.perks(p, tro))
+	check(not r.raid and int(p.heat) == 30 - int(lair.heat.per_night) - int(tro.trophies.vesper.utility.heat_per_night) and int(p.nights) == 1,
+		"a night: heat -10 and the utility perk")
+	p.heat = int(lair.heat.raid_at)
+	r = LairRules.arrive_home(p, lair, {})
+	check(r.raid and p.raid_pending and int(p.nights) == 1, "heat at the raid line: a raid, the night waits")
+	p.parts = 20
+	r = LairRules.raid_over(p, false, lair, {})
+	check(int(r.parts_lost) == int(floor(20 * float(lair.raid.lose_parts_fraction))) and int(p.parts) == 20 - int(r.parts_lost)
+		and not p.raid_pending and int(p.raids_lost) == 1, "a lost raid costs some parts, never the save")
+	check(LairRules.corruption_band(33, lair) == 0 and LairRules.corruption_band(34, lair) == 1 and LairRules.corruption_band(67, lair) == 2,
+		"three corruption looks: 0-33, 34-66, 67-100")
+
+
+## The raid in the scene: traps fire on their own; dying in a raid isn't GAME OVER.
+func test_lair_raid_scene() -> void:
+	var save: Node = root.get_node("Save")
+	save.path = "user://test_lair_run.json"
+	var prof := _fresh_profile("test_prof_lair")
+	prof.data.parts = 10
+	prof.data.traps = ["glass_trap", "", ""]
+	prof.data.heat = 80
+	prof.data.raid_pending = true
+	prof.save()
+	save.write({"where": "lair"})
+	var g: Node = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	var a = g.arena
+	check(g.where == "lair" and a.name == "LairArena" and g.find_child("RaidWarning", true, false) != null,
+		"a pending raid greets you in the lair")
+	a.start_raid()
+	var spot: Vector3 = a._trap_nodes[0].global_position
+	a._foes[0].actor.global_position = spot
+	a._traps()
+	check(a.traps_fired == 1 and prof.data.traps[0] == "", "a set trap fires on a raider and is spent")
+	a.hp = 0
+	a.hero.die(Vector3.ZERO)
+	a.raid_failed()
+	check(not a.raid_active and not g.over and save.exists() and int(prof.data.parts) < 10 and int(prof.data.raids_lost) == 1
+		and not a.hero.dead and a.hp > 0, "losing the raid costs parts, not the save or the run")
+	g.queue_free()
+	await process_frame
+	save.clear()
+	save.path = "user://run.json"
+	_restore_profile(prof)
+
+
+## M2 review leftovers: the Pews has no training-dummy sliders, SKIP LEVEL downs Vesper.
+func test_pews_training_leftovers_gone() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	var Tune = preload("res://scripts/tune_panel.gd")
+	var spec: Dictionary = Tune.spec_of(a)
+	for k in ["enemy_attack_every", "enemy_telegraph", "enemy_damage", "dummy_max_hp"]:
+		check(not spec.has(k), "no dead slider in the Pews: " + k)
+	check(spec.has("damage_scale") and spec.has("low_hp_at"), "the live sliders stay")
+	a.debug_defeat()
+	check(a.boss_defeated and a.rules.boss_phase == 2, "SKIP LEVEL defeats Vesper through both phases")
+	a.queue_free()
+	await process_frame
+
+
+## M2 review: COLLECT PLATE and RETURN HOME were wider than the context button.
+func test_context_labels_fit() -> void:
+	var g: Node = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	for text in ["COLLECT PLATE", "RETURN HOME", "SCAVENGE", "AMBUSH", "TROPHY WALL", "WORKSHOP", "COLD ROOM", "MAP ROOM", "SET TRAP"]:
+		g.pick_btn.text = text
+		check(g.pick_btn.get_combined_minimum_size().x <= g.CONTEXT_W, "%s fits the context button" % text)
+	g.queue_free()
+	await process_frame
+
+
+## M2 review: minions walked straight into pews. Blocked straight ahead -> they turn round it.
+func test_minions_steer_round_props() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	var from := Vector3(2.5, 0, -3.8)          # just north of a pew block, hero to the south
+	var dir := Vector3(0, 0, 1)
+	check(a.blocked(from + dir * 0.8, 0.35), "the pew blocks the straight line")
+	var way: Array = a.steer(from, dir, 0.0, 0.8, 0.35)
+	check(not a.blocked(from + way[0] * 0.8, 0.35) and way[1] != 0.0, "steering turns to a clear heading and keeps that side")
+	a.queue_free()
+	await process_frame
+
+
+## M2 review: Vesper never turned or moved; phase two only had more HP; no checkpoint at the break.
+func test_vesper_turns_walks_and_speeds_up() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.rules.engaged = true
+	a._boss_cd = 999.0
+	a.hero.global_position = a.dummy.global_position + Vector3(5, 0, 0)
+	var h0: float = a.dummy.heading
+	a._boss_pursue(0.2)
+	check(not is_equal_approx(a.dummy.heading, h0) and a.dummy.move_input.length() > 0.0, "Vesper turns to the hero and closes in")
+	var sermon: Dictionary = a.rules.config.boss.moves.sermon
+	var cd1: float = a._cooldown_of(sermon)
+	var broke := [false]
+	a.phase_changed.connect(func(): broke[0] = true)
+	a.dummy_hp = 0.0
+	a._ko({})
+	check(broke[0] and a._cooldown_of(sermon) < cd1, "phase two: checkpoint signal, faster powers")
+	a.queue_free()
+	await process_frame
+
+
+## M3: every lair number resolves in data and has a slider.
+func test_lair_numbers_have_sliders() -> void:
+	var T = preload("res://scripts/lair_tuning.gd")
+	var t = T.new()
+	var missing: Array = []
+	for key in T.PATHS:
+		if t.get(key) == null or not T.TUNE.has(key):
+			missing.append(key)
+	check(missing.is_empty(), "every lair slider resolves %s" % [missing])
+	t.free()
+	check(str(ProjectSettings.get_setting("autoload/Profile", "")).ends_with("profile.gd"), "Profile is an autoload")
+	var cfg := ConfigFile.new()
+	cfg.load("res://export_presets.cfg")
+	check("data/voices/*.json" in str(cfg.get_value("preset.0", "include_filter", "")), "voices ship in the APK")

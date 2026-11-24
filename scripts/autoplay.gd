@@ -10,6 +10,7 @@ extends Node
 
 var shots := ""
 var clip := ""                          # --clip=DIR: save a gameplay clip's frames there
+const GameData = preload("res://scripts/game_data.gd")
 const CLIP_SECS := 15.0                 # vertical 9:16 (the game is portrait), sized for Shorts/Reels/TikTok
 var failed := false
 var training_arena := false
@@ -30,7 +31,7 @@ func _ready() -> void:
 			clip = a.trim_prefix("--clip=")
 	if shots != "":
 		DirAccess.make_dir_recursive_absolute(shots)
-	get_tree().create_timer(240.0).timeout.connect(func(): _fail("timeout"))
+	get_tree().create_timer(420.0).timeout.connect(func(): _fail("timeout"))
 	_run.call_deferred()
 
 
@@ -241,12 +242,32 @@ func _pews_checks() -> void:
 		"PEWS TUNE PASS (changes to the sermon slider reach the active rules)")
 	tuning.set("sermon_damage", sermon_damage)
 
-	arena.rules.studied = 99.0
-	var study_by := Time.get_ticks_msec() + 2500
-	while _find("AMBUSH") == null and Time.get_ticks_msec() < study_by:
+	_place(arena.hero, arena.dummy.global_position + Vector3(0, 0.05, 3.7), PI)
+	await _physics(3)
+	# Real stalking (M2 review: this used to preset study to 99%). Sneak behind Vesper by wiggling a
+	# light stick, first from 3.7 m (full study, too far to AMBUSH), then step in to 2.6 m.
+	# Staging: the hero is put back on the 3.7 m spot between wiggles; the crouch and the study
+	# come from the real stick input.
+	var hide_at: Vector3 = arena.hero.position
+	var stalk_by := Time.get_ticks_msec() + 12000
+	var wiggle := 1.0
+	_mouse(stick_point, true)
+	while arena.rules.studied < 100.0 and Time.get_ticks_msec() < stalk_by:
+		wiggle = -wiggle
+		_mouse(stick_point + Vector2(22.0 * wiggle, 0), null)
+		await _secs(0.22)
+		_place(arena.hero, hide_at, PI)
+	_mouse(stick_point, false)
+	await _frames(3)
+	var far: float = arena.rules.distance
+	_check(arena.rules.studied == 100.0 and far > float(arena.rules.config.stalking.ambush_range) and _find("AMBUSH") == null,
+		"PEWS AMBUSH RANGE PASS (study filled by sneaking; at %.1f m AMBUSH stays hidden)" % far)
+	_place(arena.hero, arena.dummy.global_position + Vector3(0, 0.05, 2.6), PI)
+	var near_by := Time.get_ticks_msec() + 2500
+	while _find("AMBUSH") == null and Time.get_ticks_msec() < near_by:
 		await get_tree().process_frame
 	_check(arena.rules.studied == 100.0 and _find("AMBUSH") != null,
-		"PEWS STALK PASS (study %.1f%%, context %s)" % [arena.rules.studied, arena.context_label()])
+		"PEWS STALK PASS (study %.1f%% from real sneaking, context %s at %.1f m)" % [arena.rules.studied, arena.context_label(), arena.rules.distance])
 	await _click("AMBUSH")
 	_check(arena.encounter_started and arena._ambush_free_special,
 		"PEWS AMBUSH PASS (Vesper staggered, first special free)")
@@ -309,17 +330,24 @@ func _pews_checks() -> void:
 	_check(arena.rules.eaten and arena.portal_ready and _has_label("BROTHER VESPER LYLE"),
 		"PEWS EAT PASS (EAT opens the voice sheet)")
 	await _click("CLOSE")
-	await _click("RETURN HOME")
+	# CONTINUE mid-hunt keeps the boss, the loot and where the hero stood (M2 review: the door).
+	var stood: Vector3 = arena.hero.position
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
 	await _wait_scene("Title")
-	_check(get_tree().current_scene.name == "Title", "PEWS PORTAL PASS (return-home action opens the title)")
 	await _click("CONTINUE")
 	await _wait_scene("Game")
 	game = get_tree().current_scene
 	arena = game.arena
 	_check(arena.rules.boss_phase == 2 and arena.rules.boss_defeated
-		and arena.rules.eaten and arena.rules.inventory.has("stained_glass"),
-		"PEWS CONTINUE PASS (boss, voice and loot survive the checkpoint)")
+		and arena.rules.eaten and arena.rules.inventory.has("stained_glass")
+		and arena.hero.position.distance_to(stood) < 0.5,
+		"PEWS CONTINUE PASS (boss, voice, loot and the hero's spot survive the checkpoint)")
+	await _click("RETURN HOME")
+	await _wait_scene("Game")
+	await _lair_checks()
 	await _pews_danger_checks()
+	await _brutal_and_raid_checks()
 
 
 ## The parts of The Pews that hurt, with God mode OFF and Vesper's own timers doing the work.
@@ -338,6 +366,12 @@ func _pews_danger_checks() -> void:
 	await _frames(25)
 	arena.rig.cam.make_current()
 	get_node("/root/DebugMenu").god_mode = false
+	# M3: NEW GAME is a new hunt, not a new hunter. The profile and the HUD line come along.
+	var prof: Dictionary = get_node("/root/Profile").data
+	_check(not arena.rules.boss_defeated and int(prof.cash) >= 10 and prof.trophies.has("vesper")
+		and prof.voices.has("vesper") and game.profile_label.text.begins_with("$%d" % int(prof.cash))
+		and arena.max_hp == 100 + int(GameData.load_json("trophies").trophies.vesper.defence.max_hp),
+		"PROFILE PASS (NEW GAME keeps $%d, the trophy, the voice and the perk; HUD: %s)" % [int(prof.cash), game.profile_label.text])
 	var cfg: Dictionary = arena.rules.config
 	var zealot: Dictionary
 	var choir: Dictionary
@@ -373,6 +407,7 @@ func _pews_danger_checks() -> void:
 	# The sermon's knockback is still carrying the hero: let it finish, then step back in, and
 	# again as the shadows appear (a player who holds their ground).
 	await _physics(60)
+	boss_at = arena.dummy.global_position       # Vesper walks between powers now (M2 review)
 	_place(arena.hero, boss_at + Vector3(0, 0.05, 1.6), PI)
 	hp0 = arena.hp
 	arena._boss_cd = 0.0
@@ -381,7 +416,7 @@ func _pews_danger_checks() -> void:
 	while arena.flock_ticks == 0 and Time.get_ticks_msec() < by:
 		if not saw_shadows and arena._flock_node != null and arena._flock_node.get_child_count() == 3:
 			saw_shadows = true
-			_place(arena.hero, boss_at + Vector3(0, 0.05, 1.6), PI)
+			_place(arena.hero, arena._flock_node.global_position + Vector3(0, 0.05, 1.6), PI)
 		await get_tree().physics_frame
 	_check(saw_shadows and arena.flock_ticks >= 1 and hp0 - arena.hp == int(cfg.boss.moves.flock.damage),
 		"PEWS FLOCK PASS (three shadows, a tick cost %d HP)" % (hp0 - arena.hp))
@@ -432,6 +467,234 @@ func _pews_danger_checks() -> void:
 	_check(game.over and _find("TRY AGAIN") != null and not get_node("/root/Save").exists(),
 		"PEWS GAMEOVER PASS (the minions can kill; game over screen, save cleared)")
 	await _click("TITLE")
+	await _wait_scene("Title")
+
+
+# ---------------------------------------------------------------- Hunter M3: the lair
+
+## Stand the hero by a lair station (on the aisle side of it) and let the context button find it.
+func _at_station(arena: Node, id: String) -> void:
+	var at: Vector3 = GameData.vec3(arena.cfg.layout.stations[id])
+	var off := Vector3(0, 0, 1.1) if id == "map_room" else Vector3(-signf(at.x) * 1.1, 0, 0)
+	_place(arena.hero, at + off + Vector3(0, 0.05, 0), PI)
+	arena.rig.snap()
+	await _physics(3)
+	await _frames(3)
+
+
+func _lair_checks() -> void:
+	var game := get_tree().current_scene
+	var arena = game.arena
+	var prof: Dictionary = get_node("/root/Profile").data
+	await _frames(20)
+	arena.rig.cam.make_current()
+	_check(game.where == "lair" and arena.name == "LairArena" and int(prof.nights) == 1 and int(prof.hunts) == 1,
+		"LAIR PASS (RETURN HOME opens the lair; a night passed, heat now %d)" % int(prof.heat))
+	_check(game.last_voice_kind == "lair" and game.get_node_or_null("VoiceBox") != null,
+		"VOICE LINE PASS (Vesper speaks in the dialogue box on a lair visit)")
+	await _shot("lair_voice_box")
+	await _click_node(game.get_node("VoiceBox"))
+	await _frames(3)
+	_check(game.get_node_or_null("VoiceBox") == null, "VOICE BOX TAP PASS (a tap dismisses the line)")
+	_check(arena.band == 0 and not arena.horns.visible, "CORRUPTION HOME PASS (corruption %d: look 1 of 3, no horns)" % int(prof.corruption))
+	# The whole room from above for the contact sheet.
+	arena.rig.distance = 17.0
+	_place(arena.hero, Vector3(0, 0.05, -1.5), PI)
+	arena.rig.snap()
+	await _physics(3)
+	await _shot("lair_overview")
+	arena.rig.distance = 7.5
+
+	# Trophy wall: CLEAN hung Vesper's collar on the first (offence) slot. Move it to defence.
+	await _at_station(arena, "trophy_wall")
+	await _shot("lair_trophy_wall")
+	await _click("TROPHY WALL")
+	_check(prof.wall[0] == "vesper" and _find("OFFENCE\nVESPER") != null, "LAIR WALL PASS (the CLEAN trophy hangs on the wall)")
+	await _click_node(get_tree().root.find_child("Slot2", true, false))
+	await _click("VESPER'S COLLAR")
+	await _secs(0.7)
+	_check(prof.wall[2] == "vesper" and prof.wall[0] == "" and arena.max_hp == 115,
+		"LAIR TROPHY PASS (moved to the defence row for free: max HP %d, wall %s)" % [arena.max_hp, prof.wall])
+	await _click("CLOSE")
+
+	# Workshop: the stained glass and the parts make a trap.
+	await _at_station(arena, "workshop")
+	await _click("WORKSHOP")
+	await _shot("lair_workshop")
+	var parts0 := int(prof.parts)
+	await _click("CRAFT GLASS SPIKE TRAP")
+	_check(int(prof.inventory.get("glass_trap", 0)) == 1 and int(prof.parts) == parts0 - 4 and not prof.inventory.has("stained_glass"),
+		"LAIR CRAFT PASS (glass trap crafted: parts %d -> %d)" % [parts0, int(prof.parts)])
+	await _click("CLOSE")
+
+	# Set it on the first spot by the door.
+	_place(arena.hero, GameData.vec3(arena.cfg.layout.trap_spots[0]) + Vector3(0, 0.05, 0.3), PI)
+	await _physics(3)
+	await _frames(3)
+	await _click("SET TRAP")
+	await _frames(3)
+	_check(prof.traps[0] == "glass_trap" and not prof.inventory.has("glass_trap") and arena._trap_nodes[0].has_node("Spikes"),
+		"LAIR TRAP SET PASS (glass spikes set by the door)")
+
+	# Voices: Vesper took slot 1 (the UP swipe) when he was eaten. Move him to DOWN and back.
+	await _at_station(arena, "voices")
+	await _click("VOICES")
+	await _secs(0.6)
+	_check(arena.moves.specials.up.name == "SERMON", "LAIR VOICE EQUIP PASS (Vesper's SERMON is on the UP swipe)")
+	await _click("SLOT 2")
+	await _click("VESPER")
+	await _secs(0.7)
+	var moved: bool = arena.moves.specials.down.name == "SERMON" and arena.moves.specials.up.name != "SERMON"
+	await _click("SLOT 1")
+	await _click("VESPER")
+	await _secs(0.7)
+	_check(moved and arena.moves.specials.up.name == "SERMON", "LAIR VOICE SWAP PASS (slot 2 takes DOWN; back to UP)")
+	await _shot("lair_voices")
+	await _click("CLOSE")
+
+	await _at_station(arena, "cold_room")
+	await _click("COLD ROOM")
+	_check(_has_label("CASH %d   PARTS %d   HEAT %d   CORRUPTION %d" % [int(prof.cash), int(prof.parts), int(prof.heat), int(prof.corruption)]),
+		"LAIR COLD ROOM PASS (stores show the profile)")
+	await _click("CLOSE")
+
+	await _at_station(arena, "map_room")
+	await _shot("lair_map_room")
+	await _click("MAP ROOM")
+	_check(_find("HUNT THE PEWS") != null and _find("LOCKED: THE CASINO") == null and _has_any_disabled("LOCKED: THE CASINO"),
+		"LAIR MAP PASS (The Pews is open, the other realms are locked)")
+	await _shot("lair_map_sheet")
+	await _click("CLOSE")
+
+	# Quit and CONTINUE: back in the lair with the trophy, the trap and the voice where they were.
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
+	await _wait_scene("Title")
+	_check(_find("CONTINUE  (THE LAIR)") != null, "LAIR SAVE PASS (title offers CONTINUE (THE LAIR))")
+	await _click("CONTINUE")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	prof = get_node("/root/Profile").data
+	await _frames(10)
+	_check(game.where == "lair" and prof.wall[2] == "vesper" and prof.traps[0] == "glass_trap"
+		and arena._trap_nodes[0].has_node("Spikes") and int(prof.nights) == 1,
+		"LAIR CONTINUE PASS (trophy, trap and voice kept; no extra night on CONTINUE) %s %s %s %s %d" % [game.where, prof.wall, prof.traps, arena._trap_nodes[0].get_children().map(func(c): return c.name), int(prof.nights)])
+	# Map room -> a fresh hunt, the profile intact.
+	await _at_station(arena, "map_room")
+	await _click("MAP ROOM")
+	await _click("HUNT THE PEWS")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	_check(game.where == "pews" and not game.arena.rules.boss_defeated and game.arena.max_hp == 115,
+		"LAIR HUNT PASS (the map room opens a fresh Pews hunt, perks on)")
+
+
+## True when a visible button starting with `prefix` exists but is disabled (locked realms).
+func _has_any_disabled(prefix: String) -> bool:
+	for b in get_tree().root.find_children("*", "Button", true, false):
+		if b.is_visible_in_tree() and b.disabled and b.text.begins_with(prefix):
+			return true
+	return false
+
+
+## BRUTAL (M2 review: rule tests only), then heat over the line brings a LAIR RAID. God mode OFF:
+## the raiders hit for real, the trap fires on its own, the hero clears both waves with pad taps.
+func _brutal_and_raid_checks() -> void:
+	await _click("NEW GAME")
+	await _wait_scene("Game")
+	var game := get_tree().current_scene
+	var arena = game.arena
+	var prof: Dictionary = get_node("/root/Profile").data
+	await _frames(25)
+	arena.rig.cam.make_current()
+	get_node("/root/DebugMenu").god_mode = false
+	for foe in arena._foes:
+		_place(foe.actor, Vector3(foe.actor.position.x, 0.05, 40.0), 0.0)
+	# Staging: Vesper on his last legs in phase 2, his powers parked; heat 64 so the plate (+8)
+	# crosses the raid line. The kill, the plate and both choices are real taps.
+	prof.heat = 64
+	arena.rules.boss_phase = 2
+	arena.rules.boss_hp = 6.0
+	arena.dummy_hp = 6.0
+	arena._boss_cd = 999.0
+	_place(arena.hero, arena.dummy.global_position + Vector3(0, 0.05, -1.4), 0.0)
+	var by := Time.get_ticks_msec() + 3000
+	while not arena.encounter_started and Time.get_ticks_msec() < by:
+		await get_tree().physics_frame
+	await _fight_vesper_phase(game, 2)
+	var corr0 := int(prof.corruption)
+	_place(arena.hero, arena.get_node("CollectionPlate").position + Vector3.UP * 0.05, PI)
+	await _frames(3)
+	await _click("COLLECT PLATE")
+	await _frames(2)
+	await _click("FINISH")
+	await _click("BRUTAL")
+	_check(arena.boss_defeated and int(prof.voice_levels.get("vesper", 0)) == 1 and int(prof.corruption) == corr0 + 15
+		and not arena.rules.trophies.has("vesper"),
+		"PEWS BRUTAL PASS (no trophy, Vesper's voice +1 level, corruption +15)")
+	await _frames(2)
+	await _click("EAT")
+	await _click("CLOSE")
+	_check(int(prof.heat) >= int(GameData.load_json("lair").heat.raid_at), "HEAT PASS (the plate pushed heat to %d)" % int(prof.heat))
+	await _click("RETURN HOME")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	prof = get_node("/root/Profile").data
+	await _frames(10)
+	arena.rig.cam.make_current()
+	_check(bool(prof.raid_pending) and _find("FIGHT") != null, "LAIR RAID WARNING PASS (heat %d brought a raid home)" % int(prof.heat))
+	_check(arena.band == 1 and arena.horns.visible and arena.hero.tint != Color.WHITE,
+		"CORRUPTION PASS (corruption %d: the lair turns STAINED, the hero tints and grows horns)" % int(prof.corruption))
+	var heat0 := int(prof.heat)
+	await _click("FIGHT")
+	await _frames(5)
+	await _shot("lair_raid")
+	var point := _pad_point(game)
+	by = Time.get_ticks_msec() + 60000
+	while arena.raid_active and not game.over and Time.get_ticks_msec() < by:
+		var target: Node = arena._attack_target()
+		if target == null:
+			# Nobody in reach: walk to the nearest raider with the bot stick.
+			var near: Node3D = null
+			for foe in arena._foes:
+				if not foe.dead and (near == null or arena.hero.global_position.distance_to(foe.actor.global_position) < arena.hero.global_position.distance_to(near.global_position)):
+					near = foe.actor
+			if near != null and arena.hero.global_position.distance_to(near.global_position) > 1.3:
+				var to: Vector3 = near.global_position - arena.hero.global_position
+				arena.bot_stick = Vector2(to.x, to.z).normalized()
+			else:
+				arena.bot_stick = Vector2.INF
+			await _physics(3)
+			continue
+		arena.bot_stick = Vector2.INF
+		_mouse(point, true)
+		_mouse(point, false)
+		await _secs(0.35)
+	arena.bot_stick = Vector2.INF
+	await _frames(5)
+	_check(not arena.raid_active and int(prof.raids_won) == 1 and arena.traps_fired >= 1 and prof.traps[0] == ""
+		and int(prof.heat) < heat0 and _find("CLOSE") != null and arena.hero_hits_taken >= 0,
+		"LAIR RAID PASS (%d waves cleared, %d trap fired, heat %d -> %d)" % [arena.raid_wave, arena.traps_fired, heat0, int(prof.heat)])
+	await _shot("lair_raid_won")
+	await _click("CLOSE")
+	await _shot("lair_stained")
+	# The third look, staged for the render only.
+	prof.corruption = 80
+	arena.refresh()
+	arena.apply_corruption(80)
+	await _frames(5)
+	arena.rig.distance = 17.0
+	_place(arena.hero, Vector3(0, 0.05, -1.5), PI)
+	arena.rig.snap()
+	await _physics(3)
+	await _shot("lair_hellmouth")
+	_check(arena.band == 2 and arena.get_node_or_null("Vein13") != null,
+		"CORRUPTION LOOKS PASS (all three lair looks build: HOME, STAINED, HELLMOUTH)")
+	arena.rig.distance = 7.5
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
 	await _wait_scene("Title")
 
 
@@ -808,7 +1071,9 @@ func _arena_checks(game: Node) -> void:
 	var SwipePad = preload("res://scripts/swipe_pad.gd")
 	var gesture_kind: String = SwipePad.classify(0.05, Vector2.ZERO, 0.1, a.hold_time, a.double_tap, a.swipe_min)
 	_check(gesture_kind == "dodge", "DODGE CLASSIFIER PASS (two quick taps classify as dodge)")
-	a._last_light_landed = false  # no connected light: the documented double-tap path is dodge
+	# The SPECIAL above ended the string, so the last tap's light no longer counts (no setting it by
+	# hand, M2 review): the documented double-tap path is dodge.
+	_check(not a._last_light_landed, "DODGE SETUP PASS (the special ended the light string)")
 	a.dodge_iframes = 0.5
 	a.enemy_telegraph = 1.0
 	a.enemy_attack_every = 0.2
@@ -824,7 +1089,7 @@ func _arena_checks(game: Node) -> void:
 		Input.flush_buffered_events()
 	wait_until = Time.get_ticks_msec() + 2000
 	while a.telegraphing and Time.get_ticks_msec() < wait_until:
-		rolling = rolling or hero.is_acting("dodge") or a._iframes > 0.0
+		rolling = rolling or hero.is_acting("dodge")      # the roll clip itself, not i-frames (M2 review)
 		await get_tree().process_frame
 	await _physics(2)
 	rolling = rolling or hero.is_acting("dodge")

@@ -45,7 +45,9 @@ func _build() -> void:
 	var save: Node = get_node("/root/Save")
 	if save.exists():
 		var d: Dictionary = save.read()
-		col.add_child(UI.button("CONTINUE  (LEVEL %d)" % int(d.get("level", 1)), func(): _play(true), 88))
+		# M3: the run save says where you are (Save v4 "where").
+		var at := "THE LAIR" if str(d.get("where", "pews")) == "lair" else "THE PEWS"
+		col.add_child(UI.button("CONTINUE  (%s)" % at, func(): _play(true), 88))
 	col.add_child(UI.button("NEW GAME", func(): _play(false), 88 if not save.exists() else UI.MIN_TOUCH))
 	col.add_child(UI.button("SETTINGS", func(): SettingsSheet.open(self)))
 	col.add_child(UI.button("REPORT A BUG", func(): BugReport.open(self)))

@@ -1,0 +1,13 @@
+{
+  "_why": "Hunter M3 (Nov 23): trophy wall perks. BUILD_SPEC: each trophy's perk depends on its row (row 1 offence, row 2 defence, row 3 utility). The wall starts with 6 slots, 2 per row. Perk values have TUNE sliders.",
+  "rows": ["OFFENCE", "DEFENCE", "UTILITY"],
+  "slots": 6,
+  "trophies": {
+    "vesper": {
+      "name": "VESPER'S COLLAR",
+      "offence": {"what": "+15% special damage", "special_damage": 0.15},
+      "defence": {"what": "+15 max HP", "max_hp": 15},
+      "utility": {"what": "Heat falls 5 more per night", "heat_per_night": 5}
+    }
+  }
+}
