@@ -16,6 +16,11 @@ const BugReport = preload("res://scripts/bug_report.gd")
 const ControlsLegend = preload("res://scripts/controls_legend.gd")
 const Arena = preload("res://scripts/arena.gd")
 const PewsArena = preload("res://scripts/pews_arena.gd")
+const LairArena = preload("res://scripts/lair_arena.gd")
+const LairRules = preload("res://scripts/lair_rules.gd")
+const LairSheets = preload("res://scripts/lair_sheets.gd")
+const VoiceBox = preload("res://scripts/voice_box.gd")
+const GameData = preload("res://scripts/game_data.gd")
 const VirtualStick = preload("res://scripts/virtual_stick.gd")
 const SwipePad = preload("res://scripts/swipe_pad.gd")
 
@@ -26,6 +31,10 @@ var over := false
 
 var arena: Arena
 var hud: Label
+var profile_label: Label     # cash, heat, parts, corruption (M3: the profile on the HUD)
+var heal_btn: Button
+var where := "pews"          # "pews" or "lair" (Save v4); the training arena is autoplay-only
+var arrived := false         # came home through the portal this load (a night, or a raid)
 var combo_label: Label
 var weapon_label: Label
 var pause_btn: Button
@@ -36,6 +45,7 @@ var sheet_box: VBoxContainer
 var _settings: Node
 var _save: Node
 var _saved_hp := -1
+var leaving := false         # a portal/map-room save was written: nothing may overwrite it
 var dying := false           # the hero is down: no more saves; GAME OVER follows (review of 95847e0)
 
 
@@ -52,9 +62,18 @@ func _ready() -> void:
 		level = int(d.get("level", 1))
 		score = int(d.get("score", 0))
 		_saved_hp = int(d.get("hp", -1))
+		where = str(d.get("where", "pews"))
+		arrived = bool(d.get("arrived", false))
 	# The 3D arena lives for the whole scene; _build() only rebuilds the 2D layer on top.
 	var autoplay := get_node_or_null("/root/Autoplay")
-	arena = Arena.new() if autoplay != null and autoplay.training_arena else PewsArena.new()
+	if autoplay != null and autoplay.training_arena:
+		where = "training"
+		arena = Arena.new()
+	elif where == "lair":
+		arena = LairArena.new()
+	else:
+		where = "pews"
+		arena = PewsArena.new()
 	arena.add_to_group("keep")
 	add_child(arena)
 	if _saved_hp > 0:
@@ -65,17 +84,25 @@ func _ready() -> void:
 		arena.connect("finish_requested", Callable(self, "_on_finish_requested"))
 		arena.connect("voice_unlocked", Callable(self, "_on_voice_unlocked"))
 		arena.connect("portal_opened", Callable(self, "_on_portal_opened"))
+		arena.connect("phase_changed", checkpoint)
+	if arena.has_signal("voice_moment"):
+		arena.connect("voice_moment", Callable(self, "speak"))
+	if arena.has_signal("station_requested"):
+		arena.connect("station_requested", Callable(self, "_on_station"))
+		arena.connect("raid_finished", Callable(self, "_on_raid_finished"))
 	if arena.has_method("restore_state"):
 		arena.call("restore_state", d.get("pews", {}))
 	_build()
 	checkpoint()
 	get_node("/root/Audio").music_layers("music_loop", "music_combat")
+	if where == "lair":
+		_enter_lair.call_deferred()
 
 
 # ---------------------------------------------------------------- state + saving
 
 func state() -> Dictionary:
-	var result := {"level": level, "score": score, "hp": arena.hp if arena != null else 100}
+	var result := {"level": level, "score": score, "hp": arena.hp if arena != null else 100, "where": where}
 	if arena != null and arena.has_method("save_state"):
 		result["pews"] = arena.call("save_state")
 	return result
@@ -83,7 +110,7 @@ func state() -> Dictionary:
 
 ## Never saves a dead hero: dying escaped GAME OVER through PAUSE -> QUIT -> CONTINUE (review of 95847e0).
 func checkpoint() -> void:
-	if dying or over or (arena != null and (arena.hp <= 0 or arena.hero.dead)):
+	if leaving or dying or over or (arena != null and (arena.hp <= 0 or arena.hero.dead)):
 		return
 	_save.write(state())
 
@@ -126,30 +153,45 @@ func _build() -> void:
 	hud.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(hud)
+	profile_label = UI.label("", 17, UI.DIM)
+	profile_label.name = "Profile"
+	profile_label.anchor_right = 1.0
+	profile_label.offset_top = 30 + UI.MIN_TOUCH + 4
+	profile_label.offset_bottom = 30 + UI.MIN_TOUCH + 58
+	profile_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(profile_label)
 	combo_label = UI.label("", 40, UI.ACCENT)
 	combo_label.name = "Combo"
 	combo_label.anchor_right = 1.0
-	combo_label.offset_top = 150
-	combo_label.offset_bottom = 210
+	combo_label.offset_top = 166
+	combo_label.offset_bottom = 222
 	combo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(combo_label)
 	weapon_label = UI.label("", 22)
 	weapon_label.name = "Weapon"
 	weapon_label.anchor_right = 1.0
-	weapon_label.offset_top = 210
-	weapon_label.offset_bottom = 250
+	weapon_label.offset_top = 222
+	weapon_label.offset_bottom = 258
 	weapon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(weapon_label)
 	var legend := ControlsLegend.make(["move_up", "attack", "heavy", "special", "dodge", "pause"])
 	legend.name = "Legend"
-	legend.top = 30 + UI.MIN_TOUCH + 12
+	legend.top = 30 + UI.MIN_TOUCH + 64
 	add_child(legend)
 	pause_btn = UI.button("PAUSE", pause)
 	_corner(pause_btn, left, true, 150)
+	# A crafted poultice, in the field or a raid (hidden when there's none or HP is full).
+	heal_btn = UI.button("HEAL", heal)
+	heal_btn.name = "Heal"
+	# Opposite corner from the context button, clear of the voice box at the top (it ate the tap).
+	_corner(heal_btn, left, false, 150)
+	heal_btn.offset_top -= 260
+	heal_btn.offset_bottom -= 260
 	# Context button above the pad (BUILD_SPEC: INTERACT / SCAVENGE / FINISH go here).
 	pick_btn = UI.button("PICK UP", _context_action, 96)
 	pick_btn.name = "PickUp"
-	_corner(pick_btn, not left, false, 200)
+	# 260 wide: COLLECT PLATE and RETURN HOME didn't fit in 200 (M2 review).
+	_corner(pick_btn, not left, false, CONTEXT_W)
 	pick_btn.offset_top -= 260
 	pick_btn.offset_bottom -= 260
 	for sh in get_tree().get_nodes_in_group("sheet"):   # open sheets stay on top of the rebuilt HUD
@@ -183,12 +225,26 @@ func _corner(b: Button, right: bool, top: bool, w: int) -> void:
 	add_child(b)
 
 
+const CONTEXT_W := 260
+
+
 func _refresh_hud() -> void:
 	if hud == null or arena == null:
 		return
 	var god := " GOD" if get_node("/root/DebugMenu").god_mode else ""
 	var status := str(arena.call("status_text")) if arena.has_method("status_text") else ""
-	hud.text = "ROUND %d\nHP %d%s%s" % [level, arena.hp, god, "\n" + status if not status.is_empty() else ""]
+	# "ROUND n" is the training arena's; the hunt and the lair show HP and the profile (M2 review).
+	# The status line moved to the full-width row under it: in the 160-wide centre it wrapped onto
+	# the profile line (M3 renders).
+	var p: Dictionary = get_node("/root/Profile").data
+	if where == "training":
+		hud.text = "ROUND %d\nHP %d%s%s" % [level, arena.hp, god, "\n" + status if not status.is_empty() else ""]
+		profile_label.text = ""
+	else:
+		hud.text = "HP %d/%d%s" % [arena.hp, arena.max_hp, god]
+		profile_label.text = "$%d  HEAT %d  PARTS %d  CORR %d%s" % [int(p.cash), int(p.heat), int(p.parts), int(p.corruption),
+			"\n" + status if not status.is_empty() else ""]
+	heal_btn.visible = where != "training" and int(p.inventory.get("wax_poultice", 0)) > 0 and arena.hp < arena.max_hp and not arena.hero.dead
 	var c: int = arena.combo_count()
 	combo_label.text = "%d HITS" % c if c >= 2 else ""
 	var w: String = arena.combat.weapon
@@ -284,11 +340,29 @@ func _on_voice_unlocked() -> void:
 
 func _on_portal_opened() -> void:
 	get_node("/root/Subs").cue("[portal home opens]")
-	# The lair is Milestone 3; until then the title screen is the safe-home placeholder.
-	get_node("/root/Loader").go("res://scenes/title.tscn")
+	# M3: home is the lair. The run save says where CONTINUE goes; "arrived" makes the night pass
+	# (or the raid start) once, when the lair loads.
+	leaving = true
+	_save.write({"where": "lair", "arrived": true, "level": level, "score": score})
+	get_node("/root/Loader").go("res://scenes/game.tscn")
+
+
+## Map room: a fresh hunt in that realm. The profile goes along; the run starts at full HP.
+func start_hunt(realm: String) -> void:
+	if realm != "pews" or bool(get_node("/root/Profile").data.raid_pending):
+		return
+	leaving = true
+	_save.write({"where": "pews"})
+	get_node("/root/Loader").go("res://scenes/game.tscn")
 
 
 func _on_ko(_count: int) -> void:
+	if where != "training":
+		# Vesper's death is his own moment (cue + voice line in pews_arena); no round chime.
+		get_node("/root/Audio").sfx("hit_heavy", 0.6)
+		UI.buzz(60)
+		checkpoint()
+		return
 	score += 1
 	level += 1
 	get_node("/root/Audio").sfx("level")
@@ -298,15 +372,115 @@ func _on_ko(_count: int) -> void:
 
 
 func _on_hero_died() -> void:
+	if where == "lair" and bool(arena.get("raid_active")):
+		# BUILD_SPEC: losing a raid costs stored parts, not the save. The hero gets back up.
+		var delay := float(GameData.load_json("lair").raid.revive_delay)
+		get_tree().create_timer(delay).timeout.connect(func():
+			if is_instance_valid(arena) and bool(arena.get("raid_active")):
+				arena.call("raid_failed"))
+		return
 	dying = true                     # from this moment nothing saves, and the run is over
 	_save.clear()
+	if where == "pews":
+		# A real failed hunt (BUILD_SPEC Furfur: VENT unlocks one combo per real failure, M4).
+		var prof := get_node("/root/Profile")
+		prof.data.failures_unvented = int(prof.data.failures_unvented) + 1
+		prof.save()
 	get_tree().create_timer(1.2).timeout.connect(func():
 		if not over:
 			game_over())
 
 
+## SKIP LEVEL in the dev menu: the next round in training, Vesper down in the Pews, raid won in the lair.
 func debug_skip_level() -> void:
-	_on_ko(score + 1)
+	if where == "pews" and arena.has_method("debug_defeat"):
+		arena.call("debug_defeat")
+	elif where == "lair" and bool(arena.get("raid_active")):
+		arena.call("_end_raid", true)
+	elif where == "training":
+		_on_ko(score + 1)
+
+
+# ---------------------------------------------------------------- the lair (M3)
+
+func _enter_lair() -> void:
+	var prof := get_node("/root/Profile")
+	var lair := GameData.load_json("lair")
+	var perk := LairRules.perks(prof.data, GameData.load_json("trophies"))
+	if arrived:
+		arrived = false
+		var r := LairRules.arrive_home(prof.data, lair, perk)
+		checkpoint()
+		prof.save()
+		if not r.raid:
+			get_node("/root/Subs").cue("[a night in the lair: heat -%d]" % int(r.heat_drop))
+	arena.call("refresh")
+	if bool(prof.data.raid_pending):
+		_raid_warning()
+	else:
+		speak("lair")
+
+
+func _raid_warning() -> void:
+	var sh := UI.sheet(self)
+	sh.get_meta("sheet").name = "RaidWarning"
+	sh.add_child(UI.label("LAIR RAID", 34, UI.key("bad")))
+	sh.add_child(UI.label("Your heat led them home. Hold the lair: set traps fire on their own.", 18))
+	sh.add_child(UI.button("FIGHT", func():
+		UI.close_sheet(sh)
+		arena.call("start_raid"), 88))
+
+
+func _on_raid_finished(won: bool, result: Dictionary) -> void:
+	checkpoint()
+	var sh := UI.sheet(self)
+	sh.get_meta("sheet").name = "RaidResult"
+	sh.add_child(UI.label("THE LAIR HOLDS" if won else "THEY RANSACKED THE COLD ROOM", 28, UI.key("good") if won else UI.key("bad")))
+	sh.add_child(UI.label("Heat falls. A night passes." if won else "You lost %d parts. The save is safe." % int(result.get("parts_lost", 0)), 18))
+	sh.add_child(UI.button("CLOSE", func(): UI.close_sheet(sh), 88))
+	if won:
+		speak("kill")
+
+
+func _on_station(id: String) -> void:
+	LairSheets.open(self, id)
+
+
+## A crafted poultice: +heal HP, never past max.
+func heal() -> void:
+	var prof := get_node("/root/Profile")
+	var r: Dictionary = LairRules.recipe(GameData.load_json("recipes"), "wax_poultice")
+	if not arena.has_method("heal") or arena.hero.dead or arena.hp >= arena.max_hp \
+			or not LairRules.take_item(prof.data, "wax_poultice"):
+		return
+	var got: int = arena.call("heal", int(r.heal))
+	prof.save()
+	get_node("/root/Subs").cue("[poultice: +%d HP]" % got)
+	checkpoint()
+	_refresh_hud()
+
+
+## An equipped voice says a line for this moment (fight, low_hp, combo, kill, lair) in the box at
+## the top. Slot 1 speaks first. Nothing when no voice is equipped.
+func speak(kind: String) -> void:
+	var prof := get_node("/root/Profile")
+	for id in prof.data.equipped:
+		if str(id).is_empty():
+			continue
+		var lines: Array = GameData.load_json("voices/" + str(id)).get("lines", {}).get(kind, [])
+		if lines.is_empty():
+			continue
+		var old := get_node_or_null("VoiceBox")
+		if old != null:
+			old.free()
+		var box := VoiceBox.make(str(id), str(lines[randi() % lines.size()]))
+		box.set_meta("kind", kind)
+		add_child(box)
+		last_voice_kind = kind
+		return
+
+
+var last_voice_kind := ""     # read by autoplay (VOICE LINE PASS)
 
 
 # ---------------------------------------------------------------- pause + game over
@@ -351,7 +525,13 @@ func game_over() -> void:
 	get_node("/root/Subs").cue("[game over sting]")
 	sheet_box = UI.sheet(self)
 	sheet_box.add_child(UI.label("GAME OVER", 40, UI.key("bad")))
-	sheet_box.add_child(UI.label("Round %d, %d knockouts" % [level, score], 24))
+	if where == "pews":
+		# Training-arena wording ("Round 1, 0 knockouts") left over in the church (M2 review).
+		var phase := int(arena.get("rules").boss_phase) if arena.get("rules") != null else 1
+		sheet_box.add_child(UI.label("You fell in The Pews. Vesper, phase %d." % phase, 22))
+		sheet_box.add_child(UI.label("What you earned is still yours.", 18, UI.DIM))
+	else:
+		sheet_box.add_child(UI.label("Round %d, %d knockouts" % [level, score], 24))
 	sheet_box.add_child(UI.button("TRY AGAIN", func(): get_tree().reload_current_scene(), 88))
 	sheet_box.add_child(UI.button("TITLE", quit_to_title))
 
@@ -369,7 +549,11 @@ func _notification(what: int) -> void:
 func _go_back() -> void:
 	var sheets := get_tree().get_nodes_in_group("sheet")
 	var base_sheet: Node = sheet_box.get_meta("sheet") if is_instance_valid(sheet_box) else null
-	if not sheets.is_empty() and sheets[-1] != base_sheet:
+	if not sheets.is_empty() and sheets[-1].name == "RaidWarning":
+		# Back can't dodge a raid (fresh-eyes on PR #23): it means FIGHT.
+		sheets[-1].queue_free()
+		arena.call("start_raid")
+	elif not sheets.is_empty() and sheets[-1] != base_sheet:
 		sheets[-1].queue_free()
 	elif paused and not over:
 		resume()

@@ -1,0 +1,42 @@
+{
+  "_why": "Hunter M3 (Nov 23): Vesper's voice (BUILD_SPEC: lines in data/voices/<id>.json; triggers on fight start, low HP, a big combo, a boss kill and lair visits). Equipped in slot 1 he takes the UP swipe, in slot 2 the DOWN swipe. Each BRUTAL level adds damage. Lines are placeholders until Duff signs off the writing.",
+  "id": "vesper",
+  "name": "BROTHER VESPER LYLE",
+  "short": "VESPER",
+  "color": "8b718f",
+  "special": {
+    "id": "voice_vesper",
+    "name": "SERMON",
+    "action": "spin",
+    "damage": 22,
+    "per_level": 6,
+    "power": 0.7,
+    "reach": 2.6,
+    "arc": 360,
+    "cooldown": 4.0,
+    "hit_at": 0.25,
+    "recover": 0.5
+  },
+  "lines": {
+    "lair": [
+      "Charming hovel. I'd have tithed it.",
+      "Your walls are thin. I can hear your mother's lectures through them."
+    ],
+    "fight": [
+      "Another sinner. Make it quick, I'm mid-homily.",
+      "Bow your head. Then take theirs."
+    ],
+    "low_hp": [
+      "Bleeding is a sacrament. You're overdoing it.",
+      "Kneel later. Not now."
+    ],
+    "combo": [
+      "Hallelujah. Again.",
+      "Now THAT is a sermon."
+    ],
+    "kill": [
+      "Amen.",
+      "And the congregation says: ow."
+    ]
+  }
+}

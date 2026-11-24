@@ -1,0 +1,11 @@
+{
+  "_why": "Hunter M3 (Nov 23): the map room's portals. Only The Pews is built (M2); the rest are M5+ and show locked (BUILD_SPEC milestone order).",
+  "realms": [
+    {"id": "pews", "name": "THE PEWS", "target": "BROTHER VESPER LYLE", "open": true},
+    {"id": "casino", "name": "THE CASINO", "target": "GUS", "open": false},
+    {"id": "quarry", "name": "THE QUARRY", "target": "ROOK", "open": false},
+    {"id": "ballroom", "name": "THE BALLROOM", "target": "INES", "open": false},
+    {"id": "nursery", "name": "THE NURSERY", "target": "HOLLIS", "open": false},
+    {"id": "price", "name": "PRICE & PARTNERS", "target": "SAMAEL PRICE", "open": false}
+  ]
+}

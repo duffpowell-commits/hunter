@@ -43,6 +43,24 @@ const PATHS := {
 	"hands_cooldown": ["boss", "moves", "laying_of_hands", "cooldown"],
 	"phase_one_hp": ["boss", "phase_hp", 0],
 	"phase_two_hp": ["boss", "phase_hp", 1],
+	# Nov 23 (M3 start, M2 review carry-overs).
+	"ambush_range": ["stalking", "ambush_range"],
+	"boss_turn_speed": ["boss", "turn_speed"],
+	"boss_walk_speed": ["boss", "walk_speed"],
+	"boss_keep_distance": ["boss", "keep_distance"],
+	"phase2_cooldown_scale": ["boss", "phase2_cooldown_scale"],
+	"flock_knockback": ["boss", "moves", "flock", "knockback"],
+	"minion_steer_probe": ["minions", "steer_probe"],
+	"minion_steer_margin": ["minions", "steer_margin"],
+	"eat_corruption": ["voice", "eat_corruption"],
+	"heat_per_scavenge": ["heat", "scavenge"],
+	"heat_per_body": ["heat", "body"],
+	"plate_cash": ["collection_plate", "cash"],
+	"plate_heat": ["collection_plate", "heat"],
+	"clean_corruption": ["finishers", "clean", "corruption"],
+	"clean_parts": ["finishers", "clean", "parts"],
+	"brutal_corruption": ["finishers", "brutal", "corruption"],
+	"brutal_parts": ["finishers", "brutal", "parts"],
 }
 const TUNE := {
 	"study_radius": [2.0, 12.0], "view_cone_degrees": [20.0, 120.0],
@@ -62,6 +80,13 @@ const TUNE := {
 	"boss_first_cooldown": [0.0, 6.0], "boss_min_telegraph": [0.2, 1.5],
 	"sermon_radius": [1.0, 10.0], "flock_radius": [1.0, 8.0], "flock_duration": [1.0, 10.0],
 	"flock_first_tick": [0.1, 2.0], "flock_tick": [0.3, 3.0],
+	"ambush_range": [1.0, 6.0], "boss_turn_speed": [0.0, 8.0], "boss_walk_speed": [0.0, 1.0],
+	"boss_keep_distance": [1.0, 6.0], "phase2_cooldown_scale": [0.3, 1.5], "flock_knockback": [0.0, 1.0],
+	"minion_steer_probe": [0.3, 2.0], "minion_steer_margin": [0.0, 1.0],
+	"eat_corruption": [0.0, 30.0, 1.0], "heat_per_scavenge": [0.0, 20.0, 1.0], "heat_per_body": [0.0, 20.0, 1.0],
+	"plate_cash": [0.0, 100.0, 1.0], "plate_heat": [0.0, 40.0, 1.0],
+	"clean_corruption": [0.0, 40.0, 1.0], "clean_parts": [0.0, 30.0, 1.0],
+	"brutal_corruption": [0.0, 40.0, 1.0], "brutal_parts": [0.0, 30.0, 1.0],
 }
 
 var config: Dictionary

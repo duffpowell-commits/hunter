@@ -1,5 +1,52 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-24: Milestone 3, the lair; profile save; M2 review carry-overs (Claude)
+
+What, in the order Duff asked for:
+1. **Profile save** (`scripts/profile.gd`, autoload `Profile`, `user://profile.json`): cash, heat, parts,
+   corruption, inventory, trophies + wall slots, voices + equipped + BRUTAL levels, upgrades, traps,
+   nights/raids, `failures_unvented` (for M4's VENT). NEW GAME and GAME OVER clear only the run save.
+   **Save.VERSION 4**: the run save gains `where` ("pews"/"lair"); a v3 run's rewards are lifted out of
+   its "pews" blob and handed to the profile once (Save.read rewrites the run without them). The HUD
+   shows `$ HEAT PARTS CORR` plus the status line on a full-width row.
+2. **M2 review carry-overs, all done**: ROUND/chime/"Round 1, 0 knockouts" gone outside training;
+   SKIP LEVEL downs Vesper; the four dummy sliders hidden in the Pews (`tune_spec()`); Flock damage
+   sits on the shadows and its knockback is a slider (default 0); AMBUSH needs `ambush_range` (3 m);
+   Vesper turns, walks in between powers, phase 2 powers 25% faster, checkpoint at the phase break;
+   minions (and Vesper) steer round props; BRUTAL has an autoplay PASS; the stalk check now fills study
+   by real sneaking; the M1 dodge check no longer sets `_last_light_landed` or counts i-frames as a
+   roll; context button 260 wide; mid-hunt CONTINUE keeps the hero's (and Vesper's) spot.
+   Eating a boss now adds +10 corruption (BUILD_SPEC; it was missing). Bodies (+3) and searching (+2)
+   add heat.
+3. **The lair** (`lair_arena.gd`, `lair_rules.gd`, `lair_sheets.gd`, data `lair/recipes/trophies/realms.json`,
+   `voices/vesper.json`): one room scrolling vertically. RETURN HOME lands at the portal; a night passes
+   (heat -10). Trophy wall (3 rows x 2: offence +15% special damage, defence +15 HP, utility heat -5/night
+   for Vesper's collar), workshop (grip upgrade, glass trap, wax poultice; HEAL button in fights), cold room
+   (stores, 24-slot bag), voice shrine (slot 1 = UP swipe, slot 2 = DOWN; Vesper's SERMON, +6 per BRUTAL
+   level), map room (The Pews open, the rest locked). Heat 70+ on return = LAIR RAID: 2 waves of 2
+   raiders, set traps fire on their own, losing costs 30% of parts and never the save. Corruption picks
+   HOME / STAINED / HELLMOUTH looks and tints the hero, with horns. Voice lines (fight, low HP, 5-hit combo,
+   kill, lair visit) show in a dialogue box at the top (3 s or tap). `hunt_arena.gd` is the shared base
+   (foes, steering, perks, voices). Every number has a slider (`lair_tuning.gd`, `pews_tuning.gd`).
+
+Tests: 61 (10 new), each seen failing by stashing or mutating the code. Autoplay: 120 PASS lines, new
+ones with God mode off (raid, BRUTAL, profile, corruption). Autoplay timeout 300 -> 480 s (it runs ~4 min).
+
+Judgment calls for Duff:
+- The lair is a 3D room you walk through (stations along the aisle), not a 2D menu.
+- All lair rooms are open from the start except Furfur's cage (M4). Re-hunting Vesper is allowed after
+  he's eaten: cash and parts farm, trophies and voices don't duplicate, every run's plate adds heat.
+- A night passes only on RETURN HOME (no bed to farm heat away). Winning a raid drops heat 25.
+- Voice lines and Vesper's portrait (a mauve disc with an initial) are placeholders.
+- BRUTAL on a re-hunt adds another voice level each time, uncapped. Cap it or keep it? (fresh-eyes note)
+- Fresh-eyes on PR #23 (CHANGES REQUESTED, fixed in the second commit): Back on the raid warning now
+  starts the raid and the map room is shut while one is pending; HEAL, losing a raid and Back-on-raid
+  got autoplay PASS lines; HEAL moved to the bottom corner (the voice box ate its tap); a v3 save's
+  looted props stay looted.
+- Quitting (or a killed app) mid-raid restarts the raid from wave 1 on CONTINUE; spent traps stay spent.
+  Should a reload count as a lost raid instead? (second fresh-eyes note)
+- Fresh-eyes on PR #21: CHANGES REQUESTED (the update sheet can now pop mid-fight). Not merged.
+
 ## 2026-11-23: In-app updates recheck while the game stays open (PR #21, Claude fresh-eyes fixes)
 
 What: the updater polls version.json every 30 s (gate: 120 s since the last check) while the app is open.

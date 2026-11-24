@@ -24,9 +24,17 @@ static func kinds(tree: SceneTree) -> Dictionary:
 		if k == "" or not ("TUNE" in n):
 			continue
 		if not out.has(k):
-			out[k] = {"nodes": [], "spec": n.TUNE}
+			out[k] = {"nodes": [], "spec": spec_of(n)}
 		out[k]["nodes"].append(n)
 	return out
+
+
+## The sliders a node offers: its TUNE, or tune_spec() when a subclass drops some of the
+## parent's. Why (M3, Nov 23): the Pews inherited four training-dummy sliders that did nothing there.
+static func spec_of(n: Object) -> Dictionary:
+	if n.has_method("tune_spec"):
+		return n.call("tune_spec")
+	return n.TUNE
 
 
 static func kind_of(n: Object) -> String:
@@ -61,7 +69,7 @@ static func apply(n: Object) -> void:
 	var c := ConfigFile.new()
 	if c.load(FILE) != OK or not c.has_section(k):
 		return
-	for prop in n.TUNE:
+	for prop in spec_of(n):
 		if c.has_section_key(k, prop):
 			n.set(prop, c.get_value(k, prop))
 
