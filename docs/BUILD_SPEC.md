@@ -117,4 +117,4 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 - Mom's name and past: TBD. Placeholder `MOM`.
 - The rival hunter/detective: TBD (not before M5).
 - Endings: TBD (not before M5).
-- Game title: TBD. Placeholder `HUNTER`.
+- Game title: **The Devil You Owe**.

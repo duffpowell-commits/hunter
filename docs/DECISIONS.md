@@ -1,5 +1,11 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-23 — Game title
+
+Duff chose **The Devil You Owe**. The title refers to the soul contract behind the hunts.
+Duff confirmed it in the project chat on Nov 23 ("hunter is The Devil You Owe"); merged via PR #22.
+The hero still has no name.
+
 ## 2026-11-23: Milestone 2 merged through PR #20; fresh-eyes fixes (Claude)
 
 What: The Pews and Vesper (Grok PR #15, ChatGPT PRs #16-#18, Codex integration PR #20) went through a
@@ -19,7 +25,7 @@ save-loss bug. Fixed in one push:
 
 Judgment calls for Duff:
 - PRs #15, #16 and #17 are superseded by #20 and should be closed, not merged.
-- PR #22 (working title "The Devil You Owe") was left out of M2: it is his naming call.
+- PR #22 (working title "The Devil You Owe") was left out of M2: it is his naming call. Duff confirmed it later the same day (entry above).
 - Vesper is now mauve (8b718f, the colour already in the code) instead of the dummy's orange. Still a
   placeholder mannequin until the character designs are approved.
 - The rest of the review's notes are in tasks/todo.md "From the M2 review". The big one: rewards only
