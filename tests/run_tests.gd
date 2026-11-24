@@ -127,7 +127,7 @@ func test_hunter_project_settings() -> void:
 	check(g.call("display/window/stretch/aspect") == "expand", "expand aspect")
 	check(is_equal_approx(float(g.call("display/window/stretch/scale")), 1.3333), "UI scale keeps the 540-wide UI canvas (touch rule)")
 	check(g.call("rendering/renderer/rendering_method") == "gl_compatibility" and g.call("rendering/renderer/rendering_method.mobile") == "gl_compatibility", "Compatibility renderer")
-	check("4.6" in PackedStringArray(g.call("application/config/features")), "engine 4.6")
+	check("4.7" in PackedStringArray(g.call("application/config/features")), "engine 4.7")
 	check(Config.FALLBACK_REPO == "duffpowell-commits/hunter", "updater points at the hunter repo")
 
 

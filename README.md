@@ -1,6 +1,6 @@
 # The Devil You Owe
 
-Duff's top-down 3D action RPG for Android phones: a half-demon who hunts demons. Godot 4.6.3,
+Duff's top-down 3D action RPG for Android phones: a half-demon who hunts demons. Godot 4.7.2,
 GDScript, portrait 720x1280, Compatibility renderer.
 
 Built on duffpowell-commits/godot-game-starter (Milestone 0, Nov 21, 2026): CI + signed APK,

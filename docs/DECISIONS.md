@@ -313,3 +313,7 @@ Same hook and rulebook change as godot-game-starter PR #11 (that repo's docs/DEC
 - Godot version: docs/BUILD_SPEC.md says 4.5-stable, while standards/00-core.md and the starter use 4.6.3.
 - Is Hunter greenlit and the active game? docs/PITCH.md says "Not greenlit for building; Lethemoor
   is the active game", but QUEUE.md and CLAUDE.md say Duff greenlit coding on Nov 20 for Nov 21.
+
+## 2026-11-24: Godot 4.7.2 for every game
+
+- Duff: "Lets go 4.7 for all of our games." 4.7.2 is the latest stable; 4.7 adds a stable Godot Android Build Environment (GABE) for exporting from the phone, HDR output and AreaLight3D. CI `GODOT_VERSION`, `config/features` and the engine lines in AGENTS.md / standards moved from 4.6.3 to 4.7.2. Older entries below keep their original version numbers as history.

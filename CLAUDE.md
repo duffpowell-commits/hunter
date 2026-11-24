@@ -42,7 +42,7 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   and shake. Grok's judgment calls for Duff are listed in docs/DECISIONS.md. **Next: Milestone 2**
   (The Pews and Vesper).
 - **Nov 21: Milestone 0 built** (Grok, PR "Milestone 0"): godot-game-starter copied in, renamed
-  Hunter, base canvas 720x1280, Godot 4.6.3. Tests, autoplay and the APK export pass. Duff greenlit
+  Hunter, base canvas 720x1280, Godot 4.6.3 (moved to 4.7.2 on Nov 24). Tests, autoplay and the APK export pass. Duff greenlit
   Hunter on Nov 21, asked which version fits his goals, Grok recommended 4.6.3, and he confirmed
   "lock in 4.6.3" the same day (docs/DECISIONS.md). KEYSTONE_PASS is set, so CI APKs update in place. **Next: Milestone 1** (docs/BUILD_SPEC.md):
   the 3D test arena slice. `scripts/game.gd` is still the starter's "Orb Catch" placeholder.
