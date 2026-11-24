@@ -974,6 +974,7 @@ func test_save_v3_rewards_move_to_profile_once() -> void:
 		"trophies": ["vesper"], "unlocked_voices": ["vesper"], "extra_special_slots": {"vesper": 1}}}))
 	f.close()
 	var d: Dictionary = save.read()
+	check(d.pews.get("looted", []) == ["candle"], "the v3 run's looted props stay looted")
 	check(int(d._version) == 4 and d.where == "pews" and int(d.pews.phase) == 2 and not d.pews.has("cash"),
 		"v3 -> v4 keeps the encounter, drops the rewards from the run")
 	save.read()

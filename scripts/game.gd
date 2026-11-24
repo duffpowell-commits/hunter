@@ -183,9 +183,10 @@ func _build() -> void:
 	# A crafted poultice, in the field or a raid (hidden when there's none or HP is full).
 	heal_btn = UI.button("HEAL", heal)
 	heal_btn.name = "Heal"
-	_corner(heal_btn, left, true, 150)
-	heal_btn.offset_top += UI.MIN_TOUCH + 46
-	heal_btn.offset_bottom += UI.MIN_TOUCH + 46
+	# Opposite corner from the context button, clear of the voice box at the top (it ate the tap).
+	_corner(heal_btn, left, false, 150)
+	heal_btn.offset_top -= 260
+	heal_btn.offset_bottom -= 260
 	# Context button above the pad (BUILD_SPEC: INTERACT / SCAVENGE / FINISH go here).
 	pick_btn = UI.button("PICK UP", _context_action, 96)
 	pick_btn.name = "PickUp"
@@ -348,7 +349,7 @@ func _on_portal_opened() -> void:
 
 ## Map room: a fresh hunt in that realm. The profile goes along; the run starts at full HP.
 func start_hunt(realm: String) -> void:
-	if realm != "pews":
+	if realm != "pews" or bool(get_node("/root/Profile").data.raid_pending):
 		return
 	leaving = true
 	_save.write({"where": "pews"})
@@ -373,7 +374,9 @@ func _on_ko(_count: int) -> void:
 func _on_hero_died() -> void:
 	if where == "lair" and bool(arena.get("raid_active")):
 		# BUILD_SPEC: losing a raid costs stored parts, not the save. The hero gets back up.
-		get_tree().create_timer(1.2).timeout.connect(func(): arena.call("raid_failed"))
+		get_tree().create_timer(1.2).timeout.connect(func():
+			if is_instance_valid(arena) and bool(arena.get("raid_active")):
+				arena.call("raid_failed"))
 		return
 	dying = true                     # from this moment nothing saves, and the run is over
 	_save.clear()
@@ -406,8 +409,8 @@ func _enter_lair() -> void:
 	if arrived:
 		arrived = false
 		var r := LairRules.arrive_home(prof.data, lair, perk)
+		checkpoint()             # run save first: a kill between the two loses a night, never doubles one
 		prof.save()
-		checkpoint()
 		if not r.raid:
 			get_node("/root/Subs").cue("[a night in the lair: heat -%d]" % int(r.heat_drop))
 	arena.call("refresh")
@@ -446,7 +449,8 @@ func _on_station(id: String) -> void:
 func heal() -> void:
 	var prof := get_node("/root/Profile")
 	var r: Dictionary = LairRules.recipe(GameData.load_json("recipes"), "wax_poultice")
-	if not arena.has_method("heal") or not LairRules.take_item(prof.data, "wax_poultice"):
+	if not arena.has_method("heal") or arena.hero.dead or arena.hp >= arena.max_hp \
+			or not LairRules.take_item(prof.data, "wax_poultice"):
 		return
 	var got: int = arena.call("heal", int(r.get("heal", 30)))
 	prof.save()
@@ -544,7 +548,11 @@ func _notification(what: int) -> void:
 func _go_back() -> void:
 	var sheets := get_tree().get_nodes_in_group("sheet")
 	var base_sheet: Node = sheet_box.get_meta("sheet") if is_instance_valid(sheet_box) else null
-	if not sheets.is_empty() and sheets[-1] != base_sheet:
+	if not sheets.is_empty() and sheets[-1].name == "RaidWarning":
+		# Back can't dodge a raid (fresh-eyes on PR #23): it means FIGHT.
+		sheets[-1].queue_free()
+		arena.call("start_raid")
+	elif not sheets.is_empty() and sheets[-1] != base_sheet:
 		sheets[-1].queue_free()
 	elif paused and not over:
 		resume()

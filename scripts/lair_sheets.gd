@@ -167,13 +167,14 @@ static func _pick_voice(game: Control, sh: VBoxContainer, slot: int) -> void:
 # ---------------------------------------------------------------- map room
 
 static func _map(game: Control, sh: VBoxContainer) -> void:
-	_title(sh, "MAP ROOM", "Pick a realm and a target.")
+	var pending := bool(_p(game).raid_pending)
+	_title(sh, "MAP ROOM", "Hold the lair first: a raid is coming." if pending else "Pick a realm and a target.")
 	for r: Dictionary in GameData.load_json("realms").realms:
 		var open_: bool = bool(r.open)
 		var b := UI.button(("HUNT %s: %s" % [r.name, r.target]) if open_ else ("LOCKED: %s" % r.name), func():
 			UI.close_sheet(sh)
 			game.call("start_hunt", str(r.id)), 80)
 		b.name = "Realm_" + str(r.id)
-		b.disabled = not open_
+		b.disabled = not open_ or pending
 		b.add_theme_font_size_override("font_size", UI.font_size(17))
 		sh.add_child(b)

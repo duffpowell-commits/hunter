@@ -78,6 +78,8 @@ func _migrate(d: Dictionary) -> Dictionary:
 	if int(d.get("_version", 1)) < 4:
 		var pews: Dictionary = d.get("pews", {})
 		var carry := {}
+		if pews.has("inventory"):
+			pews["looted"] = pews.inventory.keys()     # the props stay gone on CONTINUE
 		for k in CARRY:
 			if pews.has(k):
 				carry[k] = pews[k]

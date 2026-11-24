@@ -38,6 +38,11 @@ Judgment calls for Duff:
   he's eaten: cash and parts farm, trophies and voices don't duplicate, every run's plate adds heat.
 - A night passes only on RETURN HOME (no bed to farm heat away). Winning a raid drops heat 25.
 - Voice lines and Vesper's portrait (a mauve disc with an initial) are placeholders.
+- BRUTAL on a re-hunt adds another voice level each time, uncapped. Cap it or keep it? (fresh-eyes note)
+- Fresh-eyes on PR #23 (CHANGES REQUESTED, fixed in the second commit): Back on the raid warning now
+  starts the raid and the map room is shut while one is pending; HEAL, losing a raid and Back-on-raid
+  got autoplay PASS lines; HEAL moved to the bottom corner (the voice box ate its tap); a v3 save's
+  looted props stay looted.
 - Fresh-eyes on PR #21: CHANGES REQUESTED (the update sheet can now pop mid-fight). Not merged.
 
 ## 2026-11-23: Milestone 2 merged through PR #20; fresh-eyes fixes (Claude)

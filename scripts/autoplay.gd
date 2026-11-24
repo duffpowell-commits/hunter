@@ -627,6 +627,9 @@ func _brutal_and_raid_checks() -> void:
 	_place(arena.hero, arena.get_node("CollectionPlate").position + Vector3.UP * 0.05, PI)
 	await _frames(3)
 	await _click("COLLECT PLATE")
+	_place(arena.hero, arena.get_node("candle").position + Vector3.UP * 0.05, PI)
+	await _frames(3)
+	await _click("SCAVENGE")
 	await _frames(2)
 	await _click("FINISH")
 	await _click("BRUTAL")
@@ -675,9 +678,49 @@ func _brutal_and_raid_checks() -> void:
 	arena.bot_stick = Vector2.INF
 	await _frames(5)
 	_check(not arena.raid_active and int(prof.raids_won) == 1 and arena.traps_fired >= 1 and prof.traps[0] == ""
-		and int(prof.heat) < heat0 and _find("CLOSE") != null and arena.hero_hits_taken >= 0,
+		and int(prof.heat) < heat0 and _find("CLOSE") != null and arena.hero_hits_taken > 0,
 		"LAIR RAID PASS (%d waves cleared, %d trap fired, heat %d -> %d)" % [arena.raid_wave, arena.traps_fired, heat0, int(prof.heat)])
 	await _shot("lair_raid_won")
+	await _click("CLOSE")
+	# HEAL: the candle from this hunt becomes a poultice; the raid's real damage gets healed.
+	await _at_station(arena, "workshop")
+	await _click("WORKSHOP")
+	await _click("CRAFT WAX POULTICE")
+	await _click("CLOSE")
+	var hp_hurt: int = arena.hp
+	await _frames(3)
+	await _click("HEAL")
+	_check(hp_hurt < arena.max_hp and arena.hp > hp_hurt and not prof.inventory.has("wax_poultice"),
+		"HEAL PASS (crafted poultice: HP %d -> %d)" % [hp_hurt, arena.hp])
+	# Another raid (staged arrival: heat over the line). Back on the warning can't dodge it, and the
+	# map room is shut until it's fought. Then the hero falls: parts lost, no GAME OVER.
+	prof.heat = 80
+	prof.raid_pending = true
+	await _at_station(arena, "map_room")
+	await _click("MAP ROOM")
+	_check(_has_any_disabled("HUNT THE PEWS"), "RAID LOCK PASS (no hunting while a raid is coming)")
+	await _click("CLOSE")
+	game._raid_warning()
+	await _frames(3)
+	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	await _frames(5)
+	_check(arena.raid_active and _find("FIGHT") == null, "RAID BACK PASS (Back on the warning starts the raid, it can't dodge it)")
+	var parts0 := int(prof.parts)
+	var lost0 := int(prof.raids_lost)
+	arena.hp = 1
+	by = Time.get_ticks_msec() + 20000
+	while int(prof.raids_lost) == lost0 and Time.get_ticks_msec() < by:
+		var near: Node3D = null
+		for foe in arena._foes:
+			if not foe.dead:
+				near = foe.actor
+		if near != null and not arena.hero.dead:
+			_place(arena.hero, near.global_position + Vector3(0, 0.05, -1.4), 0.0)
+		await _frames(5)
+	await _frames(10)
+	_check(int(prof.raids_lost) == lost0 + 1 and int(prof.parts) < parts0 and not game.over
+		and get_node("/root/Save").exists() and not arena.hero.dead and _find("CLOSE") != null,
+		"LAIR RAID LOST PASS (the hero fell: parts %d -> %d, no GAME OVER, save kept)" % [parts0, int(prof.parts)])
 	await _click("CLOSE")
 	await _shot("lair_stained")
 	# The third look, staged for the render only.
