@@ -32,8 +32,9 @@ var line: Label
 var go_btn: Button
 var installing := false
 ## Build the player said LATER to. Why (Nov 23 review): LATER has to hold; without this the
-## open-app poll re-offered the same build every few minutes. Cleared on resume.
+## open-app poll re-offered the same build every few minutes. Holds until the app restarts.
 var dismissed := 0
+var poll_check := false           # the running check came from the open-app poll
 
 
 static func is_newer(remote: int, local: int) -> bool:
@@ -76,21 +77,24 @@ func _local_code() -> int:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_RESUMED:
-		dismissed = 0
+		poll_check = false
 		_check_if_due()
 
 
 ## Why (Nov 23 review): the sheet is a full-screen input blocker that doesn't pause the game, so
-## the open-app poll never interrupts live play; it waits for a menu or the pause screen.
+## the open-app poll never interrupts live play; it waits for a menu or game.gd's pause screen.
 ## Launch and resume checks still run (the game auto-pauses on focus-out).
 func _on_poll() -> void:
 	if not _in_play():
+		poll_check = true
 		_check_if_due()
 
 
 func _in_play() -> bool:
 	var scene := get_tree().current_scene
-	return scene != null and scene.name == PLAY_SCENE and not get_tree().paused
+	if scene == null or scene.name != PLAY_SCENE or get_tree().paused:
+		return false
+	return not ("paused" in scene and scene.paused)   # game.gd pauses with its own flag
 
 
 func _check_if_due() -> void:
@@ -132,6 +136,9 @@ func _on_version(result: int, code: int, _h: PackedStringArray, body: PackedByte
 		return
 	new_code = int(data["code"])
 	print("UPDATER mine %d, release %d" % [my_code, new_code])
+	# Why (Nov 23 re-review): the reply can land after the player has started playing.
+	if poll_check and _in_play():
+		return
 	if should_offer(new_code, my_code, dismissed):
 		_offer()
 
@@ -153,8 +160,7 @@ func _offer() -> void:
 
 
 func _close() -> void:
-	if not installing:
-		dismissed = new_code
+	dismissed = new_code
 	installing = false
 	if http != null and busy:
 		http.cancel_request()

@@ -82,8 +82,14 @@ func _run() -> void:
 	var game := get_tree().current_scene
 	# Why (Nov 23 review): the open-app update poll must never cover live play.
 	var upd: Node = get_node("/root/Updater")
-	_check(upd._in_play() and not upd.should_offer(5, 4, 5),
-		"UPDATER QUIET PASS (poll waits during play, LATER holds)")
+	var mine: int = upd.my_code
+	upd.my_code = 4
+	upd.poll_check = true
+	upd._on_version(HTTPRequest.RESULT_SUCCESS, 200, PackedStringArray(), '{"code": 5}'.to_utf8_buffer())
+	var quiet: bool = upd._in_play() and upd.box == null and not upd.should_offer(5, 4, 5)
+	upd.my_code = mine
+	upd.poll_check = false
+	_check(quiet, "UPDATER QUIET PASS (a poll reply mid-play opens no sheet, LATER holds)")
 	var ld: Node = get_node("/root/Loader")
 	_check(ld.loads >= 2 and not ld.busy(), "LOAD PASS (%d scenes loaded in the background, %d frames drawn meanwhile)" % [ld.loads, ld.frames_while_loading])
 
