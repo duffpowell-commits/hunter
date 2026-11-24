@@ -62,7 +62,8 @@ arena (`arena.gd` + `combat.gd`, numbers in `data/*.json`).
 - Push after every chunk of work; merge to main at the end of every milestone.
 - Up to three milestones per session, merged and handed off after each. Save renders to files, not chat.
 - After an engine upgrade delete `.godot/imported/` (stale cache = T-pose).
-- Prompts in Forge are public: never put Duff's likeness or private info in them.
+- Prompts in Forge are public: never put private info in them. Duff's likeness is OK (his call, Nov 24, 2026);
+  copy his real tattoos, never invent them.
 - Never put secrets in the repo, commits, logs or chat. Duff adds secrets himself.
 - Signing: one keystone for every game except Lethemoor (docs/SIGNING.md). Never make another key.
 
