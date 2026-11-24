@@ -34,6 +34,7 @@ var installing := false
 ## Build the player said LATER to. Why (Nov 23 review): LATER has to hold; without this the
 ## open-app poll re-offered the same build every few minutes. Holds until the app restarts.
 var dismissed := 0
+var _withdrawing := false          # closing the sheet ourselves, not the player's LATER
 
 
 static func is_newer(remote: int, local: int) -> bool:
@@ -62,6 +63,7 @@ func _ready() -> void:
 	poll.timeout.connect(_on_poll)
 	add_child(poll)
 	poll.start()
+	get_tree().scene_changed.connect(_on_scene_changed)
 
 
 func _enabled() -> bool:
@@ -87,9 +89,19 @@ func _on_poll() -> void:
 		_check_if_due()
 
 
+## Why (Nov 24 review): NEW GAME loads Game in the background while the title is still current, so
+## a reply landing mid-load counts as play too; and if a sheet is already up when Game enters, it goes.
 func _in_play() -> bool:
+	if Loader.busy():
+		return true
 	var scene := get_tree().current_scene
 	return scene != null and scene.name == PLAY_SCENE
+
+
+func _on_scene_changed() -> void:
+	if box != null and _in_play():
+		_withdrawing = true
+		UI.close_sheet(box)
 
 
 func _check_if_due() -> void:
@@ -163,7 +175,9 @@ func _close() -> void:
 
 ## LATER, back or any other close: hold this build off for the session and drop the download.
 func _on_sheet_gone() -> void:
-	dismissed = new_code
+	if not _withdrawing:
+		dismissed = new_code
+	_withdrawing = false
 	installing = false
 	if http != null and busy:
 		http.cancel_request()
