@@ -25,7 +25,7 @@ References (docs/art/ink-3d/):
 - Low-poly humanoids (under ~5k tris), one shared skeleton so the shared animation library drives everyone.
 - Silhouette first: each boss reads at phone size from its outline alone (Vesper's candle halo, Gus's round belly and coin, Rook's iron mask and bulk, Ines's rapier and gown, Hollis's hunch and insect cloud).
 - Hero: lean, black hoodie, torn jeans, two short black horns, one forearm cracked with glowing orange veins. Corruption adds horn length, vein spread and a redder rim light.
-- Concept art comes from Foxboard Forge (job ids `dh-*`). Rules: no named IP in prompts, no Duff likeness or private info (Forge prompts are public). Fixes from tasks/lessons.md: Rook keeps his iron mask, Vesper has no horns.
+- Concept art comes from Foxboard Forge (job ids `dh-*`). Rules: no named IP in prompts, no private info (Forge prompts are public; Duff's likeness is OK since Nov 24). Fixes from tasks/lessons.md: Rook keeps his iron mask, Vesper has no horns.
 
 ## UI
 - 2D, flat, black panels with bone-white text, using `ui.gd` helpers. Voice dialogue boxes show a 2D ink portrait (Forge art) beside the text.
