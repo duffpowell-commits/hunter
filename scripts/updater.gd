@@ -92,7 +92,8 @@ func _on_poll() -> void:
 ## Why (Nov 24 review): NEW GAME loads Game in the background while the title is still current, so
 ## a reply landing mid-load counts as play too; and if a sheet is already up when Game enters, it goes.
 func _in_play() -> bool:
-	if Loader.busy():
+	var loader := get_node_or_null("/root/Loader")
+	if loader != null and loader.busy():
 		return true
 	var scene := get_tree().current_scene
 	return scene != null and scene.name == PLAY_SCENE
