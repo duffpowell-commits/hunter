@@ -1071,6 +1071,8 @@ func test_lair_raid_scene() -> void:
 	a.raid_failed()
 	check(not a.raid_active and not g.over and save.exists() and int(prof.data.parts) < 10 and int(prof.data.raids_lost) == 1
 		and not a.hero.dead and a.hp > 0, "losing the raid costs parts, not the save or the run")
+	check(int(save.read().get("hp", 0)) == a.hp and a.hp == int(a.max_hp * float(a.cfg.raid.revive_hp_fraction)),
+		"the revived HP after a lost raid is what the save holds")
 	g.queue_free()
 	await process_frame
 	save.clear()

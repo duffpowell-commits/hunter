@@ -108,7 +108,9 @@
     "choir_bonus_damage": 0,
     "choir_buff_radius": 0,
     "steer_probe": 0.8,
-    "steer_margin": 0.35
+    "steer_margin": 0.35,
+    "revive_hp_fraction": 0.5,
+    "revive_delay": 1.2
   },
   "_why_corruption": "BUILD_SPEC: three lair looks, 0-33, 34-66, 67-100. band_at holds the lowest value of looks 2 and 3. Each look: room light, floor, ink veins, blood candles; the hero's tint lerps toward hero_tint and horns grow to horn_scale.",
   "corruption": {

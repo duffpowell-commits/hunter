@@ -43,6 +43,8 @@ Judgment calls for Duff:
   starts the raid and the map room is shut while one is pending; HEAL, losing a raid and Back-on-raid
   got autoplay PASS lines; HEAL moved to the bottom corner (the voice box ate its tap); a v3 save's
   looted props stay looted.
+- Quitting (or a killed app) mid-raid restarts the raid from wave 1 on CONTINUE; spent traps stay spent.
+  Should a reload count as a lost raid instead? (second fresh-eyes note)
 - Fresh-eyes on PR #21: CHANGES REQUESTED (the update sheet can now pop mid-fight). Not merged.
 
 ## 2026-11-23: Milestone 2 merged through PR #20; fresh-eyes fixes (Claude)

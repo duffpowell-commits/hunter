@@ -510,10 +510,11 @@ func raid_failed() -> Dictionary:
 	for i in _foes.size():
 		if not _foes[i].dead:
 			kill_foe(i)
-	_end_raid(false)
+	# Up first, then end the raid: its checkpoint skips a dead hero (fresh-eyes on PR #23).
 	hero.revive()
 	hero.position = GameData.vec3(cfg.layout.hero_spawn)
-	hp = maxi(1, int(max_hp / 2.0))
+	hp = maxi(1, int(float(max_hp) * float(cfg.raid.revive_hp_fraction)))
+	_end_raid(false)
 	return {}
 
 

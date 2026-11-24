@@ -374,7 +374,8 @@ func _on_ko(_count: int) -> void:
 func _on_hero_died() -> void:
 	if where == "lair" and bool(arena.get("raid_active")):
 		# BUILD_SPEC: losing a raid costs stored parts, not the save. The hero gets back up.
-		get_tree().create_timer(1.2).timeout.connect(func():
+		var delay := float(GameData.load_json("lair").raid.revive_delay)
+		get_tree().create_timer(delay).timeout.connect(func():
 			if is_instance_valid(arena) and bool(arena.get("raid_active")):
 				arena.call("raid_failed"))
 		return
@@ -409,7 +410,7 @@ func _enter_lair() -> void:
 	if arrived:
 		arrived = false
 		var r := LairRules.arrive_home(prof.data, lair, perk)
-		checkpoint()             # run save first: a kill between the two loses a night, never doubles one
+		checkpoint()
 		prof.save()
 		if not r.raid:
 			get_node("/root/Subs").cue("[a night in the lair: heat -%d]" % int(r.heat_drop))
@@ -452,7 +453,7 @@ func heal() -> void:
 	if not arena.has_method("heal") or arena.hero.dead or arena.hp >= arena.max_hp \
 			or not LairRules.take_item(prof.data, "wax_poultice"):
 		return
-	var got: int = arena.call("heal", int(r.get("heal", 30)))
+	var got: int = arena.call("heal", int(r.heal))
 	prof.save()
 	get_node("/root/Subs").cue("[poultice: +%d HP]" % got)
 	checkpoint()
