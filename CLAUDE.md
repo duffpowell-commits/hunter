@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Hunter (working title)
+# The Devil You Owe
 
 Top-down action RPG: you're a half-demon serial killer of demons. Stalk, kill, scavenge, build your lair, eat the bosses and wear their movesets. Street Fighter-style combos in combat, Westland Survival-style scavenging outside it. Owner: Duff. Read this first; it is the handoff between sessions. Commands, standing rules, guards and layout: AGENTS.md (imported above), shared by every coding AI.
 Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unless it's imported. Catch-up log: docs/DECISIONS.md.
@@ -51,7 +51,7 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
 - Done: core concept, combat rules, story spine (Mom, Samael Price, Furfur Kemp), 5 bosses/voices, 6 realms. First sprite exploration rendered (docs/art/explore-20261120/).
 - Art LOCKED Nov 20: ink and blood on real-time 3D, full range of movement (docs/style-guide.md, docs/art/ink-3d/).
 - Nov 21 (Grok): Git pre-push hook for every agent (`.githooks/pre-push`); rules moved into AGENTS.md. Both open questions (Godot version, active game) were settled by Duff on Nov 21.
-- Design still open (doesn't block code; use the BUILD_SPEC placeholders): the protagonist (name, look, day life), Mom's name and hunter past, the hunter/detective on your tail, endings, title.
+- Design still open (doesn't block code; use the BUILD_SPEC placeholders): the protagonist (name, look, day life), Mom's name and hunter past, the hunter/detective on your tail, and endings.
 
 ## Claude-only notes
 - `.claude/settings.json` runs `.claude/hooks/guard.py` before every Bash/Write/Edit call. A blocked

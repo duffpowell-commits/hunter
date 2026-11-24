@@ -110,7 +110,10 @@ jobs:
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           SLUG=$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9')
           case "$SLUG" in [0-9]*) SLUG="g$SLUG";; esac
-          TITLE=$(sed -n 's/^config\/name="\(.*\)"/\1/p' project.godot)
+          # Why display_title first (Nov 23): config/name stays "Hunter" (save folder), the phone label
+          # is the game's title, "The Devil You Owe".
+          TITLE=$(sed -n 's/^config\/display_title="\(.*\)"/\1/p' project.godot)
+          [ -z "$TITLE" ] && TITLE=$(sed -n 's/^config\/name="\(.*\)"/\1/p' project.godot)
           echo "${GITHUB_SHA::7} $(date -u +%Y-%m-%d) #${{ github.run_number }}" > build.txt
           echo "${{ github.run_number }}" > build_code.txt
           echo "$GITHUB_REPOSITORY" > repo.txt
