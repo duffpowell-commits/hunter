@@ -72,11 +72,11 @@ func _run() -> void:
 	_check(_has_label("Published by 3 Eyed Fox Studios"), "PUBLISHER CREDITS PASS")
 	await _click("DONE")
 	await _click("DONE")
-	# Why (Hunter M0, Nov 21): BUILD_SPEC says the title shows "HUNTER" and the canvas is 720x1280.
+	# Verify the approved title and portrait canvas.
 	var vp_w: int = ProjectSettings.get_setting("display/window/size/viewport_width")
 	var vp_h: int = ProjectSettings.get_setting("display/window/size/viewport_height")
-	_check(_has_label("HUNTER") and vp_w == 720 and vp_h == 1280,
-		"HUNTER PASS (title shows HUNTER, base canvas %dx%d)" % [vp_w, vp_h])
+	_check(_has_label("THE DEVIL YOU OWE") and vp_w == 720 and vp_h == 1280,
+		"HUNTER PASS (title shows THE DEVIL YOU OWE, base canvas %dx%d)" % [vp_w, vp_h])
 	await _click("NEW GAME")
 	# Why (Nov 24 review): Game loads in the background with the title still current; that counts as play.
 	var upd: Node = get_node("/root/Updater")
