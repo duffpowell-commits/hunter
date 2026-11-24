@@ -34,7 +34,6 @@ var installing := false
 ## Build the player said LATER to. Why (Nov 23 review): LATER has to hold; without this the
 ## open-app poll re-offered the same build every few minutes. Holds until the app restarts.
 var dismissed := 0
-var poll_check := false           # the running check came from the open-app poll
 
 
 static func is_newer(remote: int, local: int) -> bool:
@@ -77,24 +76,20 @@ func _local_code() -> int:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_RESUMED:
-		poll_check = false
 		_check_if_due()
 
 
-## Why (Nov 23 review): the sheet is a full-screen input blocker that doesn't pause the game, so
-## the open-app poll never interrupts live play; it waits for a menu or game.gd's pause screen.
-## Launch and resume checks still run (the game auto-pauses on focus-out).
+## Why (Nov 23 reviews): the sheet is a full-screen input blocker that doesn't pause the game, and
+## back on game.gd's pause sheet resumes play under it. So no offer ever opens in the Game scene,
+## pause screen included; it waits for the title or another menu, whatever started the check.
 func _on_poll() -> void:
 	if not _in_play():
-		poll_check = true
 		_check_if_due()
 
 
 func _in_play() -> bool:
 	var scene := get_tree().current_scene
-	if scene == null or scene.name != PLAY_SCENE or get_tree().paused:
-		return false
-	return not ("paused" in scene and scene.paused)   # game.gd pauses with its own flag
+	return scene != null and scene.name == PLAY_SCENE
 
 
 func _check_if_due() -> void:
@@ -136,8 +131,8 @@ func _on_version(result: int, code: int, _h: PackedStringArray, body: PackedByte
 		return
 	new_code = int(data["code"])
 	print("UPDATER mine %d, release %d" % [my_code, new_code])
-	# Why (Nov 23 re-review): the reply can land after the player has started playing.
-	if poll_check and _in_play():
+	# Why (Nov 23 re-review): any reply (launch, resume, poll) can land after play has started.
+	if _in_play():
 		return
 	if should_offer(new_code, my_code, dismissed):
 		_offer()
@@ -147,6 +142,9 @@ func _offer() -> void:
 	if box != null:
 		return
 	box = UI.sheet(self)
+	# Why (Nov 23 re-review): Android back frees sheets directly (title.gd, game.gd), skipping
+	# LATER; this runs the same bookkeeping however the sheet goes.
+	box.tree_exiting.connect(_on_sheet_gone)
 	box.add_child(UI.label("UPDATE AVAILABLE", 28, UI.ACCENT))
 	line = UI.label("Build %d is out. You have build %d." % [new_code, my_code])
 	box.add_child(line)
@@ -160,12 +158,16 @@ func _offer() -> void:
 
 
 func _close() -> void:
+	UI.close_sheet(box)
+
+
+## LATER, back or any other close: hold this build off for the session and drop the download.
+func _on_sheet_gone() -> void:
 	dismissed = new_code
 	installing = false
 	if http != null and busy:
 		http.cancel_request()
 		busy = false
-	UI.close_sheet(box)
 	box = null
 
 

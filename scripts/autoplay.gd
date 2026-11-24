@@ -84,12 +84,20 @@ func _run() -> void:
 	var upd: Node = get_node("/root/Updater")
 	var mine: int = upd.my_code
 	upd.my_code = 4
-	upd.poll_check = true
 	upd._on_version(HTTPRequest.RESULT_SUCCESS, 200, PackedStringArray(), '{"code": 5}'.to_utf8_buffer())
-	var quiet: bool = upd._in_play() and upd.box == null and not upd.should_offer(5, 4, 5)
+	var quiet: bool = upd._in_play() and upd.box == null
+	# Close the offer the way Android back does (free the sheet): the build must stay put off.
+	upd.new_code = 5
+	upd._offer()
+	var opened: bool = upd.box != null
+	upd.UI.close_sheet(upd.box)
+	await get_tree().process_frame
+	var held: bool = opened and upd.box == null and upd.dismissed == 5 \
+		and not upd.should_offer(5, 4, upd.dismissed) and upd.should_offer(6, 4, upd.dismissed)
 	upd.my_code = mine
-	upd.poll_check = false
-	_check(quiet, "UPDATER QUIET PASS (a poll reply mid-play opens no sheet, LATER holds)")
+	upd.new_code = 0
+	upd.dismissed = 0
+	_check(quiet and held, "UPDATER QUIET PASS (a reply mid-play opens no sheet; back on the offer holds that build)")
 	var ld: Node = get_node("/root/Loader")
 	_check(ld.loads >= 2 and not ld.busy(), "LOAD PASS (%d scenes loaded in the background, %d frames drawn meanwhile)" % [ld.loads, ld.frames_while_loading])
 
