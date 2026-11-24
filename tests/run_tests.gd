@@ -1083,6 +1083,48 @@ func test_lair_raid_scene() -> void:
 	_restore_profile(prof)
 
 
+## Second fresh-eyes note on PR #23: quitting mid-raid restarted it from wave 1. CONTINUE now picks
+## the raid up at the wave you left, with no warning sheet in between (Duff, Nov 24: port the fix).
+func test_raid_resumes_at_its_wave() -> void:
+	var save: Node = root.get_node("Save")
+	save.path = "user://test_lair_resume.json"
+	var prof := _fresh_profile("test_prof_resume")
+	prof.data.heat = 80
+	prof.data.raid_pending = true
+	prof.save()
+	save.write({"where": "lair"})
+	var g: Node = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	g.arena.start_raid()
+	g.arena._next_wave()                       # wave 2 of the raid is on
+	g.save_for_quit()
+	check(int(save.read().get("pews", {}).get("raid_wave", 0)) == 2, "quitting mid-raid saves the wave")
+	g.queue_free()
+	await process_frame
+	g = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	var a = g.arena
+	check(a.raid_active and a.raid_wave == 2 and g.find_child("RaidWarning", true, false) == null
+		and a._foes.any(func(f): return not f.dead), "CONTINUE resumes the raid at wave 2, raiders in the room")
+	g.queue_free()
+	await process_frame
+	save.write({"where": "lair"})
+	g = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	check(not g.arena.raid_active and g.find_child("RaidWarning", true, false) != null, "a raid not yet started still opens with the warning")
+	g.queue_free()
+	await process_frame
+	save.clear()
+	save.path = "user://run.json"
+	_restore_profile(prof)
+
+
 ## M2 review leftovers: the Pews has no training-dummy sliders, SKIP LEVEL downs Vesper.
 func test_pews_training_leftovers_gone() -> void:
 	var a = preload("res://scripts/pews_arena.gd").new()

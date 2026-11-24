@@ -44,7 +44,11 @@ Judgment calls for Duff:
   got autoplay PASS lines; HEAL moved to the bottom corner (the voice box ate its tap); a v3 save's
   looted props stay looted.
 - Quitting (or a killed app) mid-raid restarts the raid from wave 1 on CONTINUE; spent traps stay spent.
-  Should a reload count as a lost raid instead? (second fresh-eyes note)
+  Should a reload count as a lost raid instead? (second fresh-eyes note) **Settled Nov 24 (Duff: "port
+  the wave fix"):** CONTINUE now resumes the raid at the wave you left (that wave comes in fresh; beaten
+  waves stay beaten, spent traps stay spent), with no warning sheet. `lair_arena.gd` save_state/
+  restore_state + `start_raid(from_wave)`; test `test_raid_resumes_at_its_wave` (seen failing on main),
+  autoplay `RAID RESUME PASS`.
 - Fresh-eyes on PR #21: CHANGES REQUESTED (the update sheet can now pop mid-fight). Not merged.
 
 ## 2026-11-23: In-app updates recheck while the game stays open (PR #21, Claude fresh-eyes fixes)

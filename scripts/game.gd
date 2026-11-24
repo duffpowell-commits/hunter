@@ -415,7 +415,9 @@ func _enter_lair() -> void:
 		if not r.raid:
 			get_node("/root/Subs").cue("[a night in the lair: heat -%d]" % int(r.heat_drop))
 	arena.call("refresh")
-	if bool(prof.data.raid_pending):
+	if bool(prof.data.raid_pending) and int(arena.get("resume_wave")) > 0:
+		arena.call("start_raid", int(arena.get("resume_wave")))     # mid-raid CONTINUE: no warning, same wave
+	elif bool(prof.data.raid_pending):
 		_raid_warning()
 	else:
 		speak("lair")
