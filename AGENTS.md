@@ -18,9 +18,9 @@ Why: Claude Code hooks only fire inside Claude Code, so Grok and other agents co
 ## Commands
 Merged from godot-game-starter's AGENTS.md at Milestone 0 (Nov 21, 2026). Why: Hunter is now a copy
 of the starter, so its commands apply here; this file stays the one rulebook (docs/DECISIONS.md).
-- Engine: Godot 4.6.3-stable (Grok recommended it to match the starter, its CI and the latest
+- Engine: Godot 4.7.2-stable (Grok recommended it to match the starter, its CI and the latest
   Android editor, and Duff confirmed "lock in 4.6.3" on Nov 21). Version lives in `GODOT_VERSION` (`.github/workflows/build.yml`) + `config/features`.
-- Godot in a cloud sandbox: 4.6.3-stable Linux zip from GitHub releases -> `/usr/local/bin/godot`.
+- Godot in a cloud sandbox: 4.7.2-stable Linux zip from GitHub releases -> `/usr/local/bin/godot`.
   Fresh clone: `godot --headless --path . --import`.
 - Tests: `tools/test.sh` -> `TESTS PASS` (runs `test_cmd` from `.claude/hooks/guard.cfg`: parse
   check `tools/check_scripts.gd` + rule tests `tests/run_tests.gd` -> `ALL PASS`; records the
