@@ -5,8 +5,8 @@ extends CanvasLayer
 ## CI stamps every APK with a counting build number (res://build_code.txt + Android
 ## version/code = the workflow run number) and on main uploads <repo>.apk plus version.json
 ## ({"code": N, "sha": "abc1234"}) to the repo's public "dev" release, version.json LAST.
-## On launch and when the app comes back to the front this reads version.json; if its code
-## is higher it offers UPDATE NOW, downloads the APK into user:// and hands it to Android's
+## On launch, when the app comes back to the front, and every RECHECK_S while it stays open, this
+## reads version.json; if its code is higher it offers UPDATE NOW, downloads the APK into user:// and hands it to Android's
 ## installer (OS.shell_open; Godot's FileProvider makes the content:// URI).
 ##
 ## Needs: REQUEST_INSTALL_PACKAGES + INTERNET in the Android preset, and every build signed
@@ -17,6 +17,10 @@ const UI = preload("res://scripts/ui.gd")
 const Config = preload("res://scripts/config.gd")
 const APK_PATH := "user://update.apk"
 const RECHECK_S := 120.0
+## Why POLL_S < RECHECK_S (Nov 23 review): a 120 s timer against a 120 s gate skipped every other
+## tick, so checks really came every ~240 s. Tick often, let _check_if_due decide.
+const POLL_S := 30.0
+const PLAY_SCENE := "Game"
 
 var my_code := 0
 var new_code := 0
@@ -27,10 +31,19 @@ var box: VBoxContainer
 var line: Label
 var go_btn: Button
 var installing := false
+## Build the player said LATER to. Why (Nov 23 review): LATER has to hold; without this the
+## open-app poll re-offered the same build every few minutes. Holds until the app restarts.
+var dismissed := 0
+var _withdrawing := false          # closing the sheet ourselves, not the player's LATER
 
 
 static func is_newer(remote: int, local: int) -> bool:
 	return local > 0 and remote > local
+
+
+## Offer only a newer build the player hasn't already put off.
+static func should_offer(remote: int, local: int, put_off: int) -> bool:
+	return is_newer(remote, local) and remote > put_off
 
 
 func _ready() -> void:
@@ -45,6 +58,12 @@ func _ready() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(APK_PATH))
 	await get_tree().create_timer(1.5).timeout
 	check()
+	var poll := Timer.new()
+	poll.wait_time = POLL_S
+	poll.timeout.connect(_on_poll)
+	add_child(poll)
+	poll.start()
+	get_tree().scene_changed.connect(_on_scene_changed)
 
 
 func _enabled() -> bool:
@@ -58,8 +77,36 @@ func _local_code() -> int:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_RESUMED and my_code > 0 and box == null \
-			and Time.get_ticks_msec() / 1000.0 - last_check > RECHECK_S:
+	if what == NOTIFICATION_APPLICATION_RESUMED:
+		_check_if_due()
+
+
+## Why (Nov 23 reviews): the sheet is a full-screen input blocker that doesn't pause the game, and
+## back on game.gd's pause sheet resumes play under it. So no offer ever opens in the Game scene,
+## pause screen included; it waits for the title or another menu, whatever started the check.
+func _on_poll() -> void:
+	if not _in_play():
+		_check_if_due()
+
+
+## Why (Nov 24 review): NEW GAME loads Game in the background while the title is still current, so
+## a reply landing mid-load counts as play too; and if a sheet is already up when Game enters, it goes.
+func _in_play() -> bool:
+	var loader := get_node_or_null("/root/Loader")
+	if loader != null and loader.busy():
+		return true
+	var scene := get_tree().current_scene
+	return scene != null and scene.name == PLAY_SCENE
+
+
+func _on_scene_changed() -> void:
+	if box != null and _in_play():
+		_withdrawing = true
+		UI.close_sheet(box)
+
+
+func _check_if_due() -> void:
+	if my_code > 0 and box == null and Time.get_ticks_msec() / 1000.0 - last_check >= RECHECK_S:
 		check()
 
 
@@ -97,7 +144,10 @@ func _on_version(result: int, code: int, _h: PackedStringArray, body: PackedByte
 		return
 	new_code = int(data["code"])
 	print("UPDATER mine %d, release %d" % [my_code, new_code])
-	if is_newer(new_code, my_code):
+	# Why (Nov 23 re-review): any reply (launch, resume, poll) can land after play has started.
+	if _in_play():
+		return
+	if should_offer(new_code, my_code, dismissed):
 		_offer()
 
 
@@ -105,6 +155,9 @@ func _offer() -> void:
 	if box != null:
 		return
 	box = UI.sheet(self)
+	# Why (Nov 23 re-review): Android back frees sheets directly (title.gd, game.gd), skipping
+	# LATER; this runs the same bookkeeping however the sheet goes.
+	box.tree_exiting.connect(_on_sheet_gone)
 	box.add_child(UI.label("UPDATE AVAILABLE", 28, UI.ACCENT))
 	line = UI.label("Build %d is out. You have build %d." % [new_code, my_code])
 	box.add_child(line)
@@ -118,10 +171,18 @@ func _offer() -> void:
 
 
 func _close() -> void:
+	UI.close_sheet(box)
+
+
+## LATER, back or any other close: hold this build off for the session and drop the download.
+func _on_sheet_gone() -> void:
+	if not _withdrawing:
+		dismissed = new_code
+	_withdrawing = false
+	installing = false
 	if http != null and busy:
 		http.cancel_request()
 		busy = false
-	UI.close_sheet(box)
 	box = null
 
 

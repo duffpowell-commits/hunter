@@ -106,6 +106,9 @@ func test_updater_compare() -> void:
 	check(Updater.is_newer(5, 4), "newer build offered")
 	check(not Updater.is_newer(4, 4), "same build not offered")
 	check(not Updater.is_newer(9, 0), "editor build (0) never offered")
+	check(Updater.should_offer(6, 4, 5), "build newer than the one put off is offered")
+	check(not Updater.should_offer(5, 4, 5), "LATER holds for that build")
+	check(Updater.should_offer(5, 4, 0), "nothing put off: newer build offered")
 
 
 func test_config_paths() -> void:

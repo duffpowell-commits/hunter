@@ -46,6 +46,17 @@ Judgment calls for Duff:
 - Quitting (or a killed app) mid-raid restarts the raid from wave 1 on CONTINUE; spent traps stay spent.
   Should a reload count as a lost raid instead? (second fresh-eyes note)
 - Fresh-eyes on PR #21: CHANGES REQUESTED (the update sheet can now pop mid-fight). Not merged.
+
+## 2026-11-23: In-app updates recheck while the game stays open (PR #21, Claude fresh-eyes fixes)
+
+What: the updater polls version.json every 30 s (gate: 120 s since the last check) while the app is open.
+The offer never opens in the Game scene (pause screen included: back there resumes play under it),
+and a reply that lands there is dropped. LATER or back holds that build until the app restarts.
+Why: fresh-eyes review found the first version could cover a Vesper fight with an input-blocking sheet
+and re-offered the same build every 2-4 minutes after LATER.
+Nov 24: a reply landing while NEW GAME loads the Pews also counts as play, and a sheet already up
+when the Game scene enters is withdrawn (not counted as LATER).
+
 ## 2026-11-23 — Game title
 
 Duff chose **The Devil You Owe**. The title refers to the soul contract behind the hunts.

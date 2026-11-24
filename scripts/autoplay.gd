@@ -79,8 +79,34 @@ func _run() -> void:
 	_check(_has_label("THE DEVIL YOU OWE") and vp_w == 720 and vp_h == 1280,
 		"HUNTER PASS (title shows THE DEVIL YOU OWE, base canvas %dx%d)" % [vp_w, vp_h])
 	await _click("NEW GAME")
+	# Why (Nov 24 review): Game loads in the background with the title still current; that counts as play.
+	var upd: Node = get_node("/root/Updater")
+	var mid_load: bool = not get_node("/root/Loader").busy() or upd._in_play()
 	await _wait_scene("Game")
 	var game := get_tree().current_scene
+	# Why (Nov 23 review): the open-app update poll must never cover live play.
+	var mine: int = upd.my_code
+	upd.my_code = 4
+	upd._on_version(HTTPRequest.RESULT_SUCCESS, 200, PackedStringArray(), '{"code": 5}'.to_utf8_buffer())
+	var quiet: bool = upd._in_play() and upd.box == null
+	# Close the offer the way Android back does (free the sheet): the build must stay put off.
+	upd.new_code = 5
+	upd._offer()
+	var opened: bool = upd.box != null
+	upd.UI.close_sheet(upd.box)
+	await get_tree().process_frame
+	var held: bool = opened and upd.box == null and upd.dismissed == 5 \
+		and not upd.should_offer(5, 4, upd.dismissed) and upd.should_offer(6, 4, upd.dismissed)
+	# A sheet already up when Game enters is withdrawn, without counting as LATER.
+	upd.dismissed = 0
+	upd._offer()
+	upd._on_scene_changed()
+	await get_tree().process_frame
+	var withdrawn: bool = upd.box == null and upd.dismissed == 0
+	upd.my_code = mine
+	upd.new_code = 0
+	upd.dismissed = 0
+	_check(quiet and held and mid_load and withdrawn, "UPDATER QUIET PASS (no sheet mid-load or mid-play; one already up leaves when Game enters; back on the offer holds that build)")
 	var ld: Node = get_node("/root/Loader")
 	_check(ld.loads >= 2 and not ld.busy(), "LOAD PASS (%d scenes loaded in the background, %d frames drawn meanwhile)" % [ld.loads, ld.frames_while_loading])
 
