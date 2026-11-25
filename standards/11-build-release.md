@@ -29,7 +29,9 @@ The clip link must be public (public repos). `tools/test_buffer_drafts.py` prove
 
 ## Engine version
 Godot 4.7.2 (`GODOT_VERSION` in `.github/workflows/build.yml`, `config/features` in
-`project.godot`). Move up only to a stable release, and only once every check passes on it.
+`project.godot`). Every game builds on 4.7.x only (Duff, Nov 25); CI's Install Godot step fails
+if either drifts off 4.7. Patch releases (4.7.3...) once every check passes; never downgrade.
+Downloads use `curl -fsSL --retry 5` (a failed download once unzipped an HTML error page).
 After an engine upgrade, delete `.godot/imported/` (or Project -> Reimport): a cache from the old
 version left the mannequin's mesh unlinked from its skeleton (T-pose). `Character3D` re-links it
 and the bot's `SKIN PASS` catches it.
