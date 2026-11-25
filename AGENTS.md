@@ -81,6 +81,7 @@ arena (`arena.gd` + `combat.gd`, numbers in `data/*.json`).
 - PRs: the `fresh-eyes` status stays pending until a fresh-context review posts `FRESH-EYES REVIEW: PASS` on the head
   commit (`docs/FRESH_EYES.md`). Pending is not green: sessions check the combined status and don't merge
   (GitHub itself doesn't block it).
+- Rule lock (Nov 24, 2026, from godot-game-starter): a PR that changes the rules (this file's rules, AGENTS.md, `standards/`, `.claude/`, `.githooks/`, `fresh_eyes.yml`, `rule_lock.yml`; list in `tools/rule_lock.py`) gets a failing `rule-lock` status until Duff adds the `duff-ok` label. **Agents never add, ask a tool to add, or work around that label.** Put rule changes in their own PR and tell Duff it needs his tap. Self-test `tools/test_rule_lock.sh`.
 
 ## Layout
 - docs/BUILD_SPEC.md: how to build it, milestone by milestone. Start here for code.
