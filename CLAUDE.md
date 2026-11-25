@@ -23,6 +23,7 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   buff, GAME OVER in the church); dead minions stay dead on CONTINUE; Vesper wears his own colour.
 
 ## Where things stand (Nov 24, 2026)
+- **Nov 25: Godot 4.7.x only** (Duff). CI fails if the engine or `config/features` drifts off 4.7.
 - **Nov 24: Milestone 3 built** (Claude, one PR): profile save (Save v4 + `Profile` autoload), every
   M2-review carry-over, and the lair (trophy wall, workshop, cold room, voice shrine, map room, heat,
   LAIR RAID, three corruption looks). RETURN HOME now opens the lair. Details + judgment calls:

@@ -24,7 +24,7 @@ This document refines `docs/style-guide.md`. The established 3D comic-ink look, 
 - Make the gameplay silhouettes and telegraph symbols readable without depending on color.
 - Do not let scenery obstruct the top-down combat camera.
 
-## Godot 4.6.3 / Android implementation
+## Godot 4.7 / Android implementation
 - Compatibility renderer, GDScript only. Prefer StandardMaterial3D unshaded/emission where necessary and existing toon/outline techniques.
 - Favor low-poly geometry, mesh reuse, baked/vertex colors and limited local lights. Avoid full-screen expensive post-processing, dense particles and per-object real-time shadows.
 - Use small reusable textures and materials; target the existing draw-call/triangle budgets in standards.
