@@ -31,8 +31,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Godot
         run: |
-          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
+          curl -fsSL --retry 5 --retry-all-errors -o godot.zip https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
           unzip -q godot.zip && sudo mv Godot_v${GODOT_VERSION}_linux.x86_64 /usr/local/bin/godot
+          # 4.7.x only (Duff, Nov 25): fail if CI or the project drifts off 4.7.
+          godot --version | grep -q "^4\.7\." || { echo "Godot must be 4.7.x, got $(godot --version)"; exit 1; }
+          grep -q 'config/features=PackedStringArray("4.7"' project.godot || { echo "project.godot config/features must be 4.7"; exit 1; }
           sudo apt-get update -qq && sudo apt-get install -y -qq xvfb ffmpeg >/dev/null   # update first: a stale runner index 404s (Nov 25)
       - name: Import
         run: timeout 300 godot --headless --path . --import || true
@@ -80,9 +83,12 @@ jobs:
           java-version: "17"
       - name: Install Godot + export templates
         run: |
-          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
+          curl -fsSL --retry 5 --retry-all-errors -o godot.zip https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
           unzip -q godot.zip && sudo mv Godot_v${GODOT_VERSION}_linux.x86_64 /usr/local/bin/godot
-          curl -sSL -o tpl.tpz https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz
+          # 4.7.x only (Duff, Nov 25): fail if CI or the project drifts off 4.7.
+          godot --version | grep -q "^4\.7\." || { echo "Godot must be 4.7.x, got $(godot --version)"; exit 1; }
+          grep -q 'config/features=PackedStringArray("4.7"' project.godot || { echo "project.godot config/features must be 4.7"; exit 1; }
+          curl -fsSL --retry 5 --retry-all-errors -o tpl.tpz https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz
           mkdir -p ~/.local/share/godot/export_templates
           unzip -q tpl.tpz -d /tmp/tpl
           mv /tmp/tpl/templates ~/.local/share/godot/export_templates/${GODOT_VERSION/-/.}

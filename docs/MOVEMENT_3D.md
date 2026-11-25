@@ -15,7 +15,7 @@ implementation list below. To keep characters portable:
   they can be copied to another engine.
 - A move with no clip doesn't exist yet. Placeholder = the mannequin doing the real clip.
 
-## What "full range" means today (Godot 4.6, Compatibility renderer, phones)
+## What "full range" means today (Godot 4.7, Compatibility renderer, phones)
 | Area | Built in | How |
 |---|---|---|
 | Locomotion | idle, walk, jog, sprint, any direction | BlendSpace1D by real ground speed; stick length = speed |

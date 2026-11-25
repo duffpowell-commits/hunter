@@ -20,7 +20,8 @@ Rules are engine-agnostic: they stay true if a game moves from Godot to Unity or
 - Plain words for Duff: short sentences, no jargon, lead with the result.
 
 ## Tech rules
-- Godot 4.7 (4.7.2 today), GDScript only (no C#, no native plugins), Compatibility renderer
+- Godot 4.7.x only (4.7.2 today; Duff, Nov 25: "only build on 4.7"; never downgrade; CI fails
+  off 4.7), GDScript only (no C#, no native plugins), Compatibility renderer
   everywhere (runs on phones and iPhone Safari). Portrait 540x960 base unless the game says otherwise.
 - Build all UI with the template's `ui.gd` helpers (text size, contrast and touch size come free).
 - Every sound a player must notice gets a caption (`Subs.cue`). Every gameplay colour comes from

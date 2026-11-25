@@ -1,5 +1,11 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-25: Godot 4.7.x only, enforced in CI
+Duff, Nov 25: "Lets only build on 4.7." Hunter was already on 4.7.2. `build.yml` now fails if
+`godot --version` isn't 4.7.x or `config/features` isn't "4.7", and downloads retry
+(`curl -fsSL --retry 5`). Stale 4.6.3 lines in AGENTS.md, QUEUE.md and BUILD_SPEC.md now say 4.7.x
+only. Same change as godot-game-starter's.
+
 ## 2026-11-24: Milestone 3, the lair; profile save; M2 review carry-overs (Claude)
 
 What, in the order Duff asked for:
