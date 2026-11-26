@@ -80,7 +80,13 @@ func _process(dt: float) -> void:
 	if arena == null or not is_instance_valid(arena) or ui_parent == null:
 		return
 	_sneak_t = _sneak_t + dt if arena.hero.crouching and arena.hero.speed() > 0.2 else 0.0
+	# Never over a pause, settings or GAME OVER sheet (fresh-eyes, PR #30).
+	var blocked: bool = ui_parent.get("paused") == true or ui_parent.get("over") == true \
+		or not get_tree().get_nodes_in_group("sheet").is_empty()
 	if is_instance_valid(_current):
+		_current.visible = not blocked
+		return
+	if blocked:
 		return
 	# The first step not yet learned. Starting from 0 (not _step + 1) means a prompt freed by a
 	# HUD rebuild (text size, contrast, left-handed) comes back instead of being skipped.
