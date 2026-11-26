@@ -5,19 +5,19 @@ Any AI (Claude, Grok, Codex, ChatGPT...) can take over from this file. Read it, 
 on Nov 26, 2026: "Continue but keep logs for another ai to build where you stop." **Update this file
 in every PR**, not only at the end: the log at the bottom is the running record.
 
-## Current state (updated 2026-11-26, 13:10 UTC)
+## Current state (updated 2026-11-26, 13:25 UTC)
 - Game: **The Devil You Owe**, hero **Cain Vantre**. Godot 4.7.2, GDScript, Compatibility renderer,
   portrait 720x1280. Repo duffpowell-commits/hunter.
-- On main: Milestones 0-4 (training arena, The Pews + Brother Vesper, the lair, Furfur Kemp).
+- On main: Milestones 0-4 (training arena, The Pews + Brother Vesper, the lair, Furfur Kemp) and the
+  8.5 pass (PR #30, merged Nov 26 13:15 UTC).
 - Live builds (from main, by CI):
   - APK: Releases -> `dev` -> `hunter.apk`.
   - Browser (iPhone Safari): https://duffpowell-commits.github.io/hunter/ . **404 until Duff turns
     on Pages** (Settings -> Pages -> branch `gh-pages`, folder `/root`). An agent can't do it: the
     Pages API is blocked from cloud sessions.
-- Open PR: **#30 "8.5 pass: first-timer fixes before M5"** (branch `claude/hunter-8-5-pass`). This is
-  the 8 fixes below. Fresh-eyes round 1 found 1 blocker (fixed). Round 2: no blockers. A small
-  follow-up fix (prompts hide behind sheets) went in after it, so it needs one more fresh-eyes PASS
-  on the final head, then it merges (Duff's rule: green + fresh-eyes PASS merges itself).
+- Open PR: the polish PR from branch `claude/hunter-8-5-polish` (PR #30's review notes: a test for
+  prompts hiding behind sheets, `== true` instead of `bool()` on Variants, hint text follows text
+  size + high contrast, intro uses `UI.ink()`, CLAUDE.md browser line). Merge when green + fresh-eyes.
 - Other open PRs, not part of this work: #21, #22, #12 (see CLAUDE.md).
 
 ## The 8.5 rule (Duff, Nov 26)
@@ -30,7 +30,7 @@ score against 8.5. No one-fix-per-PR loops.
 | Date | Build | Score | Notes |
 |---|---|---|---|
 | Nov 26 | M4 (main, 2e96a5d) | 4.5/10 | No controls, no goal, camera inside the hero, ambush at spawn, unreadable heal, template intro, dark lair |
-| next | PR #30 merged | TBD | Re-run the blind review after the merge |
+| - | PR #30 merged | not run | Duff, Nov 26 7:12 AM CT: "We'll build all of the fixes, cancel the reviews". The second blind review is cancelled; only run one if Duff asks again |
 
 ### The 8 items (all built in PR #30)
 1. Guided first hunt: `scripts/first_hunt.gd`, pad/stick hints, minions wait (`pews.json minions.aggro_radius`).
@@ -43,18 +43,15 @@ score against 8.5. No one-fix-per-PR loops.
 8. Captions: `scripts/subs.gd` newest wins; dialogue never cut by a cue.
 
 ## Next steps, in order
-1. Get PR #30 to a fresh-eyes PASS on its head commit (docs/FRESH_EYES.md), CI green, merge.
-2. Check the APK and the browser build rebuilt from main (CI `android` + `web` jobs).
-3. Re-run the **blind first-timer review** on the new build. Give the reviewer only the browser link
-   (or a local web export) and "play it as a first-time player for ~30 min, score /10". Don't give it
-   code, docs or this file. Record the score in the table above.
-4. If < 8.5: write the next 8.5 plan from that review, put it to Duff on one card, build in one pass.
-5. If >= 8.5: Milestone 5 (Cellar Casino, Gus; docs/BUILD_SPEC.md), after Duff plays M3/M4.
+1. Merge the polish PR (green CI + fresh-eyes PASS, docs/FRESH_EYES.md).
+2. Duff plays M3/M4 + the 8.5 pass on his phone (APK from the `dev` release; browser once Pages is on).
+3. Milestone 5 (Cellar Casino, Gus; docs/BUILD_SPEC.md) when Duff says go. Under the 8.5 rule, a new
+   round of fixes starts with a plan on one card for Duff; blind reviews only when he asks.
 
 ## Build and test (cloud sandbox)
 - Godot: 4.7.2-stable Linux zip from GitHub releases -> `/usr/local/bin/godot`; fresh clone:
   `godot --headless --path . --import`. Run `git config core.hooksPath .githooks` once.
-- Before every push: `tools/test.sh` -> `TESTS PASS` (73 tests), then `tools/autoplay.sh` ->
+- Before every push: `tools/test.sh` -> `TESTS PASS` (74 tests), then `tools/autoplay.sh` ->
   `AUTOPLAY PASS` (~8 min; renders land in docs/renders/, commit them).
 - Local web build: export templates for 4.7.2 web into `~/.local/share/godot/export_templates/4.7.2.stable`,
   then `godot --headless --path . --export-release "Web" build/web/index.html`; serve with
@@ -74,6 +71,8 @@ score against 8.5. No one-fix-per-PR loops.
 - `bool(x)` on a null Variant is a runtime error in Godot 4.7; compare `== true` instead.
 
 ## Log (newest first; one line per chunk of work)
+- 2026-11-26 13:25 Claude: PR #30 merged (CI green, fresh-eyes PASS c6463b1). Duff cancelled the second blind review. Polish PR for the review notes.
+- 2026-11-26 13:12 Claude: Duff paused all games, then resumed Hunter a minute later ("build all of the fixes, cancel the reviews").
 - 2026-11-26 13:10 Claude: fixed fresh-eyes note (prompts hid behind pause/GAME OVER sheets); wrote this file.
 - 2026-11-26 12:55 Claude: fresh-eyes round 2 on 341e1df: no blockers.
 - 2026-11-26 12:50 Claude: fresh-eyes round 1 blocker fixed (prompts freed on HUD rebuild); dialogue captions protected; camera pitch cap; tests 73.

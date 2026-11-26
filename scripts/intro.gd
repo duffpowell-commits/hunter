@@ -67,7 +67,7 @@ func _show() -> void:
 	text.text = CARDS[i][0]
 	sub.text = CARDS[i][1]
 	dots.text = "%d / %d   TAP TO GO ON" % [i + 1, CARDS.size()]
-	text.add_theme_color_override("font_color", UI.ACCENT if i == CARDS.size() - 1 else UI.INK)
+	text.add_theme_color_override("font_color", UI.ACCENT if i == CARDS.size() - 1 else UI.ink())
 	get_node("/root/Subs").clear()
 
 
