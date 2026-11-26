@@ -15,7 +15,7 @@ For any coding AI (Claude, Grok, Codex, ChatGPT...) or person working on a 3 Eye
 - The example Duff gave (Rush): on a quiet service a fox gets loose in the kitchen and costs a turn.
 
 ## Exceptions (Duff's calls)
-- **The Devil You Owe (Hunter):** the fox is **Cain's pet**, not a cameo (Duff, Nov 26).
+- **Hunter:** the fox is the **main character's pet**, not a cameo (Duff, Nov 26).
 - **DuffQuest:** besides its cameo, the fox also joins the overworld animals, with the raccoons.
 
 ## How to build one
@@ -25,6 +25,6 @@ For any coding AI (Claude, Grok, Codex, ChatGPT...) or person working on a 3 Eye
 4. Log it in the handoff (CLAUDE.md "Where things stand" + the handoff log).
 
 ## This game: The Devil You Owe (Hunter)
-- **Exception: the fox is Cain's pet, not a cameo** (Duff, Nov 26: "For the WO, we'll make the mascot the main character's pet"). It lives in the lair.
+- **Exception: the fox is Cain's pet, not a cameo (the cameo lines above don't apply here)** (Duff, Nov 26: "For the WO, we'll make the mascot the main character's pet"). It lives in the lair.
 - Idea (not approved yet, nothing built): it greets Cain at the lair door after a hunt and reacts to his corruption look (warmer at low corruption, wary at high). It never fights and never blocks a hunt.
 - Before building: Duff OKs the fox art on a card, then where it lives and what it does.
