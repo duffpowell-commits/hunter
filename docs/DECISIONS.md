@@ -1,5 +1,22 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-26: Cain's pet fox (Claude)
+- Duff (via the project chat): "we'll make the mascot the main character's pet". He tapped
+  "B: upright third eye" on the art card (`docs/art/fox-pet/fox_pet_B_approved.png`).
+- Built: `scripts/fox_pet.gd` in the Pews and the lair (added by `hunt_arena.gd`), numbers in
+  `data/fox.json`, 20 TUNE sliders (`fox_*` in `lair_tuning.gd`).
+- Judgment calls (Duff can change any):
+  - Demon Sight = the fox's third eye: the eye flares while SIGHT is on. Story glue, no new button.
+  - It never fights and can't be hurt (not a target); it hangs back 4.5 m in a fight so it never
+    blocks a swing or the camera.
+  - One yip a hunt at an unaware enemy nearby: a small help, not a radar.
+  - Lair greet at the door, and the MASCOT.md idea of corruption: at looks 1/2/3 it follows at
+    1.2/1.8/2.8 m (warier as Cain turns).
+  - Model: free CC0 Khronos fox, recoloured (no Meshy credits spent). It has no sit/sleep clips, so
+    it idles with its look-around clip; a custom model is a later Meshy card if Duff wants one.
+  - B's two blood-red eyes aren't on the model yet (the texture's eyes are dark); the third eye is.
+  - Name: placeholder FOX.
+
 ## 2026-11-26: free-flow combat + predator stealth (Claude)
 Duff, Nov 26 10:00 AM CT: "The fighting isn't very fluid, and most breaks as you go, its too hard to
 just tilt the controller, lets get the fight style decided, combat should feel like [a named free-flow brawler] for both stealth options and brawler". Claude wrote an original spec (no names copied) and

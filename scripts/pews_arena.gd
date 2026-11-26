@@ -202,6 +202,7 @@ func _ready() -> void:
 	hero.position = _v3(rules.config.field.hero_spawn)
 	hero.heading = PI
 	hero.model.rotation.y = PI
+	fox.place_behind()
 	# Zealot spawn moved off the pew collider (was z -1.0, inside it; Nov 23 review).
 	_spawn_foe("Zealot", _v3(rules.config.minions.zealot_spawn), Color("a84c42"), float(rules.config.minions.zealot_hp))
 	_spawn_foe("Choir", _v3(rules.config.minions.choir_spawn), Color("b5a0d0"), float(rules.config.minions.choir_hp))

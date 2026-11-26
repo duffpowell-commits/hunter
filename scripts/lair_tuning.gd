@@ -90,6 +90,27 @@ const PATHS := {
 	"vent_hammer_reach": ["furfur", "vent", "strings", 2, "reach"],
 	"vent_hammer_hit_at": ["furfur", "vent", "strings", 2, "hit_at"],
 	"vent_hammer_recover": ["furfur", "vent", "strings", 2, "recover"],
+	# Nov 26: Cain's pet fox (data/fox.json, fox_pet.gd).
+	"fox_scale": ["fox", "scale"],
+	"fox_fight_distance": ["fox", "fight_distance"],
+	"fox_walk_speed": ["fox", "walk_speed"],
+	"fox_run_speed": ["fox", "run_speed"],
+	"fox_run_at": ["fox", "run_at"],
+	"fox_catch_up_at": ["fox", "catch_up_at"],
+	"fox_turn_rate": ["fox", "turn_rate"],
+	"fox_sneak_speed_scale": ["fox", "sneak_speed_scale"],
+	"fox_sneak_crouch": ["fox", "sneak_crouch"],
+	"fox_eye_idle_glow": ["fox", "eye_idle_glow"],
+	"fox_eye_sight_glow": ["fox", "eye_sight_glow"],
+	"fox_eye_sight_scale": ["fox", "eye_sight_scale"],
+	"fox_yip_range": ["fox", "yip_range"],
+	"fox_yip_hold": ["fox", "yip_hold"],
+	"fox_greet_distance": ["fox", "greet_distance"],
+	"fox_rim": ["fox", "rim"],
+	"fox_outline_px": ["fox", "outline_px"],
+	"fox_follow_look_1": ["fox", "wary_follow", 0],
+	"fox_follow_look_2": ["fox", "wary_follow", 1],
+	"fox_follow_look_3": ["fox", "wary_follow", 2],
 }
 const TUNE := {
 	"heat_per_night": [0.0, 40.0, 1.0], "raid_at_heat": [10.0, 100.0, 1.0],
@@ -124,6 +145,7 @@ const TUNE := {
 	"vent_headbutt_hit_at": [0.05, 0.6], "vent_headbutt_recover": [0.1, 1.0],
 	"vent_hammer_damage": [0.0, 60.0, 1.0], "vent_hammer_power": [0.0, 2.0], "vent_hammer_reach": [0.8, 3.0],
 	"vent_hammer_hit_at": [0.05, 0.6], "vent_hammer_recover": [0.1, 1.0],
+	"fox_scale": [0.003, 0.015], "fox_fight_distance": [1.5, 10.0], "fox_walk_speed": [0.5, 6.0], "fox_run_speed": [2.0, 12.0], "fox_run_at": [1.0, 8.0], "fox_catch_up_at": [5.0, 30.0], "fox_turn_rate": [1.0, 20.0], "fox_sneak_speed_scale": [0.2, 1.0], "fox_sneak_crouch": [0.5, 1.0], "fox_eye_idle_glow": [0.0, 3.0], "fox_eye_sight_glow": [0.5, 8.0], "fox_eye_sight_scale": [1.0, 3.0], "fox_yip_range": [1.0, 20.0], "fox_yip_hold": [0.0, 5.0], "fox_greet_distance": [1.0, 10.0], "fox_rim": [0.0, 3.0], "fox_outline_px": [0.0, 6.0], "fox_follow_look_1": [0.6, 6.0], "fox_follow_look_2": [0.6, 6.0], "fox_follow_look_3": [0.6, 6.0],
 }
 
 

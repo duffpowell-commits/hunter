@@ -293,8 +293,20 @@ func _pews_checks() -> void:
 			marks += 1
 	_check(arena.demon_sight and marks == 3 and game.sight_tint.visible,
 		"DEMON SIGHT PASS (SIGHT marks %d of 3 enemies through the walls)" % marks)
+	_check(arena.fox.eye_glow() >= float(arena.fox.cfg().eye_sight_glow) - 0.01 and arena.fox.eye.scale.y > 1.0,
+		"FOX SIGHT PASS (Demon Sight opens the fox's third eye, glow %.1f)" % arena.fox.eye_glow())
+	var fox_d: float = 99.0
+	for i in 150:
+		fox_d = arena.fox.global_position.distance_to(arena.hero.global_position)
+		if fox_d <= arena.fox.follow_distance() + 1.5:
+			break
+		await _frames(1)
+	_check(fox_d <= arena.fox.follow_distance() + 1.5 and not arena._targets().has(arena.fox),
+		"FOX FOLLOW PASS (the fox is at Cain's heels, %.1f m, and is never a target)" % fox_d)
 	await _shot("pews_demon_sight")
 	await _click("SIGHT")
+	await _frames(2)
+	_check(arena.fox.eye_glow() < float(arena.fox.cfg().eye_sight_glow), "FOX EYE CLOSE PASS (SIGHT off: the third eye dims)")
 	# Silent kill: sneak (real button) up behind the unaware Zealot and drop it; nobody else turns.
 	await _click("SNEAK")
 	var zealot: Dictionary = arena._foes[0]
@@ -593,6 +605,14 @@ func _lair_checks() -> void:
 	arena.rig.cam.make_current()
 	_check(game.where == "lair" and arena.name == "LairArena" and int(prof.nights) == 1 and int(prof.hunts) == 1,
 		"LAIR PASS (RETURN HOME opens the lair; a night passed, heat now %d)" % int(prof.heat))
+	# The fox waits at the lair door and runs to greet Cain (Nov 26).
+	for i in 240:
+		if arena.fox.greeted:
+			break
+		await _frames(1)
+	_check(arena.fox.greeted and arena.fox.global_position.distance_to(arena.hero.global_position) < 2.0,
+		"FOX GREET PASS (the fox runs from the lair door to greet Cain)")
+	await _shot("lair_fox_greet")
 	var Ex = preload("res://scripts/explainer.gd")
 	var explained: Array = Ex.LINES.keys().filter(func(id): return Ex.seen(id))
 	_check(explained.size() >= 2, "EXPLAINER PASS (first changes explained once: %s)" % [explained])
