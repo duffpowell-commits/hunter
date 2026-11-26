@@ -25,6 +25,13 @@ var seen_kinds := {}
 var _current: Label
 var _step := -1
 var _sneak_t := 0.0
+var _learned := {}                    # cache of coach.cfg, so no disk read every frame
+
+
+func _ready() -> void:
+	for st in STEPS:
+		if Coach.seen(st[0]):
+			_learned[st[0]] = true
 
 
 static func all_learned() -> bool:
@@ -75,9 +82,10 @@ func _process(dt: float) -> void:
 	_sneak_t = _sneak_t + dt if arena.hero.crouching and arena.hero.speed() > 0.2 else 0.0
 	if is_instance_valid(_current):
 		return
-	# Next step not yet learned.
-	var next := _step + 1
-	while next < STEPS.size() and Coach.seen(STEPS[next][0]):
+	# The first step not yet learned. Starting from 0 (not _step + 1) means a prompt freed by a
+	# HUD rebuild (text size, contrast, left-handed) comes back instead of being skipped.
+	var next := 0
+	while next < STEPS.size() and _learned.has(STEPS[next][0]):
 		next += 1
 	if next >= STEPS.size():
 		set_process(false)
@@ -89,18 +97,29 @@ func _process(dt: float) -> void:
 	if step[0] == "hunt_sneak" and bool(arena.get("encounter_started")):
 		_learn(step[0])
 		return
-	if next > _step:
+	if next != _step:
 		seen_kinds.clear()
 	_step = next
 	var id: String = step[0]
-	var text: String = str(step[1]).replace("{stick}", "RIGHT" if left_handed else "LEFT").replace("{pad}", "LEFT" if left_handed else "RIGHT")
-	_current = Coach.teach(ui_parent, id, text, func(): return _check(id))
+	var lh := left_handed
+	var st := get_node_or_null("/root/Settings")
+	if st != null:
+		lh = bool(st.get_value("left_handed"))     # read live: the player may flip it mid-hunt
+	var text: String = str(step[1]).replace("{stick}", "RIGHT" if lh else "LEFT").replace("{pad}", "LEFT" if lh else "RIGHT")
+	_current = Coach.teach(ui_parent, id, text, func():
+		var done := _check(id)
+		if done:
+			_learned[id] = true
+		return done)
 	if _current != null:              # above the hero, not across him
 		_current.anchor_top = 0.3
 		_current.anchor_bottom = 0.3
+	else:
+		_learned[id] = true
 
 
 func _learn(id: String) -> void:
+	_learned[id] = true
 	var cfg := ConfigFile.new()
 	cfg.load(Coach.PATH)
 	cfg.set_value("seen", id, true)

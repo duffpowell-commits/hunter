@@ -46,6 +46,7 @@ var pause_btn: Button
 var pick_btn: Button
 var tutor: Node                  # the guided first hunt, Pews only
 var explainer: Node              # one-line explainers for the HUD numbers (8.5 pass)
+var _lair_map_done := false      # the MAP ROOM prompt is learned (no coach.cfg read every frame)
 var stick: VirtualStick
 var pad: SwipePad
 var sheet_box: VBoxContainer
@@ -278,11 +279,13 @@ func _refresh_hud() -> void:
 		if arena.combat.weapon != "":
 			vals["wear"] = arena.combat.durability
 		explainer.watch(vals)
-	if where == "lair" and arena.has_method("idle") and bool(arena.call("idle")) and not Coach.seen("lair_map") \
+	if where == "lair" and not _lair_map_done and arena.has_method("idle") and bool(arena.call("idle")) \
 			and not has_node("Coach_lair_map") and get_tree().get_nodes_in_group("sheet").is_empty():
 		var c := Coach.teach(self, "lair_map", "MAP ROOM: NEXT HUNT", func(): return str(arena.get("_near_station")) == "map_room")
 		if c != null:
 			c.add_to_group("keep")
+		else:
+			_lair_map_done = true
 	heal_btn.visible = where != "training" and int(p.inventory.get("wax_poultice", 0)) > 0 and arena.hp < arena.max_hp and not arena.hero.dead
 	var c: int = arena.combo_count()
 	combo_label.text = "%d HITS" % c if c >= 2 else ""

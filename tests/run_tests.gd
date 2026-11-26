@@ -1488,3 +1488,46 @@ func test_explainer_once() -> void:
 	e.queue_free()
 	f.queue_free()
 	await process_frame
+
+
+## Fresh-eyes (PR #30): a spoken line isn't cut off by a sound cue.
+func test_subs_dialogue_runs_its_time() -> void:
+	var subs: Node = root.get_node("Subs")
+	var st: Node = root.get_node("Settings")
+	var was: bool = st.get_value("subtitles")
+	st.set_value("subtitles", true)
+	subs.clear()
+	subs.say("VESPER: Kneel, sinner.")
+	subs._process(0.01)
+	subs.cue("[zealot turns on you]")
+	subs._process(subs.MIN_SHOW + 0.1)
+	check(subs.showing() == "VESPER: Kneel, sinner.", "a cue waits for the spoken line")
+	subs.clear()
+	st.set_value("subtitles", was)
+
+
+## Fresh-eyes (PR #30): a prompt freed by a HUD rebuild comes back, not skipped.
+func test_first_hunt_prompt_survives_rebuild() -> void:
+	var Coach = preload("res://scripts/coach.gd")
+	Coach.forget_all()
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var FirstHunt = preload("res://scripts/first_hunt.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	var ui := Control.new()
+	root.add_child(ui)
+	var t = FirstHunt.new()
+	t.arena = a
+	t.ui_parent = ui
+	root.add_child(t)
+	await process_frame
+	await process_frame
+	check(ui.has_node("Coach_hunt_move"), "the first prompt shows")
+	ui.get_node("Coach_hunt_move").free()
+	await process_frame
+	await process_frame
+	check(ui.has_node("Coach_hunt_move") and not ui.has_node("Coach_hunt_sneak"), "freed by a rebuild, the same prompt comes back")
+	Coach.forget_all()
+	for n in [t, ui, a]:
+		n.queue_free()
+	await process_frame

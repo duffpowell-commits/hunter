@@ -22,7 +22,7 @@ extends Node3D
 @export var min_distance := 4.0       # never closer to the hero than this, even behind a wall
 ## Live sliders in DEV MENU -> TUNE (scripts/tune_panel.gd).
 const TUNE := {"pitch_deg": [20.0, 85.0], "distance": [3.0, 16.0], "look_ahead": [0.0, 1.0],
-	"smooth": [1.0, 20.0], "fov": [25.0, 80.0]}
+	"smooth": [1.0, 20.0], "fov": [25.0, 80.0], "max_pitch": [50.0, 88.0], "min_distance": [1.0, 8.0]}
 
 var follow: Node3D
 var frame_target: Node3D
@@ -103,11 +103,12 @@ func _ray(from: Vector3, to: Vector3) -> Dictionary:
 ## The lowest pitch, from pitch_deg up to max_pitch, that sees the focus past every wall.
 func _clear_pitch(from: Vector3, d: float) -> float:
 	var p := pitch_deg
-	while p < max_pitch:
+	var top := maxf(max_pitch, pitch_deg)      # a TUNE pitch above the cap still works with no wall
+	while p < top:
 		if _ray(from, from + _dir(p) * d).is_empty():
 			return p
 		p += 4.0
-	return max_pitch
+	return top
 
 
 ## Old behaviour, kept as the last resort: a wall still in the way even at max_pitch puts the

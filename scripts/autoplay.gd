@@ -1489,7 +1489,7 @@ func _standards_checks(ct: Node, coach_was: bool) -> void:
 	var cam: Camera3D = ct.rig.cam
 	var see: Dictionary = get_tree().current_scene.get_world_3d().direct_space_state.intersect_ray(
 		PhysicsRayQueryParameters3D.create(cam.global_position, hero.global_position + Vector3(0, 1.2, 0), 1, [hero.get_rid()]))
-	_check(ct.rig.blocked and see.is_empty(), "CAMERA WALL PASS (camera came in front of the wall)")
+	_check(ct.rig.blocked and see.is_empty(), "CAMERA WALL PASS (a wall tilts the camera up, the hero stays in sight)")
 	_shot("std_camera_wall")
 	_place(hero, Vector3(0, 0.05, 4), PI)
 	dummy.global_position = Vector3(0, 0, -5)
