@@ -46,15 +46,13 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   `voices/furfur.json` (writing is placeholder). Judgment calls: docs/DECISIONS.md 2026-11-26.
   **Next: Milestone 5** (Cellar Casino, Gus), after Duff plays M3 + M4.
 - **Nov 26: browser build** (Duff wanted the same as Lethemoor/Rush): https://duffpowell-commits.github.io/hunter/
-  plays in iPhone Safari, upright or sideways (sideways = smaller text), **once Duff turns on Pages**
-  (Settings -> Pages -> branch gh-pages, /root); until then the link is a 404. CI job `web` exports it on
+  plays in iPhone Safari, upright or sideways (sideways = smaller text). Pages is on (live Nov 26). CI job `web` exports it on
   every run and force-pushes it to `gh-pages` on main. Web preset: threads off, no COOP/COEP needed.
 - **Nov 25: Godot 4.7.x only** (Duff). CI fails if the engine or `config/features` drifts off 4.7.
 - **Nov 24: Milestone 3 built** (Claude, one PR): profile save (Save v4 + `Profile` autoload), every
   M2-review carry-over, and the lair (trophy wall, workshop, cold room, voice shrine, map room, heat,
   LAIR RAID, three corruption looks). RETURN HOME now opens the lair. Details + judgment calls:
-  docs/DECISIONS.md. PR #21 failed fresh-eyes (update sheet can open
-  mid-fight); #22 and #12 wait on Duff.
+  docs/DECISIONS.md. #21 and #22 merged Nov 24; #12 still waits on Duff.
 - **Nov 23: Milestone 2 built** (Grok, ChatGPT and Codex built it across PRs #15-#18; PR #20 is the one
   that merges; Claude did the fresh-eyes fixes). NEW GAME opens The Pews: stalk Vesper, ambush or get
   spotted, two boss phases (Sermon, Flock, Laying of Hands), Zealot + Choir, plate and loot, CLEAN/BRUTAL,
@@ -62,7 +60,7 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   **Next: Milestone 3** (the lair, docs/BUILD_SPEC.md). Before M3 content, do the carry-overs in
   tasks/todo.md "From the M2 review": a profile-level save comes first, because cash, parts, trophies
   and voices live only in the run save and NEW GAME wipes them.
-- Still open PRs that are NOT part of M2: #21 (Android update recheck), #22 (working title "The Devil
+- (Old, Nov 23; #21 and #22 merged Nov 24) Still open PRs that are NOT part of M2: #21 (Android update recheck), #22 (working title "The Devil
   You Owe", waits on Duff's naming call), #12 (art generation guide). Each needs its own fresh-eyes pass.
 - **Nov 21: Milestone 1 built** (Grok, PR "Milestone 1", on top of the M0 PR): NEW GAME opens the 3D test
   arena with the stick and swipe pad, a dummy that fights back, a pipe that breaks, combos, hit-stop
