@@ -23,6 +23,8 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   buff, GAME OVER in the church); dead minions stay dead on CONTINUE; Vesper wears his own colour.
 
 ## Where things stand (Nov 26, 2026)
+- **Studio mascot (Duff, Nov 26): here the three-eyed fox is Cain's pet**, not the usual cameo (every
+  other game gets a rare cameo). Duff OKs the fox art on a card before it's built. Details: `docs/MASCOT.md`.
 - **Any AI picking this up: start at docs/HANDOFF.md** (current state, next steps, gotchas, running
   log). Duff, Nov 26: "keep logs for another ai to build where you stop". Update it in every PR.
 - **Nov 26: free-flow combat + predator stealth** (Claude, one PR; Duff tapped "Buttons + swipe

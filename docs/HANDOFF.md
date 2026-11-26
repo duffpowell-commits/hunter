@@ -5,6 +5,10 @@ Any AI (Claude, Grok, Codex, ChatGPT...) can take over from this file. Read it, 
 on Nov 26, 2026: "Continue but keep logs for another ai to build where you stop." **Update this file
 in every PR**, not only at the end: the log at the bottom is the running record.
 
+## Studio mascot (Duff, Nov 26)
+- **Here the three-eyed fox is Cain's pet**, not the usual cameo (every
+  other game gets a rare cameo). Duff OKs the fox art on a card before it's built. Details: `docs/MASCOT.md`.
+
 ## Current state (updated 2026-11-26, 17:30 UTC)
 - Game: **The Devil You Owe**, hero **Cain Vantre**. Godot 4.7.2, GDScript, Compatibility renderer,
   portrait 720x1280. Repo duffpowell-commits/hunter.
