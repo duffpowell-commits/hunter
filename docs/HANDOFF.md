@@ -10,24 +10,22 @@ in every PR**, not only at the end: the log at the bottom is the running record.
   other game gets a rare cameo). Art B approved and the pet built Nov 26 (`scripts/fox_pet.gd`,
   `data/fox.json`). Details: `docs/MASCOT.md`. Its name is **Vig** (Duff, Nov 26).
 
-## Current state (updated 2026-11-26, 17:30 UTC)
+## Current state (updated 2026-11-26, 19:45 UTC)
 - Game: **The Devil You Owe**, hero **Cain Vantre**. Godot 4.7.2, GDScript, Compatibility renderer,
   portrait 720x1280. Repo duffpowell-commits/hunter.
 - On main: Milestones 0-4 (training arena, The Pews + Brother Vesper, the lair, Furfur Kemp), the
-  8.5 pass (PR #30) and its polish (PR #31), both merged Nov 26.
-- Building: **free-flow combat + predator stealth** (branch `claude/hunter-freeflow`, one PR). Duff
-  asked for fluid fighting like a named free-flow brawler, stealth and brawl both, and tapped
-  "Buttons + swipe specials". What it does: docs/DECISIONS.md 2026-11-26 "free-flow". Code:
-  `arena.gd` (lunge, COUNTER, dodge_toward, TAKEDOWN/FINISHER, Demon Sight, SNEAK flag),
-  `hunt_arena.gd` (minion hooks, SILENT KILL, sneak aggro), `pews_arena.gd` (Vesper hooks, SNEAK
-  replaces the tilt), `game.gd` (COUNTER/DODGE/SNEAK/SIGHT buttons), `character3d.gd` (dash).
+  8.5 pass (PR #30) + polish (#31), **free-flow combat + predator stealth (#32)**, the mascot rule
+  (#33) and **Vig, Cain's fox pet (#34, #35)**. All merged Nov 26. Nothing is mid-build.
+- Free-flow (what it does: docs/DECISIONS.md 2026-11-26 "free-flow"): strikes lunge to targets,
+  COUNTER and DODGE buttons, combo holds across enemies, TAKEDOWN at 5 / FINISHER at 8, SNEAK button
+  (replaced the tilt), SILENT KILL, Demon Sight. Code in `arena.gd`, `hunt_arena.gd`,
+  `pews_arena.gd`, `game.gd`, `character3d.gd`.
+- Vig: `scripts/fox_pet.gd`, `data/fox.json`, model in `assets/pets/`. No sit/sleep clip yet.
 - Live builds (from main, by CI):
   - APK: Releases -> `dev` -> `hunter.apk`.
-  - Browser (iPhone Safari): https://duffpowell-commits.github.io/hunter/ . **404 until Duff turns
-    on Pages** (Settings -> Pages -> branch `gh-pages`, folder `/root`). An agent can't do it: the
-    Pages API is blocked from cloud sessions.
-- Open PR: the free-flow PR (above). Merge when green + fresh-eyes.
-- Other open PRs, not part of this work: #21, #22, #12 (see CLAUDE.md).
+  - Browser (iPhone Safari): https://duffpowell-commits.github.io/hunter/ (Pages is on, returns 200
+    as of Nov 26).
+- Open PRs: only #12 (art generation guide, Grok's, waits on Duff). #21 and #22 merged Nov 24.
 
 ## The 8.5 rule (Duff, Nov 26)
 Before building another round on a game: get a **blind first-time-player review** (a fresh AI that
@@ -52,12 +50,13 @@ score against 8.5. No one-fix-per-PR loops.
 8. Captions: `scripts/subs.gd` newest wins; dialogue never cut by a cue.
 
 ## Next steps, in order
-1. Merge the free-flow PR (green CI + fresh-eyes PASS, docs/FRESH_EYES.md).
-2. Duff plays it on his phone (APK from the `dev` release; browser once Pages is on) and tunes the
-   feel in DEV MENU -> TUNE (lunge_range, lunge_speed, counter_*, takedown_at, finisher_at...).
-   Left over: a vault-over dodge clip; maybe a cooldown after a successful COUNTER on Vesper.
-3. Milestone 5 (Cellar Casino, Gus; docs/BUILD_SPEC.md) when Duff says go. Under the 8.5 rule, a new
-   round of fixes starts with a plan on one card for Duff; blind reviews only when he asks.
+1. Duff plays M3, M4, free-flow and Vig on his phone (APK from `dev`, or the browser link) and tunes
+   the feel in DEV MENU -> TUNE (lunge_range, lunge_speed, counter_*, takedown_at, finisher_at...).
+   His notes outrank everything below.
+2. Left over from free-flow: a vault-over dodge clip; maybe a cooldown after a successful COUNTER
+   on Vesper. Vig: sit/sleep clips in the lair.
+3. Milestone 5 (Cellar Casino, Gus; docs/BUILD_SPEC.md) when Duff says go. Under the 8.5 rule a new
+   round starts with a plan on one card for Duff; blind reviews only when he asks.
 
 ## Build and test (cloud sandbox)
 - Godot: 4.7.2-stable Linux zip from GitHub releases -> `/usr/local/bin/godot`; fresh clone:
@@ -90,6 +89,7 @@ score against 8.5. No one-fix-per-PR loops.
   `_damage_dummy` override. New damage paths should use those, not subtract HP by hand.
 
 ## Log (newest first; one line per chunk of work)
+- 2026-11-26 19:45 Claude: handoff refresh: free-flow (#32) and Vig (#34-35) marked merged, Pages live, #21/#22 shown merged, next steps reordered.
 - 2026-11-26 18:05 Claude: fox pet merged (PR #34); Duff named it Vig (captions + credit use it).
 - 2026-11-26 18:30 Claude: the fox pet (look B) on `claude/hunter-fox-pet`: follows Cain, eye = Demon Sight, lair greet, yip; tests 85 pass (2 new), autoplay FOX SIGHT/FOLLOW/EYE CLOSE/GREET.
 - 2026-11-26 17:30 Claude: free-flow combat + predator stealth built on `claude/hunter-freeflow`; tests 82 pass (8 new), autoplay checks for lunge, counter, takedown, DODGE button, SNEAK button, Demon Sight, SILENT KILL.
