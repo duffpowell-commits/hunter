@@ -195,7 +195,9 @@ jobs:
       - name: Import
         run: timeout 300 godot --headless --path . --import || true
       - name: Export Web
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p build/web
           godot --headless --path . --export-release "Web" build/web/index.html 2>&1 | tee web.log
           test -f build/web/index.html && test -f build/web/index.pck && test -f build/web/index.wasm
@@ -206,6 +208,8 @@ jobs:
           path: build/web
       - name: Publish to GitHub Pages (main only)
         if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           cd build/web
           touch .nojekyll
@@ -214,4 +218,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -qm "Web build ${GITHUB_SHA::7} (#${{ github.run_number }})"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

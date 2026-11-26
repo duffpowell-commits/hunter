@@ -119,7 +119,7 @@
   },
   "arena": {
     "pickup_radius": 1.4,
-    "auto_face": 3.0,
+    "auto_face": 3.6,
     "ko_knockback": 4.0,
     "ko_knockback_per_power": 6.0,
     "input_buffer": 0.3

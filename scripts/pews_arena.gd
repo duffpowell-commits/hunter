@@ -28,6 +28,9 @@ var _loot_nodes: Array[Node3D] = []
 var hands_healed := 0.0      # last Laying of Hands heal; read by autoplay (PEWS HANDS PASS)
 var flock_ticks := 0         # Flock damage ticks that reached the hero; read by autoplay
 var last_minion_hit := 0     # damage of the last minion hit on the hero; read by autoplay
+var _boss_bar: Node3D
+var _heal_pop: Label3D
+var heals_broken := 0         # Laying of Hands prayers broken by a hit; read by autoplay
 var spotted := false         # Vesper saw the hero before an ambush; read by autoplay
 
 
@@ -204,6 +207,7 @@ func _ready() -> void:
 	_spawn_foe("Choir", _v3(rules.config.minions.choir_spawn), Color("b5a0d0"), float(rules.config.minions.choir_hp))
 	_spawn_realm_props()
 	_build_occult_halo()
+	_boss_bar = hp_bar(dummy, 2.15, 1.3)
 	_enemy_t = 999.0
 	apply_profile()
 
@@ -289,6 +293,9 @@ func _process(dt: float) -> void:
 	var sneaking := not encounter_started and push > 0.05 and push <= sneak_limit
 	hero.set_crouch(sneaking)
 	super._process(dt)
+	if rules != null:
+		var phase_max := float(rules.config.boss.phase_hp[clampi(rules.boss_phase - 1, 0, 1)])
+		set_hp_bar(_boss_bar, 0.0 if boss_defeated else rules.boss_hp / maxf(phase_max, 1.0))
 	if sneaking:
 		# Remap the light half of the stick to the full crouch-walk speed.
 		hero.move_input = (stick / sneak_limit).limit_length(1.0)
@@ -409,11 +416,18 @@ func _begin_boss_move() -> void:
 	var data: Dictionary = rules.config.boss.moves.get(_boss_move, {})
 	_boss_telegraph = maxf(float(rules.config.boss.min_telegraph), float(data.get("telegraph", 0.7)))
 	_set_occult_halo(true)
-	_warn.text = "!"
-	_warn.modulate = UI.key("bad")
+	# Nov 26 (8.5 pass): the heal gets its own tell (green "+ HEALING", a shape and a word, not
+	# just colour), so a first-timer sees it coming and knows to hit him.
+	var healing := _boss_move == "laying_of_hands"
+	_warn.text = "+ HEALING" if healing else "!"
+	_warn.font_size = 90 if healing else 160
+	_warn.modulate = UI.key("good") if healing else UI.key("bad")
 	_warn.visible = true
 	get_node("/root/Audio").sfx("whoosh", 0.8)
-	get_node("/root/Subs").cue("[Vesper prepares %s]" % _boss_move.replace("_", " "))
+	if healing:
+		get_node("/root/Subs").cue("[Vesper starts healing: hit him]")
+	else:
+		get_node("/root/Subs").cue("[Vesper prepares %s]" % _boss_move.replace("_", " "))
 
 
 func _execute_boss_move() -> void:
@@ -450,6 +464,7 @@ func _execute_boss_move() -> void:
 			hands_healed = healed
 			dummy_hp = rules.boss_hp
 			get_node("/root/Subs").cue("[Vesper heals %d]" % int(healed))
+			_pop_heal(healed)
 	_boss_cd = _cooldown_of(data)
 
 
@@ -462,6 +477,8 @@ func _check_hit() -> void:
 	# HUD and checkpoint in sync before returning from this hit.
 	if hits_landed != before and not boss_defeated and dummy_hp > 0.0:
 		rules.boss_hp = dummy_hp
+	if hits_landed != before:
+		break_heal()
 	if hits_landed != before:
 		return
 	_check_foe_hits()
@@ -525,9 +542,55 @@ func _clear_flock() -> void:
 		_flock_node = null
 
 
+## A hit on Vesper while he prays breaks the heal (8.5 pass). Returns true when it did.
+func break_heal() -> bool:
+	if _boss_move != "laying_of_hands" or _boss_telegraph <= 0.0 \
+			or int(rules.config.boss.moves.laying_of_hands.get("interrupt", 0)) <= 0:
+		return false
+	_cancel_boss_attack()
+	heals_broken += 1
+	get_node("/root/Subs").cue("[you break his prayer]")
+	return true
+
+
+## Floating "+18" over Vesper when a heal lands.
+func _pop_heal(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	if _heal_pop == null:
+		_heal_pop = Label3D.new()
+		_heal_pop.font_size = 96
+		_heal_pop.outline_size = 28
+		_heal_pop.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_heal_pop.no_depth_test = true
+		dummy.add_child(_heal_pop)
+	_heal_pop.text = "+%d" % int(amount)
+	_heal_pop.modulate = UI.key("good")
+	_heal_pop.position = Vector3(0, 2.4, 0)
+	_heal_pop.visible = true
+	var tw := create_tween()
+	tw.tween_property(_heal_pop, "position:y", 3.2, 0.9)
+	tw.tween_callback(func(): _heal_pop.visible = false)
+
+
+func foes_all_aggro() -> bool:
+	return encounter_started
+
+
+## Soft aim (Nov 26, 8.5 pass): in the fight, a swing turns to the nearest enemy in reach,
+## Vesper or a minion, instead of always Vesper.
 func _attack_target() -> Character3D:
 	if encounter_started:
-		return super._attack_target()
+		var best: Character3D = super._attack_target()
+		var nearest := INF if best == null else hero.global_position.distance_to(best.global_position)
+		for foe in _foes:
+			if foe.dead:
+				continue
+			var d: float = hero.global_position.distance_to(foe.actor.global_position)
+			if d < nearest:
+				nearest = d
+				best = foe.actor
+		return best
 	var target: Character3D
 	var nearest := float(rules.config.field.prefight_target_range)
 	for foe in _foes:
@@ -647,7 +710,7 @@ func status_text() -> String:
 	if rules == null:
 		return ""
 	if not encounter_started:
-		return "STUDY %d%%" % int(round(rules.studied))
+		return "GOAL: HUNT VESPER  STUDY %d%%" % int(round(rules.studied))
 	return "VESPER  PHASE %d  %d HP" % [rules.boss_phase, int(round(rules.boss_hp))]
 
 

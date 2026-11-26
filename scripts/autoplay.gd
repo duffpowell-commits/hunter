@@ -49,6 +49,15 @@ func _run() -> void:
 	var intro_ms := Time.get_ticks_msec()
 	await _frames(10)
 	_shot("intro")
+	# Nov 26 (8.5 pass): the cold open is the game's own story, ending on the first goal.
+	var intro: Node = get_tree().current_scene
+	var cards: Array = intro.CARDS
+	_check(cards.size() == 4 and str(cards[0][0]).begins_with("You were born") and "VESPER" in str(cards[-1][0])
+		and str(intro.text.text) == str(cards[0][0]), "COLD OPEN PASS (%d cards, ends on the goal: Brother Vesper)" % cards.size())
+	intro.i = cards.size() - 1
+	intro._show()
+	await _frames(3)
+	_shot("intro_goal")
 	var skip_ms := Time.get_ticks_msec()
 	await _click("SKIP")
 	await _wait_scene("Title")
@@ -69,6 +78,9 @@ func _run() -> void:
 	await _frames(10)
 	_shot("title")
 	_check(_find("CONTINUE") == null, "TITLE PASS (no save yet)")
+	var title_scene := get_tree().current_scene
+	_check(title_scene.get_node_or_null("KeyArt") != null and (title_scene.get_node("KeyArt") as TextureRect).texture != null
+		and not _has_label("dev"), "TITLE ART PASS (Brother Vesper key art behind the title, no dev label)")
 	await _click("SETTINGS")
 	await _click("CREDITS")
 	_check(_has_label("Published by 3 Eyed Fox Studios"), "PUBLISHER CREDITS PASS")
@@ -243,6 +255,19 @@ func _pews_checks() -> void:
 	arena.rig.cam.make_current()
 	_check(arena.dummy.name == "Vesper" and arena.get_node_or_null("Pews/Altar") != null
 		and arena._foes.size() == 2, "PEWS MAP PASS (church altar, Vesper, Zealot and Choir)")
+	# Nov 26 (8.5 pass): the first stretch is safe and the first prompt is up.
+	_check(not arena._foes[0].aggro and not arena._foes[1].aggro and arena._foes[0].actor.move_input == Vector2.ZERO
+		and arena.hp == arena.max_hp, "SAFE START PASS (no minion jumps you at the spawn)")
+	_check(game.get_node_or_null("Coach_hunt_move") != null and game.get_node_or_null("FirstHunt") != null
+		and str(arena.status_text()).begins_with("GOAL: HUNT VESPER"),
+		"GUIDED HUNT PASS (first prompt %s; HUD goal %s)" % [game.get_node("Coach_hunt_move").text if game.has_node("Coach_hunt_move") else "-", arena.status_text()])
+	_check(arena._foes[0].bar.visible and arena._boss_bar.visible, "HP BAR PASS (bars over the minions and Vesper)")
+	await _shot("pews_first_prompt")
+	var pick_r: Rect2 = game.pick_btn.get_global_rect()
+	var pad_r: Rect2 = game.pad.get_global_rect()
+	var ring := pad_r.position + pad_r.size * Vector2(0.5, 0.62)
+	_check(not pick_r.grow(80).has_point(ring) and not pick_r.has_point(pad_r.get_center()),
+		"PAD CLEAR PASS (the context button sits clear of the attack ring)")
 	_place(arena.hero, Vector3(0, 0.05, -2.3), PI)
 	arena.rig.snap()
 	await _physics(3)
@@ -455,9 +480,15 @@ func _pews_danger_checks() -> void:
 	arena.dummy_hp = arena.rules.boss_hp
 	var boss0: float = arena.rules.boss_hp
 	arena._boss_cd = 0.0
-	by = Time.get_ticks_msec() + 4000
+	var heal_tell := false
+	by = Time.get_ticks_msec() + 5000
 	while arena.hands_healed == 0.0 and Time.get_ticks_msec() < by:
+		if arena._boss_move == "laying_of_hands" and arena._warn.visible and arena._warn.text.contains("HEALING"):
+			if not heal_tell:
+				heal_tell = true
+				await _shot("pews_heal_tell")
 		await get_tree().physics_frame
+	_check(heal_tell, "HEAL TELL PASS (Vesper shows + HEALING before Laying of Hands)")
 	_check(arena.hands_healed == float(cfg.boss.moves.laying_of_hands.heal)
 		and arena.rules.boss_hp == boss0 + arena.hands_healed and arena.dummy_hp == arena.rules.boss_hp,
 		"PEWS HANDS PASS (Vesper healed %d, to %d HP)" % [int(arena.hands_healed), int(arena.rules.boss_hp)])
@@ -518,6 +549,9 @@ func _lair_checks() -> void:
 	arena.rig.cam.make_current()
 	_check(game.where == "lair" and arena.name == "LairArena" and int(prof.nights) == 1 and int(prof.hunts) == 1,
 		"LAIR PASS (RETURN HOME opens the lair; a night passed, heat now %d)" % int(prof.heat))
+	var Ex = preload("res://scripts/explainer.gd")
+	var explained: Array = Ex.LINES.keys().filter(func(id): return Ex.seen(id))
+	_check(explained.size() >= 2, "EXPLAINER PASS (first changes explained once: %s)" % [explained])
 	_check(game.last_voice_kind == "lair" and game.get_node_or_null("VoiceBox") != null,
 		"VOICE LINE PASS (Vesper speaks in the dialogue box on a lair visit)")
 	await _shot("lair_voice_box")
@@ -586,6 +620,9 @@ func _lair_checks() -> void:
 		"LAIR COLD ROOM PASS (stores show the profile)")
 	await _click("CLOSE")
 
+	_check(arena.next_marker != null and arena.next_marker.visible and arena.idle()
+		and arena.get_node_or_null("Marker_map_room") != null,
+		"LAIR READ PASS (a lit ring at each station, NEXT HUNT over the map room)")
 	await _at_station(arena, "map_room")
 	await _shot("lair_map_room")
 	await _click("MAP ROOM")

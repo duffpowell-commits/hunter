@@ -78,9 +78,11 @@
         "knockback": 0.0
       },
       "laying_of_hands": {
+        "_why": "Nov 26 8.5 pass: a first-timer couldn't tell he was healing. The prayer now shows a green HEALING sign for 1.4 s, and one hit breaks it (interrupt 1 = on, 0 = off).",
         "heal": 18,
-        "telegraph": 0.6,
-        "cooldown": 9.0
+        "telegraph": 1.4,
+        "cooldown": 9.0,
+        "interrupt": 1
       }
     },
     "turn_speed": 2.5,
@@ -114,7 +116,9 @@
       -2.0
     ],
     "steer_probe": 0.8,
-    "steer_margin": 0.35
+    "steer_margin": 0.35,
+    "_aggro_why": "Nov 26 8.5 pass: minions stand still until you come within aggro_radius, hit them, or the fight with Vesper starts. The blind first-timer was jumped right at spawn.",
+    "aggro_radius": 3.2
   },
   "finishers": {
     "clean": {

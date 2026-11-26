@@ -188,8 +188,53 @@ func _spawn_foe(label: String, at: Vector3, tint: Color, hp_value: float) -> voi
 		aura.material_override = _toon(Color("74658f"), false)
 		aura.position.y = 0.04
 		actor.add_child(aura)
-	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "max_hp": hp_value,
+	var bar := hp_bar(actor, 2.0, 0.9)
+	_foes.append({"actor": actor, "warn": warning, "hp": hp_value, "max_hp": hp_value, "bar": bar,
+		"aggro": float(foe_rules().get("aggro_radius", 0.0)) <= 0.0,
 		"attack_cd": float(foe_rules().first_attack_delay), "windup": 0.0, "dead": false, "kind": label, "side": 0.0})
+
+
+## A billboard HP bar over a character (Nov 26, 8.5 pass: the first-timer couldn't tell who was
+## hurt). The camera never turns, so the fill shrinks toward world -x, which is screen-left.
+func hp_bar(parent: Node3D, height: float, width: float) -> Node3D:
+	var bar := Node3D.new()
+	bar.name = "HPBar"
+	bar.position = Vector3(0, height, 0)
+	bar.set_meta("width", width)
+	for part in [["Back", Color(0, 0, 0, 0.75), 0.13, 0], ["Fill", UI.key("bad"), 0.08, 1]]:
+		var q := MeshInstance3D.new()
+		q.name = part[0]
+		var m := QuadMesh.new()
+		m.size = Vector2(width + (0.06 if part[3] == 0 else 0.0), part[2])
+		q.mesh = m
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		mat.billboard_keep_scale = true
+		mat.no_depth_test = true
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = part[1]
+		mat.render_priority = part[3]
+		q.material_override = mat
+		q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		bar.add_child(q)
+	parent.add_child(bar)
+	return bar
+
+
+static func set_hp_bar(bar: Node3D, ratio: float) -> void:
+	if bar == null or not is_instance_valid(bar):
+		return
+	ratio = clampf(ratio, 0.0, 1.0)
+	bar.visible = ratio > 0.0
+	var fill := bar.get_node("Fill") as Node3D
+	fill.scale.x = maxf(ratio, 0.001)
+	fill.position.x = -(1.0 - ratio) * float(bar.get_meta("width")) / 2.0
+
+
+## True when every minion should fight now (the Pews: once Vesper's fight starts).
+func foes_all_aggro() -> bool:
+	return false
 
 
 ## A point is blocked when it is inside a solid prop grown by `margin` (top-down, y ignored).
@@ -233,9 +278,19 @@ func _foe_ai(dt: float) -> void:
 		foe.hp = clampf(foe.hp + tuned_hp - foe.max_hp, 1.0, tuned_hp)
 		foe.max_hp = tuned_hp
 		var actor: Character3D = foe.actor
+		set_hp_bar(foe.get("bar"), foe.hp / foe.max_hp)
 		var to := hero.global_position - actor.global_position
 		to.y = 0.0
 		var d := to.length()
+		# Nov 26 (8.5 pass): minions wait until you come close, hit them, or the fight starts.
+		if not bool(foe.get("aggro", true)):
+			if d < float(minions.get("aggro_radius", 0.0)) or foe.hp < foe.max_hp or foes_all_aggro():
+				foe.aggro = true
+				get_node("/root/Subs").cue("[%s turns on you]" % foe.kind.to_lower())
+			else:
+				actor.move_input = Vector2.ZERO
+				_foes[i] = foe
+				continue
 		if d > float(minions.chase_min) and d < float(minions.chase_max):
 			var way: Array = steer(actor.global_position, to / d, float(foe.get("side", 0.0)),
 				float(minions.get("steer_probe", 0.8)), float(minions.get("steer_margin", 0.35)))
@@ -309,6 +364,7 @@ func kill_foe(i: int) -> void:
 	var foe: Dictionary = _foes[i]
 	foe.dead = true
 	foe.warn.visible = false
+	set_hp_bar(foe.get("bar"), 0.0)
 	foe.windup = 0.0
 	foe.actor.move_input = Vector2.ZERO
 	foe.actor.die((foe.actor.global_position - hero.global_position).normalized() * 2.0 + Vector3(0, 1.0, 0))

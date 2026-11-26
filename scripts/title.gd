@@ -31,15 +31,52 @@ func _build() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	move_child(bg, 0)
+	# Nov 26 (8.5 pass, item 7): a key image instead of a bare menu. Brother Vesper, the first
+	# hunt, looms behind the title (docs/art/explore-20261120/vesper-ink-0.png, green keyed out).
+	var key := TextureRect.new()
+	key.name = "KeyArt"
+	key.texture = load("res://assets/art/title_vesper.png")
+	key.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	key.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	key.anchor_right = 1.0
+	key.anchor_bottom = 0.66
+	key.offset_top = 10
+	key.modulate = Color(1, 1, 1, 0.5)
+	key.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(key)
+	var grad := GradientTexture2D.new()
+	grad.gradient = Gradient.new()
+	grad.gradient.set_color(0, Color(UI.BG, 0.0))
+	grad.gradient.set_color(1, Color(UI.BG, 1.0))
+	grad.fill_from = Vector2(0, 0)
+	grad.fill_to = Vector2(0, 1)
+	var fade := TextureRect.new()
+	fade.texture = grad
+	fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fade.stretch_mode = TextureRect.STRETCH_SCALE
+	fade.anchor_right = 1.0
+	fade.anchor_top = 0.3
+	fade.anchor_bottom = 0.66
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fade)
 	var col := VBoxContainer.new()
-	col.set_anchors_preset(Control.PRESET_CENTER)
-	col.custom_minimum_size = Vector2(380, 0)
+	# Bottom-anchored, growing up: the menu always fits under the art, whatever the text size.
+	col.anchor_left = 0.5
+	col.anchor_right = 0.5
+	col.anchor_top = 1.0
+	col.anchor_bottom = 1.0
+	col.offset_bottom = -76
+	col.custom_minimum_size = Vector2(440, 0)
 	col.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	col.grow_vertical = Control.GROW_DIRECTION_BOTH
+	col.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	col.add_theme_constant_override("separation", UI.GAP)
 	add_child(col)
 	# Why 32 (Nov 23): the longer title "THE DEVIL YOU OWE" needs margin on the 540-wide UI canvas.
-	col.add_child(UI.label(Config.game_title().to_upper(), 32, UI.ACCENT))
+	var title := UI.label(Config.game_title().to_upper(), 36, UI.ACCENT)
+	title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	title.add_theme_constant_override("outline_size", 12)
+	col.add_child(title)
+	col.add_child(UI.label("You owe the Devil. Collect for him.", 17, UI.DIM))
 	col.add_child(Control.new())
 	var save: Node = get_node("/root/Save")
 	if save.exists():

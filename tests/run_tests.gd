@@ -1349,3 +1349,142 @@ func _button(n: Node, text: String) -> Button:
 		if b.text == text:
 			return b
 	return null
+
+
+# ---------------------------------------------------------------- Nov 26: the 8.5 pass
+
+## Item 1 + 3: minions wait for you, wear HP bars, and soft aim turns to the nearest enemy.
+func test_pews_first_stretch_is_safe_and_readable() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	var zealot: Dictionary = a._foes[0]
+	check(not zealot.aggro and zealot.bar != null, "a minion starts idle, with an HP bar over it")
+	for i in 10:
+		a._foe_ai(0.1)
+	check(zealot.actor.move_input == Vector2.ZERO and not a._foes[0].aggro, "from the spawn, nobody chases the hero")
+	a.hero.global_position = zealot.actor.global_position + Vector3(0, 0, 2.0)
+	a._foe_ai(0.1)
+	check(a._foes[0].aggro, "walking within aggro_radius wakes it")
+	a._foes[1].hp -= 5.0
+	a._foe_ai(0.1)
+	check(a._foes[1].aggro, "hitting a minion wakes it")
+	a.set_hp_bar(zealot.bar, 0.5)
+	check(is_equal_approx(zealot.bar.get_node("Fill").scale.x, 0.5), "the bar fill follows HP")
+	a.encounter_started = true
+	a.hero.global_position = zealot.actor.global_position + Vector3(0, 0, 1.0)
+	check(a._attack_target() == zealot.actor, "soft aim picks the nearest enemy, not always Vesper")
+	check(a._boss_bar != null and a.status_text().begins_with("VESPER"), "Vesper has his own HP bar")
+	a.queue_free()
+	await process_frame
+
+
+## Item 3: Laying of Hands shows HEALING and one hit breaks it.
+func test_vesper_heal_has_a_tell_and_breaks() -> void:
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a._boss_move_index = a.rules.config.boss.move_order.find("laying_of_hands")
+	a._begin_boss_move()
+	check(a._boss_move == "laying_of_hands" and a._warn.visible and a._warn.text.contains("HEALING"),
+		"the heal telegraph says HEALING")
+	var hp0: float = a.rules.boss_hp
+	var before: int = a.heals_broken
+	check(a.break_heal(), "a landed hit during the prayer breaks it")
+	check(a.heals_broken == before + 1 and a._boss_move == "" and not a._warn.visible and a.rules.boss_hp == hp0,
+		"one hit during the prayer breaks it: no heal")
+	a.queue_free()
+	await process_frame
+
+
+## Item 1: the guided prompts fit the coach rule, cover every gesture, and point at the right side.
+func test_first_hunt_prompts() -> void:
+	var FirstHunt = preload("res://scripts/first_hunt.gd")
+	var ids := []
+	for s in FirstHunt.STEPS:
+		ids.append(s[0])
+		check(str(s[1]).split(" ", false).size() <= 4, "prompt is 4 words max: " + str(s[1]))
+	for id in ["hunt_move", "hunt_sneak", "hunt_light", "hunt_heavy", "hunt_dodge", "hunt_special"]:
+		check(ids.has(id), "the first hunt teaches " + id)
+
+
+## Item 2: a wall makes the camera tilt up, never dive into the hero, and its view never turns.
+func test_camera_rises_over_walls() -> void:
+	var CameraRig = preload("res://scripts/camera_rig.gd")
+	var world := Node3D.new()
+	root.add_child(world)
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(20, 6, 0.5)
+	shape.shape = box
+	wall.add_child(shape)
+	wall.position = Vector3(0, 3.0, 2.5)
+	world.add_child(wall)
+	var hero := Node3D.new()
+	world.add_child(hero)
+	var rig = CameraRig.new()
+	rig.follow = hero
+	world.add_child(rig)
+	await physics_frame
+	await physics_frame
+	rig.snap()
+	check(rig.blocked and rig._pitch > rig.pitch_deg, "a wall behind the hero tilts the camera up (pitch %.0f)" % rig._pitch)
+	check(rig.cam.global_position.distance_to(hero.global_position) >= rig.min_distance,
+		"the camera never comes inside min_distance of the hero")
+	var look0: Vector3 = -rig.cam.global_transform.basis.z
+	hero.position = Vector3(3, 0, -3)
+	for i in 30:
+		rig._process(1.0 / 60.0)
+	var look1: Vector3 = -rig.cam.global_transform.basis.z
+	check(absf(look0.x) < 0.01 and absf(look1.x) < 0.01, "the camera never yaws: screen-up stays world-forward")
+	world.queue_free()
+	await process_frame
+
+
+## Item 8: captions keep only the newest line.
+func test_subs_newest_wins() -> void:
+	var subs: Node = root.get_node("Subs")
+	var st: Node = root.get_node("Settings")
+	var was: bool = st.get_value("subtitles")
+	st.set_value("subtitles", true)
+	subs.clear()
+	subs.say("[one]")
+	subs.say("[two]")
+	subs.say("[three]")
+	subs._process(0.01)
+	check(subs.showing() == "[three]" and subs._queue.is_empty(), "three quick cues: only the newest shows")
+	subs.say("[four]")
+	subs._process(0.1)
+	check(subs.showing() == "[three]", "a new line waits for MIN_SHOW")
+	subs._process(subs.MIN_SHOW)
+	subs._process(0.01)
+	check(subs.showing() == "[four]", "then it cuts in")
+	subs.clear()
+	st.set_value("subtitles", was)
+
+
+## Item 6: an explainer shows once, the first time a number changes.
+func test_explainer_once() -> void:
+	var Explainer = preload("res://scripts/explainer.gd")
+	Explainer.forget_all()
+	var e = Explainer.new()
+	root.add_child(e)
+	e.watch({"heat": 0, "parts": 0})
+	e.watch({"heat": 0, "parts": 0})
+	check(e.queue.is_empty(), "no change, no explainer")
+	e.watch({"heat": 5, "parts": 0})
+	e._process(0.01)
+	check(e.visible and e.shown == ["heat"] and Explainer.seen("heat"), "HEAT's first change explains HEAT")
+	var f = Explainer.new()
+	root.add_child(f)
+	f.watch({"heat": 5})
+	f.watch({"heat": 9})
+	check(f.queue.is_empty(), "never twice")
+	Explainer.forget_all()
+	e.queue_free()
+	f.queue_free()
+	await process_frame

@@ -16,6 +16,9 @@ const BugReport = preload("res://scripts/bug_report.gd")
 const ControlsLegend = preload("res://scripts/controls_legend.gd")
 const Arena = preload("res://scripts/arena.gd")
 const PewsArena = preload("res://scripts/pews_arena.gd")
+const FirstHunt = preload("res://scripts/first_hunt.gd")
+const Explainer = preload("res://scripts/explainer.gd")
+const Coach = preload("res://scripts/coach.gd")
 const LairArena = preload("res://scripts/lair_arena.gd")
 const LairRules = preload("res://scripts/lair_rules.gd")
 const FurfurRules = preload("res://scripts/furfur_rules.gd")
@@ -41,6 +44,8 @@ var combo_label: Label
 var weapon_label: Label
 var pause_btn: Button
 var pick_btn: Button
+var tutor: Node                  # the guided first hunt, Pews only
+var explainer: Node              # one-line explainers for the HUD numbers (8.5 pass)
 var stick: VirtualStick
 var pad: SwipePad
 var sheet_box: VBoxContainer
@@ -79,6 +84,19 @@ func _ready() -> void:
 		arena = PewsArena.new()
 	arena.add_to_group("keep")
 	add_child(arena)
+	if where == "pews":
+		# Nov 26 (8.5 pass): the guided first hunt, one prompt at a time (scripts/first_hunt.gd).
+		tutor = FirstHunt.new()
+		tutor.name = "FirstHunt"
+		tutor.arena = arena
+		tutor.ui_parent = self
+		tutor.left_handed = bool(_settings.get_value("left_handed"))
+		tutor.add_to_group("keep")
+		add_child(tutor)
+	if where != "training":
+		explainer = Explainer.new()
+		explainer.add_to_group("keep")
+		add_child(explainer)
 	if _saved_hp > 0:
 		arena.hp = mini(_saved_hp, arena.max_hp)
 	arena.ko.connect(_on_ko)
@@ -192,13 +210,16 @@ func _build() -> void:
 	_corner(heal_btn, left, false, 150)
 	heal_btn.offset_top -= 260
 	heal_btn.offset_bottom -= 260
-	# Context button above the pad (BUILD_SPEC: INTERACT / SCAVENGE / FINISH go here).
+	# Context button on the pad side (BUILD_SPEC: INTERACT / SCAVENGE / FINISH go here).
 	pick_btn = UI.button("PICK UP", _context_action, 96)
 	pick_btn.name = "PickUp"
 	# 260 wide: COLLECT PLATE and RETURN HOME didn't fit in 200 (M2 review).
-	_corner(pick_btn, not left, false, CONTEXT_W)
-	pick_btn.offset_top -= 260
-	pick_btn.offset_bottom -= 260
+	# Nov 26 (8.5 pass): it sat right over the middle of the attack pad, so a first-timer's
+	# attack taps in the lair opened station sheets. It now sits at the top edge of the pad half,
+	# well clear of the thumb ring.
+	_corner(pick_btn, not left, true, CONTEXT_W)
+	pick_btn.offset_top = CONTEXT_TOP
+	pick_btn.offset_bottom = CONTEXT_TOP + 96
 	for sh in get_tree().get_nodes_in_group("sheet"):   # open sheets stay on top of the rebuilt HUD
 		if sh.get_parent() == self:
 			move_child(sh, -1)
@@ -231,6 +252,7 @@ func _corner(b: Button, right: bool, top: bool, w: int) -> void:
 
 
 const CONTEXT_W := 260
+const CONTEXT_TOP := 345
 
 
 func _refresh_hud() -> void:
@@ -249,6 +271,18 @@ func _refresh_hud() -> void:
 		hud.text = "HP %d/%d%s" % [arena.hp, arena.max_hp, god]
 		profile_label.text = "$%d  HEAT %d  PARTS %d  CORR %d%s" % [int(p.cash), int(p.heat), int(p.parts), int(p.corruption),
 			"\n" + status if not status.is_empty() else ""]
+	if explainer != null:
+		var vals := {"cash": int(p.cash), "heat": int(p.heat), "parts": int(p.parts), "corruption": int(p.corruption)}
+		if where == "pews" and not bool(arena.get("encounter_started")):
+			vals["study"] = int(arena.rules.studied) / 10
+		if arena.combat.weapon != "":
+			vals["wear"] = arena.combat.durability
+		explainer.watch(vals)
+	if where == "lair" and arena.has_method("idle") and bool(arena.call("idle")) and not Coach.seen("lair_map") \
+			and not has_node("Coach_lair_map") and get_tree().get_nodes_in_group("sheet").is_empty():
+		var c := Coach.teach(self, "lair_map", "MAP ROOM: NEXT HUNT", func(): return str(arena.get("_near_station")) == "map_room")
+		if c != null:
+			c.add_to_group("keep")
 	heal_btn.visible = where != "training" and int(p.inventory.get("wax_poultice", 0)) > 0 and arena.hp < arena.max_hp and not arena.hero.dead
 	var c: int = arena.combo_count()
 	combo_label.text = "%d HITS" % c if c >= 2 else ""
@@ -278,6 +312,8 @@ func _process(_dt: float) -> void:
 func _on_gesture(kind: String, v: Vector2) -> void:
 	if paused or over:
 		return
+	if tutor != null:
+		tutor.saw(kind)
 	match kind:
 		"light": arena.light()
 		"heavy": arena.heavy()
@@ -393,6 +429,7 @@ func _on_hero_died() -> void:
 		return
 	dying = true                     # from this moment nothing saves, and the run is over
 	_save.clear()
+	get_node("/root/Subs").clear()   # 8.5 pass: old fight captions don't trail into GAME OVER
 	if where == "pews":
 		# A real failed hunt (BUILD_SPEC Furfur: VENT unlocks one combo per real failure, M4).
 		var prof := get_node("/root/Profile")
@@ -606,6 +643,7 @@ func game_over() -> void:
 	arena.process_mode = Node.PROCESS_MODE_DISABLED
 	_save.clear()
 	get_node("/root/Audio").sfx("gameover")
+	get_node("/root/Subs").clear()
 	get_node("/root/Subs").cue("[game over sting]")
 	sheet_box = UI.sheet(self)
 	sheet_box.add_child(UI.label("GAME OVER", 40, UI.key("bad")))
