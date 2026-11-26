@@ -21,6 +21,9 @@
 - [ ] Gesture hints + pause-menu gesture card (BUILD_SPEC pipeline rules), before or with M2.
 - [x] Milestone 2: The Pews and Vesper (Nov 23, PR #20).
 - [x] Milestone 3: the lair + profile save (Nov 24).
+- [x] Milestone 4: Furfur Kemp, lost hunt, invasion, cage, talk, VENT (Nov 26).
+- [ ] Duff: play M4 on the phone; sign off (or rewrite) Furfur's lines, lore and contract clauses (placeholders).
+- [ ] Milestone 5: the Cellar Casino and Gus.
 - [ ] Duff: Flock is fixed (damage on the shadows, no knockback) but still his tune/redesign call.
 - [ ] PR #21: fix "update sheet can open mid-fight" + add a test, then fresh-eyes again.
 

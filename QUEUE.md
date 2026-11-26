@@ -1,21 +1,21 @@
 # Queue
 
 ## NOW
-- Code: Milestones 0-2 are built (M2, The Pews and Vesper, Nov 23, PR #20). Next is Milestone 3
-  (docs/BUILD_SPEC.md): the lair. Start with the M2 carry-overs in tasks/todo.md (profile-level save
-  first). Actions minutes are tight until the monthly reset: batch into one push after all local
-  checks pass, and never push docs-only commits. Duff still owes a look at M1's judgment calls
-  (docs/DECISIONS.md) and should play the M2 build on his phone.
-- Design, in parallel: hero name (asked Nov 20), then the rest of NEXT. Art is locked: ink on 3D (docs/style-guide.md).
+- Code: Milestones 0-4 are built (M4, Furfur Kemp, Nov 26). Next is Milestone 5 (docs/BUILD_SPEC.md):
+  the Cellar Casino and Gus. Actions minutes are tight: batch into one push after all local checks
+  pass, and never push docs-only commits. Duff should play M3 + M4 on his phone and read M4's judgment
+  calls (docs/DECISIONS.md, 2026-11-26).
+- Design, in parallel: the hero's look and day life, then the rest of NEXT. Hero name LOCKED Nov 26:
+  Cain Vantre. Art is locked: ink on 3D (docs/style-guide.md).
 
 ## NEXT (design, no code)
-- Protagonist: name, look, day life.
+- Protagonist: look, day life (name locked: Cain Vantre).
 - Mom: name, hunter past.
 - The hunter/detective on your tail.
 - Endings.
 
 ## LATER
-- Code: Milestones 3-5+ per docs/BUILD_SPEC.md.
+- Code: Milestones 5+ per docs/BUILD_SPEC.md.
 
 ## OPEN QUESTIONS (Duff decides; don't change these until he does)
 Why: when the docs disagree and Duff hasn't picked, no session guesses (docs/DECISIONS.md, Nov 21).

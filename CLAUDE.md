@@ -22,12 +22,24 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   TUNE slider; autoplay now takes real damage with God mode off (spotted, Sermon, Flock, Hands, Choir
   buff, GAME OVER in the church); dead minions stay dead on CONTINUE; Vesper wears his own colour.
 
-## Where things stand (Nov 24, 2026)
+## Where things stand (Nov 26, 2026)
+- **Nov 26: hero name LOCKED: Cain Vantre** (Duff tapped it; Cain Mercer dropped, it echoes
+  Prototype's Alex Mercer).
+- **Nov 26: Milestone 4 built** (Claude, one PR): Furfur Kemp. GAME OVER in a hunt offers LIMP HOME;
+  he follows you into the lair (a fight you can't lose, only win ugly); CHAIN HIM puts him in the cage
+  by the door. The cage station: TALK (one lore leak a night), a cash mercy for a hidden contract
+  clause, READ YOUR CONTRACT (also in the cold room), VENT after a real loss (one extra light-string
+  hit per loss, max 3, +5 corruption). Rules `furfur_rules.gd`, data `furfur.json` +
+  `voices/furfur.json` (writing is placeholder). Judgment calls: docs/DECISIONS.md 2026-11-26.
+  **Next: Milestone 5** (Cellar Casino, Gus), after Duff plays M3 + M4.
+- **Nov 26: browser build** (Duff wanted the same as Lethemoor/Rush): https://duffpowell-commits.github.io/hunter/
+  plays in iPhone Safari, upright or sideways (sideways = smaller text). CI job `web` exports it on
+  every run and force-pushes it to `gh-pages` on main. Web preset: threads off, no COOP/COEP needed.
 - **Nov 25: Godot 4.7.x only** (Duff). CI fails if the engine or `config/features` drifts off 4.7.
 - **Nov 24: Milestone 3 built** (Claude, one PR): profile save (Save v4 + `Profile` autoload), every
   M2-review carry-over, and the lair (trophy wall, workshop, cold room, voice shrine, map room, heat,
   LAIR RAID, three corruption looks). RETURN HOME now opens the lair. Details + judgment calls:
-  docs/DECISIONS.md. **Next: Milestone 4** (Furfur). PR #21 failed fresh-eyes (update sheet can open
+  docs/DECISIONS.md. PR #21 failed fresh-eyes (update sheet can open
   mid-fight); #22 and #12 wait on Duff.
 - **Nov 23: Milestone 2 built** (Grok, ChatGPT and Codex built it across PRs #15-#18; PR #20 is the one
   that merges; Claude did the fresh-eyes fixes). NEW GAME opens The Pews: stalk Vesper, ambush or get

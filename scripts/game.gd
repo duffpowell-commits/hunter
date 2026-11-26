@@ -426,7 +426,7 @@ func _enter_lair() -> void:
 	if arrived:
 		arrived = false
 		var r := LairRules.arrive_home(prof.data, lair, perk)
-		pass FurfurRules.arrive(prof.data, limped, GameData.load_json("furfur"))
+		FurfurRules.arrive(prof.data, limped, GameData.load_json("furfur"))
 		limped = false
 		checkpoint()
 		prof.save()

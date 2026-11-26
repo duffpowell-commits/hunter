@@ -11,6 +11,7 @@ extends Node
 var shots := ""
 var clip := ""                          # --clip=DIR: save a gameplay clip's frames there
 const GameData = preload("res://scripts/game_data.gd")
+const FurfurRules = preload("res://scripts/furfur_rules.gd")
 const CLIP_SECS := 15.0                 # vertical 9:16 (the game is portrait), sized for Shorts/Reels/TikTok
 var failed := false
 var training_arena := false
@@ -374,6 +375,7 @@ func _pews_checks() -> void:
 	await _lair_checks()
 	await _pews_danger_checks()
 	await _brutal_and_raid_checks()
+	await _furfur_checks()
 
 
 ## The parts of The Pews that hurt, with God mode OFF and Vesper's own timers doing the work.
@@ -776,6 +778,165 @@ func _brutal_and_raid_checks() -> void:
 	_check(arena.band == 2 and arena.get_node_or_null("Vein13") != null,
 		"CORRUPTION LOOKS PASS (all three lair looks build: HOME, STAINED, HELLMOUTH)")
 	arena.rig.distance = 7.5
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
+	await _wait_scene("Title")
+
+
+# ---------------------------------------------------------------- Hunter M4: Furfur Kemp
+
+## Drop any line in the dialogue box: it sits on top and can take a tap meant for a sheet.
+func _hush(game: Node) -> void:
+	var box := game.get_node_or_null("VoiceBox")
+	if box != null:
+		box.free()
+
+
+## The lost hunt (DESIGN): die in the Pews, LIMP HOME, Furfur follows you in, you drop and get back
+## up (God mode OFF, his real hits), beat him with pad taps, CHAIN HIM. Then the cage: TALK, a
+## mercy for a contract clause, VENT after the real losses, and the new hit at the end of the string.
+func _furfur_checks() -> void:
+	await _click("NEW GAME")
+	await _wait_scene("Game")
+	var game := get_tree().current_scene
+	var arena = game.arena
+	var prof: Dictionary = get_node("/root/Profile").data
+	await _frames(25)
+	get_node("/root/DebugMenu").god_mode = false
+	prof.heat = 0                      # staging: keep a raid out of this run
+	var fails0 := int(prof.failures_unvented)
+	_check(FurfurRules.stage(prof) == "none" and fails0 >= 1, "FURFUR NOT YET PASS (no Furfur before the lost hunt; %d real loss so far)" % fails0)
+	# The hunt goes wrong: a blow Cain can't take (the church's own deaths are checked above).
+	arena._damage_hero(arena.hp, arena.hero.global_position + Vector3(0, 0, 1))
+	var by := Time.get_ticks_msec() + 5000
+	while not game.over and Time.get_ticks_msec() < by:
+		await get_tree().process_frame
+	await _frames(3)
+	_check(game.over and _find("LIMP HOME") != null and int(prof.failures_unvented) == fails0 + 1,
+		"FURFUR LOST HUNT PASS (GAME OVER in the Pews offers LIMP HOME; real losses %d)" % int(prof.failures_unvented))
+	await _shot("furfur_limp_home")
+	await _click("LIMP HOME")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	prof = get_node("/root/Profile").data
+	await _frames(10)
+	arena.rig.cam.make_current()
+	_check(game.where == "lair" and FurfurRules.stage(prof) == "invading" and _find("FIGHT") != null
+		and arena.hp < arena.max_hp, "FURFUR LIMP HOME PASS (home at %d/%d HP, and he followed the blood)" % [arena.hp, arena.max_hp])
+	await _shot("furfur_intro")
+	await _click("FIGHT")
+	await _frames(5)
+	_check(arena.invasion_active and not arena.furfur_foe().is_empty() and str(arena.status_text()).begins_with("FURFUR KEMP")
+		and game.last_voice_kind == "furfur_invade", "FURFUR INVASION PASS (he's in the lair: %s)" % arena.status_text())
+	# Win ugly: his real hits drop Cain, who gets back up; Furfur heals a little.
+	arena.hp = 1
+	var f: Dictionary = arena.furfur_foe()
+	by = Time.get_ticks_msec() + 15000
+	while arena.knockdowns == 0 and not game.over and Time.get_ticks_msec() < by:
+		f = arena.furfur_foe()
+		if not arena.hero.dead and arena.hero.global_position.distance_to(f.actor.global_position) > 1.6:
+			_place(arena.hero, f.actor.global_position + Vector3(0, 0.05, -1.4), 0.0)
+		await _frames(5)
+	await _frames(5)
+	await _shot("furfur_fight")
+	_check(arena.knockdowns == 1 and not game.over and not arena.hero.dead and arena.hp > 1 and arena.invasion_active,
+		"FURFUR WIN UGLY PASS (he dropped Cain; back up at %d HP, no GAME OVER)" % arena.hp)
+	# Staging: his HP down to a few hits, so the bot's taps finish the fight in seconds.
+	var i: int = arena._foes.find(arena.furfur_foe())
+	arena._foes[i].hp = 24.0
+	var beaten := [false]
+	arena.furfur_beaten.connect(func(): beaten[0] = true)
+	var point := _pad_point(game)
+	by = Time.get_ticks_msec() + 40000
+	while arena.invasion_active and not beaten[0] and Time.get_ticks_msec() < by:
+		f = arena.furfur_foe()
+		if f.is_empty() or f.dead:
+			break
+		if arena.hero.global_position.distance_to(f.actor.global_position) > 1.3:
+			var to: Vector3 = f.actor.global_position - arena.hero.global_position
+			arena.bot_stick = Vector2(to.x, to.z).normalized()
+			await _physics(3)
+			continue
+		arena.bot_stick = Vector2.INF
+		_mouse(point, true)
+		_mouse(point, false)
+		await _secs(0.35)
+	arena.bot_stick = Vector2.INF
+	await _frames(5)
+	# A tap already on its way can land on CHAIN HIM as the sheet pops up (it's under the pad):
+	# that is the same choice, so either way he must end up chained.
+	_check(beaten[0] and not arena.invasion_active and (_find("CHAIN HIM") != null or FurfurRules.caged(prof)),
+		"FURFUR BEATEN PASS (pad taps put him down)")
+	await _shot("furfur_beaten")
+	if _find("CHAIN HIM") != null:
+		await _click("CHAIN HIM")
+	await _frames(5)
+	_check(FurfurRules.caged(prof) and arena.caged_furfur != null and str(game.last_voice_kind).begins_with("furfur_"),
+		"FURFUR CHAIN PASS (he's caged, corruption %d)" % int(prof.corruption))
+	_hush(game)
+	await _at_station(arena, "cage")
+	await _shot("furfur_cage")
+	await _click("FURFUR'S CAGE")
+	await _click("TALK")
+	await _frames(3)
+	_hush(game)
+	_check(int(prof.furfur_lore) == 1 and _has_any_disabled("HE'S DONE TALKING TONIGHT"),
+		"FURFUR TALK PASS (one lore leak a night: %d heard)" % int(prof.furfur_lore))
+	var cash0 := int(prof.cash)
+	await _click("GIVE ")
+	await _frames(3)
+	_hush(game)
+	_check(int(prof.clauses_read) == 1 and int(prof.cash) == cash0 - int(GameData.load_json("furfur").cage.mercy_cost),
+		"FURFUR MERCY PASS (a mercy for $%d: clause read)" % (cash0 - int(prof.cash)))
+	await _click("READ YOUR CONTRACT")
+	await _shot("furfur_contract")
+	_check(_has_label(str(GameData.load_json("furfur").contract.hidden[0])) and _has_label("[ CLAUSE IN SMALL PRINT YOU CAN'T READ ]"),
+		"FURFUR CONTRACT PASS (the clause he read is in your contract; the rest stay hidden)")
+	await _click("CLOSE")
+	await _shot("furfur_talk_menu")
+	# VENT, once per real loss.
+	var base: int = GameData.load_json("moves").light.size()
+	var fails := int(prof.failures_unvented)
+	for k in fails:
+		await _click("VENT: LEARN")
+		await _secs(0.7)
+		_hush(game)
+		if k < fails - 1:
+			await _click("FURFUR'S CAGE")
+	await _click("FURFUR'S CAGE")
+	_check(int(prof.vent_unlocks) == mini(fails, 3) and int(prof.failures_unvented) == maxi(0, fails - 3)
+		and _has_any_disabled("VENT: ONLY AFTER A REAL LOSS") and arena.moves.light.size() == base + int(prof.vent_unlocks),
+		"FURFUR VENT PASS (%d real losses, %d VENTs, then it's shut: string now %d hits)" % [fails, int(prof.vent_unlocks), arena.moves.light.size()])
+	await _click("CLOSE")
+	# The new hit really comes out of the pad: L, L, L, ELBOW. Out in the aisle first: by a station
+	# the context button sits over the pad, and a tap there opens the station instead.
+	_place(arena.hero, Vector3(0, 0.05, -1.5), PI)
+	await _physics(3)
+	await _frames(3)
+	var ids: Array = []
+	for k in base + 1:
+		by = Time.get_ticks_msec() + 2000
+		while not arena._free() and Time.get_ticks_msec() < by:
+			await get_tree().process_frame
+		_mouse(point, true)
+		_mouse(point, false)
+		await _frames(4)
+		ids.append(str(arena._move.get("id", "")))
+	_check(ids[-1] == "elbow", "VENT STRING PASS (pad taps walk the longer string: %s)" % ", ".join(ids))
+	# Quit and CONTINUE: still caged, and he mocks you on the way in.
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
+	await _wait_scene("Title")
+	await _click("CONTINUE")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	await _frames(10)
+	prof = get_node("/root/Profile").data
+	_check(FurfurRules.caged(prof) and arena.caged_furfur != null and str(game.last_voice_kind).begins_with("furfur_")
+		and _find("FIGHT") == null, "FURFUR CAGE PASS (CONTINUE: he's still caged and mocks you: %s)" % game.last_voice_kind)
+	await _shot("furfur_mocks")
 	await _click("PAUSE")
 	await _click("QUIT TO TITLE")
 	await _wait_scene("Title")
