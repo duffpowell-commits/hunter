@@ -39,7 +39,8 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   `voices/furfur.json` (writing is placeholder). Judgment calls: docs/DECISIONS.md 2026-11-26.
   **Next: Milestone 5** (Cellar Casino, Gus), after Duff plays M3 + M4.
 - **Nov 26: browser build** (Duff wanted the same as Lethemoor/Rush): https://duffpowell-commits.github.io/hunter/
-  plays in iPhone Safari, upright or sideways (sideways = smaller text). CI job `web` exports it on
+  plays in iPhone Safari, upright or sideways (sideways = smaller text), **once Duff turns on Pages**
+  (Settings -> Pages -> branch gh-pages, /root); until then the link is a 404. CI job `web` exports it on
   every run and force-pushes it to `gh-pages` on main. Web preset: threads off, no COOP/COEP needed.
 - **Nov 25: Godot 4.7.x only** (Duff). CI fails if the engine or `config/features` drifts off 4.7.
 - **Nov 24: Milestone 3 built** (Claude, one PR): profile save (Save v4 + `Profile` autoload), every

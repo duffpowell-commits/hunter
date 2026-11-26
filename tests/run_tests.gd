@@ -1531,3 +1531,33 @@ func test_first_hunt_prompt_survives_rebuild() -> void:
 	for n in [t, ui, a]:
 		n.queue_free()
 	await process_frame
+
+
+## PR #30 review note: guided prompts hide while a sheet (pause, settings, GAME OVER) is open.
+func test_first_hunt_prompt_hides_behind_sheets() -> void:
+	var Coach = preload("res://scripts/coach.gd")
+	Coach.forget_all()
+	var PewsArena = preload("res://scripts/pews_arena.gd")
+	var FirstHunt = preload("res://scripts/first_hunt.gd")
+	var a = PewsArena.new()
+	root.add_child(a)
+	var ui := Control.new()
+	root.add_child(ui)
+	var t = FirstHunt.new()
+	t.arena = a
+	t.ui_parent = ui
+	root.add_child(t)
+	await process_frame
+	await process_frame
+	check(ui.has_node("Coach_hunt_move") and ui.get_node("Coach_hunt_move").visible, "the first prompt shows")
+	var sheet: Control = UI.sheet(ui)
+	await process_frame
+	check(not ui.get_node("Coach_hunt_move").visible, "a sheet hides the prompt")
+	UI.close_sheet(sheet)
+	await process_frame
+	await process_frame
+	check(ui.get_node("Coach_hunt_move").visible, "closing the sheet brings it back")
+	Coach.forget_all()
+	for n in [t, ui, a]:
+		n.queue_free()
+	await process_frame

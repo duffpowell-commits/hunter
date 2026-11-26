@@ -274,7 +274,7 @@ func _refresh_hud() -> void:
 			"\n" + status if not status.is_empty() else ""]
 	if explainer != null:
 		var vals := {"cash": int(p.cash), "heat": int(p.heat), "parts": int(p.parts), "corruption": int(p.corruption)}
-		if where == "pews" and not bool(arena.get("encounter_started")):
+		if where == "pews" and arena.get("encounter_started") != true:
 			vals["study"] = int(arena.rules.studied) / 10
 		if arena.combat.weapon != "":
 			vals["wear"] = arena.combat.durability

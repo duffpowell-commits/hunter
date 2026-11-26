@@ -7,6 +7,8 @@ extends Control
 ## Why (Hunter M1, Nov 21): one thumb plays the whole moveset; gestures are pure logic in
 ## classify() so tests check them without a screen.
 
+const UI = preload("res://scripts/ui.gd")
+
 signal gesture(kind: String, swipe: Vector2)
 
 var hold_time := 0.3
@@ -85,9 +87,11 @@ func _draw() -> void:
 	draw_circle(c, 70, Color(0, 0, 0, 0.22))
 	draw_arc(c, 70, 0, TAU, 48, Color(1, 1, 1, 0.35), 4.0)
 	_draw_fist(c + Vector2(0, -12), Color(1, 1, 1, 0.55))
+	# Text size and high contrast apply here too (UI.font_size / UI.contrast).
 	var font := ThemeDB.fallback_font
-	draw_string(font, c + Vector2(-70, 40), "ATTACK", HORIZONTAL_ALIGNMENT_CENTER, 140, 20, Color(1, 1, 1, 0.7))
-	draw_string(font, c + Vector2(-140, 100), "TAP  ·  HOLD  ·  2× TAP  ·  SWIPE", HORIZONTAL_ALIGNMENT_CENTER, 280, 15, Color(1, 1, 1, 0.45))
+	var hc := UI.contrast()
+	draw_string(font, c + Vector2(-90, 40), "ATTACK", HORIZONTAL_ALIGNMENT_CENTER, 180, UI.font_size(20), Color(1, 1, 1, 1.0 if hc else 0.7))
+	draw_string(font, c + Vector2(-180, 100), "TAP  ·  HOLD  ·  2× TAP  ·  SWIPE", HORIZONTAL_ALIGNMENT_CENTER, 360, UI.font_size(15), Color(1, 1, 1, 0.9 if hc else 0.45))
 	if _finger != -1:
 		var held := (Time.get_ticks_msec() - _t0) / 1000.0
 		draw_arc(_start, 50, -PI / 2, -PI / 2 + TAU * clampf(held / hold_time, 0.0, 1.0), 40, Color(1, 1, 1, 0.5), 6.0)

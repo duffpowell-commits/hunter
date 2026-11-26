@@ -68,7 +68,7 @@ func _check(id: String) -> bool:
 
 
 func _has_target() -> bool:
-	if bool(arena.get("encounter_started")):
+	if arena.get("encounter_started") == true:
 		return true
 	for foe in arena._foes:
 		if not foe.dead and arena.hero.global_position.distance_to(foe.actor.global_position) < 4.5:
@@ -100,7 +100,7 @@ func _process(dt: float) -> void:
 	if bool(step[2]) and not _has_target():
 		return
 	# Sneaking only makes sense before he's seen you; skip it once the fight is on.
-	if step[0] == "hunt_sneak" and bool(arena.get("encounter_started")):
+	if step[0] == "hunt_sneak" and arena.get("encounter_started") == true:
 		_learn(step[0])
 		return
 	if next != _step:

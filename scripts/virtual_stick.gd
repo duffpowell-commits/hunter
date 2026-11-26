@@ -62,7 +62,7 @@ func _draw() -> void:
 		var c := size * Vector2(0.5, 0.62)
 		draw_arc(c, 60, 0, TAU, 40, Color(1, 1, 1, 0.22), 3.0)
 		draw_circle(c, 24, Color(1, 1, 1, 0.18))
-		draw_string(ThemeDB.fallback_font, c + Vector2(-60, 92), "MOVE", HORIZONTAL_ALIGNMENT_CENTER, 120, 20, Color(1, 1, 1, 0.55))
+		draw_string(ThemeDB.fallback_font, c + Vector2(-60, 92), "MOVE", HORIZONTAL_ALIGNMENT_CENTER, 120, UI.font_size(20), Color(1, 1, 1, 1.0 if UI.contrast() else 0.55))
 		return
 	draw_circle(_origin, RADIUS, Color(1, 1, 1, 0.08))
 	draw_arc(_origin, RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.3), 3.0)
