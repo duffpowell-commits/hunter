@@ -52,7 +52,7 @@ static func open(parent: Node) -> VBoxContainer:
 	return box
 
 
-const FOX_CREDIT := "Fox model: PixelMannen (CC0). Rig and animation: tomkranis. glTF: AsoboStudio and scurest (CC-BY 4.0)."
+const FOX_CREDIT := "Vig the fox, model: PixelMannen (CC0). Rig and animation: tomkranis (CC-BY 4.0). glTF: AsoboStudio and scurest (CC-BY 4.0)."
 
 
 static func _open_credits(parent: Node) -> void:

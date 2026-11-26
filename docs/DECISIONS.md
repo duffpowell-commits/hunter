@@ -15,7 +15,7 @@
   - Model: free CC0 Khronos fox, recoloured (no Meshy credits spent). It has no sit/sleep clips, so
     it idles with its look-around clip; a custom model is a later Meshy card if Duff wants one.
   - B's two blood-red eyes aren't on the model yet (the texture's eyes are dark); the third eye is.
-  - Name: placeholder FOX.
+  - Name: **Vig** (Duff tapped it, Nov 26: the interest on a debt; it ties into the Casino).
 
 ## 2026-11-26: free-flow combat + predator stealth (Claude)
 Duff, Nov 26 10:00 AM CT: "The fighting isn't very fluid, and most breaks as you go, its too hard to

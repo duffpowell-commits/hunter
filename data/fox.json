@@ -1,6 +1,6 @@
 {
-  "_why": "Cain's pet, the three-eyed fox (Duff, Nov 26; look B). Every number has a TUNE slider in lair_tuning.gd. Placeholder name until Duff names it.",
-  "name": "FOX",
+  "_why": "Cain's pet, the three-eyed fox (Duff, Nov 26; look B). Every number has a TUNE slider in lair_tuning.gd. Named Vig by Duff (Nov 26): the interest on a debt.",
+  "name": "Vig",
   "scale": 0.0075,
   "fight_distance": 4.5,
   "walk_speed": 2.6,

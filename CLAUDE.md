@@ -25,7 +25,7 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
 ## Where things stand (Nov 26, 2026)
 - **Studio mascot (Duff, Nov 26): here the three-eyed fox is Cain's pet**, not the usual cameo (every
   other game gets a rare cameo). Art B approved; built Nov 26 (`fox_pet.gd`: follows Cain, its third
-  eye is Demon Sight, greets him in the lair). Name still Duff's call. Details: `docs/MASCOT.md`.
+  eye is Demon Sight, greets him in the lair). **Name: Vig** (Duff, Nov 26). Details: `docs/MASCOT.md`.
 - **Any AI picking this up: start at docs/HANDOFF.md** (current state, next steps, gotchas, running
   log). Duff, Nov 26: "keep logs for another ai to build where you stop". Update it in every PR.
 - **Nov 26: free-flow combat + predator stealth** (Claude, one PR; Duff tapped "Buttons + swipe
