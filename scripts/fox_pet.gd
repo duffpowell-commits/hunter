@@ -115,7 +115,9 @@ func eye_glow() -> float:
 func in_fight() -> bool:
 	if arena == null:
 		return false
-	if arena.get("raid_active") == true or arena.get("invasion_active") == true or arena.get("encounter_started") == true:
+	if arena.get("raid_active") == true or arena.get("invasion_active") == true:
+		return true
+	if arena.get("encounter_started") == true and arena.get("boss_defeated") != true:
 		return true
 	for f: Dictionary in arena.get("_foes") if arena.get("_foes") != null else []:
 		if not f.dead and f.aggro:
@@ -205,6 +207,8 @@ func goal_point() -> Vector3:
 		var other := hp + Vector3(-side * want, 0, 0.35)
 		if not arena.blocked(other, 0.25):
 			goal = other
+		else:
+			goal = hp + Vector3(0, 0, 0.6)   # both sides walled: just behind him, toward the camera
 	goal.y = global_position.y
 	return goal
 
@@ -260,7 +264,11 @@ func _try_yip() -> void:
 			return
 
 
+## A yip: a high placeholder chirp (works with subtitles off) plus the caption.
 func _cue(text: String) -> void:
+	var audio := get_node_or_null("/root/Audio")
+	if audio != null:
+		audio.sfx("good", 1.9, -4.0)
 	var subs := get_node_or_null("/root/Subs")
 	if subs != null:
 		subs.cue(text)

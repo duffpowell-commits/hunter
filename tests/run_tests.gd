@@ -1835,6 +1835,9 @@ func test_fox_pet_follows_and_sees() -> void:
 	a.sneak = false
 	a.encounter_started = true
 	check(fox.follow_distance() == float(fox.cfg().fight_distance), "in a fight it hangs back")
+	a.boss_defeated = true
+	check(fox.follow_distance() < float(fox.cfg().fight_distance), "Vesper dead: it comes back to Cain's side")
+	check(preload("res://scripts/settings_sheet.gd").FOX_CREDIT.contains("CC-BY"), "the fox's CC-BY credit is in the game")
 	a.hero.global_position += Vector3(40.0, 0, 0)
 	fox._process(0.1)
 	check(fox.global_position.distance_to(a.hero.global_position) < 6.0, "left far behind, it catches up at once")

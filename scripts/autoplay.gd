@@ -84,6 +84,7 @@ func _run() -> void:
 	await _click("SETTINGS")
 	await _click("CREDITS")
 	_check(_has_label("Published by 3 Eyed Fox Studios"), "PUBLISHER CREDITS PASS")
+	_check(_has_label(preload("res://scripts/settings_sheet.gd").FOX_CREDIT), "FOX CREDITS PASS (the CC-BY fox credit is on the CREDITS sheet)")
 	await _click("DONE")
 	await _click("DONE")
 	# Verify the approved title and portrait canvas.
