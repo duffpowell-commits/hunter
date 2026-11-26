@@ -48,7 +48,7 @@ static func game_title() -> String:
 ## "v0.1.42" in a CI build, "dev" in the editor. Shown on the title screen.
 static func version_label() -> String:
 	var c := build_code()
-	return "v0.1.%d" % c if c > 0 else "dev"
+	return "v0.1.%d" % c if c > 0 else "v0.1"
 
 
 ## Dev-only tools (debug menu): debug exports (the dev APK) and the editor. Never a release export.

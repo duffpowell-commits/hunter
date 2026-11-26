@@ -23,6 +23,12 @@ Why the import (Nov 21): Claude Code skips AGENTS.md when CLAUDE.md exists unles
   buff, GAME OVER in the church); dead minions stay dead on CONTINUE; Vesper wears his own colour.
 
 ## Where things stand (Nov 26, 2026)
+- **Any AI picking this up: start at docs/HANDOFF.md** (current state, next steps, gotchas, running
+  log). Duff, Nov 26: "keep logs for another ai to build where you stop". Update it in every PR.
+- **Nov 26: the 8.5 pass** (Claude, one PR; Duff's new bar: plan to an 8.5 blind first-timer review,
+  OK once, build in one pass). First-timer scored M4 4.5/10. Built all 8: guided first hunt, camera
+  rises over walls, HP bars + breakable heal tell + soft aim, real cold open + goal, readable lair,
+  one-line explainers, title key art, newest-only captions. Details: docs/DECISIONS.md.
 - **Nov 26: hero name LOCKED: Cain Vantre** (Duff tapped it; Cain Mercer dropped, it echoes
   Prototype's Alex Mercer).
 - **Nov 26: Milestone 4 built** (Claude, one PR): Furfur Kemp. GAME OVER in a hunt offers LIMP HOME;

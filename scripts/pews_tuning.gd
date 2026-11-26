@@ -61,6 +61,9 @@ const PATHS := {
 	"clean_parts": ["finishers", "clean", "parts"],
 	"brutal_corruption": ["finishers", "brutal", "corruption"],
 	"brutal_parts": ["finishers", "brutal", "parts"],
+	# Nov 26 (8.5 pass): minions wait until you're close; a hit breaks Vesper's heal.
+	"minion_aggro_radius": ["minions", "aggro_radius"],
+	"hands_interrupt": ["boss", "moves", "laying_of_hands", "interrupt"],
 }
 const TUNE := {
 	"study_radius": [2.0, 12.0], "view_cone_degrees": [20.0, 120.0],
@@ -87,6 +90,7 @@ const TUNE := {
 	"plate_cash": [0.0, 100.0, 1.0], "plate_heat": [0.0, 40.0, 1.0],
 	"clean_corruption": [0.0, 40.0, 1.0], "clean_parts": [0.0, 30.0, 1.0],
 	"brutal_corruption": [0.0, 40.0, 1.0], "brutal_parts": [0.0, 30.0, 1.0],
+	"minion_aggro_radius": [0.0, 12.0], "hands_interrupt": [0.0, 1.0, 1.0],
 }
 
 var config: Dictionary

@@ -78,10 +78,25 @@ func _process(_dt: float) -> void:
 
 
 func _draw() -> void:
-	# A faint home for the thumb, and a ring that fills while a heavy charges.
+	# A home for the thumb, and a ring that fills while a heavy charges.
+	# Nov 26 (8.5 pass): it was a faint empty ring; the first-timer never knew it was the attack
+	# button. Now: a fist mark, ATTACK, and the gestures in one line under it.
 	var c := size * Vector2(0.5, 0.62)
-	draw_arc(c, 70, 0, TAU, 40, Color(1, 1, 1, 0.12), 3.0)
+	draw_circle(c, 70, Color(0, 0, 0, 0.22))
+	draw_arc(c, 70, 0, TAU, 48, Color(1, 1, 1, 0.35), 4.0)
+	_draw_fist(c + Vector2(0, -12), Color(1, 1, 1, 0.55))
+	var font := ThemeDB.fallback_font
+	draw_string(font, c + Vector2(-70, 40), "ATTACK", HORIZONTAL_ALIGNMENT_CENTER, 140, 20, Color(1, 1, 1, 0.7))
+	draw_string(font, c + Vector2(-140, 100), "TAP  ·  HOLD  ·  2× TAP  ·  SWIPE", HORIZONTAL_ALIGNMENT_CENTER, 280, 15, Color(1, 1, 1, 0.45))
 	if _finger != -1:
 		var held := (Time.get_ticks_msec() - _t0) / 1000.0
 		draw_arc(_start, 50, -PI / 2, -PI / 2 + TAU * clampf(held / hold_time, 0.0, 1.0), 40, Color(1, 1, 1, 0.5), 6.0)
 		draw_line(_start, _now, Color(1, 1, 1, 0.35), 4.0)
+
+
+## A blocky fist: four knuckles over a palm, drawn in code (no art asset needed).
+func _draw_fist(at: Vector2, col: Color) -> void:
+	for i in 4:
+		draw_rect(Rect2(at + Vector2(-26 + i * 13, -22), Vector2(11, 14)), col)
+	draw_rect(Rect2(at + Vector2(-26, -6), Vector2(50, 22)), col)
+	draw_rect(Rect2(at + Vector2(-34, -4), Vector2(10, 14)), col)

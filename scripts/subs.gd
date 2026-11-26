@@ -2,7 +2,10 @@ extends CanvasLayer
 ## Autoload "Subs": captions at the bottom of the screen.
 ##   Subs.say("Mara: Get down!")   spoken lines (only when the Subtitles setting is on)
 ##   Subs.cue("[door slams]")      important sounds; also only with Subtitles on
-## Lines queue up; each shows for about a second plus a bit per word.
+## Newest wins (Nov 26, 8.5 pass): the blind first-timer read captions seconds after the sound,
+## piled up behind each other. Now at most one line waits; a new one replaces it, and it cuts in
+## once the line on screen has been up for MIN_SHOW. Spoken lines (not "[...]" cues) always run their
+## full time, so a sound cue never wipes dialogue. Cleared on scene change and on death.
 
 const UI = preload("res://scripts/ui.gd")
 
@@ -10,6 +13,9 @@ var _queue: Array[String] = []
 var _label: Label
 var _bg: PanelContainer
 var _left := 0.0
+var _shown := 0.0
+var _spoken := false                  # the line up is dialogue: it runs its full time, cues wait
+const MIN_SHOW := 0.45
 
 
 func _ready() -> void:
@@ -43,6 +49,7 @@ func say(line: String) -> void:
 	var s := get_node_or_null("/root/Settings")
 	if s != null and not s.get_value("subtitles"):
 		return
+	_queue.clear()
 	_queue.append(line)
 
 
@@ -61,6 +68,9 @@ func showing() -> String:
 
 
 func _process(dt: float) -> void:
+	_shown += dt
+	if _left > 0.0 and _queue.size() > 0 and _shown >= MIN_SHOW and not _spoken:
+		_left = 0.0
 	if _left > 0.0:
 		_left -= dt
 		if _left <= 0.0:
@@ -71,4 +81,6 @@ func _process(dt: float) -> void:
 		_label.add_theme_font_size_override("font_size", UI.font_size(22))
 		_label.add_theme_color_override("font_color", UI.ink())
 		_bg.visible = true
+		_shown = 0.0
+		_spoken = not line.begins_with("[")
 		_left = 1.2 + 0.3 * line.split(" ").size()

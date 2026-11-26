@@ -1,5 +1,39 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-26: the 8.5 pass, first-timer fixes before M5 (Claude)
+Duff set a new bar (Nov 26): before building more, plan what it takes for a blind first-time player
+to score the game 8.5, OK it once, build it in one pass. A blind first-timer played the browser
+build for ~30 min and scored it **4.5/10** (no controls, no goal, a camera that dove into the hero,
+an ambush at spawn, an unreadable heal, template intro cards, a dark lair). Duff tapped "Build all 8".
+1. **Guided first hunt** (`first_hunt.gd`): Coach prompts one at a time, gone once done: DRAG TO
+   MOVE, TILT LIGHTLY TO SNEAK, then (once someone's in reach) TAP TO ATTACK, HOLD FOR HEAVY,
+   DOUBLE-TAP TO DODGE, SWIPE FOR SPECIAL. Saved in coach.cfg, so a second hunt shows none. The pad
+   shows a fist, ATTACK and "TAP · HOLD · 2× TAP · SWIPE"; the stick side shows MOVE.
+   Minions stand still until you come within `minions.aggro_radius` (3.2 m), hit them, or Vesper's
+   fight starts (base foe AI; the lair raid and Furfur have no aggro_radius, so they're unchanged).
+2. **Camera** (`camera_rig.gd`): a wall now tilts the camera up (to `max_pitch` 82) instead of
+   pulling it in front of the wall; last resort still never comes within `min_distance` (4 m). It
+   looks at the smoothed point it follows, so it never turns.
+3. **Fair first boss**: billboard HP bars over minions and Vesper; Laying of Hands shows a green
+   "+ HEALING" for 1.4 s (was 0.6 s and a red "!"), a "+18" pops when it lands, and **one hit breaks
+   it** (`laying_of_hands.interrupt`, slider). Soft aim: in the fight a swing turns to the nearest
+   enemy (Vesper or a minion); `arena.auto_face` 3.0 -> 3.6.
+4. **Cold open** (`intro.gd`): four cards (born dying / Mom's deal with Samael Price / you collect
+   for him / first name: BROTHER VESPER). The HUD in the Pews reads "GOAL: HUNT VESPER  STUDY n%".
+   Writing is placeholder until Duff signs it off.
+5. **Lair**: brighter ambient and sun, a lit ring at every station, bigger labels, a bobbing NEXT
+   HUNT over the map room when nothing's pending, a one-time MAP ROOM: NEXT HUNT prompt. The context
+   button moved from over the middle of the pad to the top of the pad half (it ate attack taps).
+6. **Explainers** (`explainer.gd`): the first time $, HEAT, PARTS, CORR, STUDY or weapon wear
+   changes, one line explains it, once ever (explain.cfg).
+7. **Title**: Brother Vesper key art (docs/art/explore-20261120/vesper-ink-0.png, green keyed out,
+   `assets/art/title_vesper.png`), a tagline, the menu anchored to the bottom; local builds say
+   "v0.1", not "dev".
+8. **Captions**: newest wins; a waiting line cuts in after 0.45 s; cleared on death and GAME OVER.
+Also: the fresh-eyes nits from M4 (pipefail on the web export, token via env).
+Tests 71/71 (6 new), autoplay adds SAFE START, GUIDED HUNT, HP BAR, PAD CLEAR, HEAL TELL, COLD OPEN,
+TITLE ART, EXPLAINER and LAIR READ. Next: a second blind first-timer review, scored against 8.5.
+
 ## 2026-11-26: Milestone 4, Furfur Kemp (Claude); hero name Cain Vantre
 Duff tapped **Cain Vantre** for the hero (Nov 26). "Cain Mercer" was dropped because it echoes Alex
 Mercer of Prototype, a hero whose powers also come from eating enemies. It is in BUILD_SPEC, DESIGN,

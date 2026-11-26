@@ -51,12 +51,14 @@ func _build_world() -> void:
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = Color("0e0b10")
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_env.ambient_light_energy = 0.65
+	# Nov 26 (8.5 pass): the first-timer found the lair too dark to read. Brighter ambient + sun,
+	# a lit ring at every station, bigger labels, and a NEXT HUNT marker over the map room.
+	_env.ambient_light_energy = 1.05
 	we.environment = _env
 	add_child(we)
 	_sun = DirectionalLight3D.new()
 	_sun.rotation = Vector3(deg_to_rad(-58), deg_to_rad(-30), 0)
-	_sun.light_energy = 1.1
+	_sun.light_energy = 1.4
 	_sun.shadow_enabled = not low
 	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	_sun.directional_shadow_max_distance = 22.0
@@ -77,6 +79,10 @@ func _build_world() -> void:
 	_build_shrine(GameData.vec3(lay.stations.voices))
 	_build_map_room(GameData.vec3(lay.stations.map_room))
 	_build_cage(GameData.vec3(lay.stations.cage))
+	for id in lay.stations:
+		var ring := _glow_ring(GameData.vec3(lay.stations[id]) + Vector3(0, 0.03, 0), 0.8)
+		ring.name = "Marker_" + str(id)
+	_build_next_marker(GameData.vec3(lay.stations.map_room))
 	for i in lay.trap_spots.size():
 		var plate := _ink_disc(GameData.vec3(lay.trap_spots[i]) + Vector3(0, 0.01, 0), 0.5, Color("2f2a2c"))
 		plate.name = "TrapSpot%d" % i
@@ -237,12 +243,70 @@ func _ink_disc(at: Vector3, r: float, c: Color) -> MeshInstance3D:
 func _label(text: String, at: Vector3) -> void:
 	var l := Label3D.new()
 	l.text = text
-	l.font_size = 36
-	l.outline_size = 10
+	l.font_size = 52
+	l.outline_size = 16
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.modulate = Color("e9e4d8")
+	l.modulate = Color("f3d9a4")
 	l.position = at
 	add_child(l)
+
+
+## A flat lit ring on the floor: "stand here" for a station. Unshaded, so it reads in every look.
+func _glow_ring(at: Vector3, r: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = r - 0.09
+	tm.outer_radius = r
+	tm.rings = 24
+	tm.ring_segments = 6
+	mi.mesh = tm
+	mi.scale = Vector3(1, 0.15, 1)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color("e8a33d")
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = at
+	add_child(mi)
+	return mi
+
+
+var next_marker: Node3D               # bobbing NEXT HUNT over the map room (8.5 pass)
+
+
+func _build_next_marker(at: Vector3) -> void:
+	next_marker = Node3D.new()
+	next_marker.name = "NextHunt"
+	next_marker.position = at + Vector3(0, 2.3, 0)
+	add_child(next_marker)
+	var l := Label3D.new()
+	l.text = "NEXT HUNT"
+	l.font_size = 60
+	l.outline_size = 18
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.modulate = UI.key("warn")
+	l.position = Vector3(0, 0.55, 0)
+	next_marker.add_child(l)
+	var arrow := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.28
+	cm.bottom_radius = 0.0
+	cm.height = 0.45
+	cm.radial_segments = 4
+	arrow.mesh = cm
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = UI.key("warn")
+	arrow.material_override = mat
+	next_marker.add_child(arrow)
+
+
+## The lair is quiet: no raid, no invasion, nothing pending. Then the map room is what's next.
+func idle() -> bool:
+	var prof_ := get_node_or_null("/root/Profile")
+	return not raid_active and not invasion_active and prof_ != null \
+		and not bool(prof_.data.get("raid_pending", false)) and FurfurRules.stage(prof_.data) != "invading"
 
 
 func _build_portal(at: Vector3) -> void:
@@ -373,6 +437,9 @@ func _build_map_room(at: Vector3) -> void:
 
 func _process(dt: float) -> void:
 	super._process(dt)
+	if next_marker != null:
+		next_marker.visible = idle()
+		next_marker.position.y = 2.3 + 0.12 * sin(Time.get_ticks_msec() * 0.004)
 	_near_station = ""
 	_near_trap = -1
 	if raid_active or invasion_active or hero.dead:
