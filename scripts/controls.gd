@@ -11,8 +11,10 @@ const DEADZONE := 0.25
 const ACTIONS := {
 	"move_left": "MOVE LEFT", "move_right": "MOVE RIGHT", "move_up": "MOVE UP", "move_down": "MOVE DOWN",
 	"jump": "JUMP", "attack": "ATTACK", "dodge": "DODGE", "crouch": "CROUCH", "aim": "AIM", "pause": "PAUSE",
-	"heavy": "HEAVY", "special": "SPECIAL",
+	"heavy": "HEAVY", "special": "SPECIAL", "counter": "COUNTER", "sight": "DEMON SIGHT",
 }
+## Why counter + sight (Hunter free-flow, Nov 26 fresh-eyes): standards/06, every action on keys and
+## pad. SNEAK uses the existing CROUCH action.
 ## Why heavy + special (Hunter M1, Nov 21 review): every Hunter move must work on keyboard and pad
 ## (standards/06). SPECIAL + stick direction picks toward / away / up / down, like a swipe.
 
@@ -67,6 +69,8 @@ static func defaults(action: String) -> Array:
 		"pause": return [_key(KEY_ESCAPE), _btn(JOY_BUTTON_START)]
 		"heavy": return [_key(KEY_I), _btn(JOY_BUTTON_RIGHT_SHOULDER)]
 		"special": return [_key(KEY_O), _axis(JOY_AXIS_TRIGGER_RIGHT, 1.0)]
+		"counter": return [_key(KEY_U), _btn(JOY_BUTTON_LEFT_SHOULDER)]
+		"sight": return [_key(KEY_V), _btn(JOY_BUTTON_LEFT_STICK)]
 	return []
 
 

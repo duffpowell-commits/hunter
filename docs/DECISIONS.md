@@ -1,5 +1,37 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-26: free-flow combat + predator stealth (Claude)
+Duff, Nov 26 10:00 AM CT: "The fighting isn't very fluid, and most breaks as you go, its too hard to
+just tilt the controller, lets get the fight style decided, combat should feel like [a named free-flow brawler] for both stealth options and brawler". Claude wrote an original spec (no names copied) and
+Duff tapped **"Buttons + swipe specials"**. Built in one PR; numbers in `data/moves.json` "freeflow".
+- **Lunge** (`arena._start`, `Character3D.dash_*`): a strike picks the enemy the stick points at
+  (within 70°), else the nearest, up to 6 m; out of reach the hero dashes at 14 m/s and swings on
+  arrival. Combo gap 1.2 -> 2.0 s, string gap 0.8 -> 1.2 s, input buffer 0.3 -> 0.45 s.
+- **COUNTER** button: any enemy showing its warning (dummy "!", minion wind-up, Vesper's powers)
+  within 4.5 m. Cancels the attack, lunges, hits for 14, 0.45 s i-frames. Countering Vesper's prayer
+  counts as breaking the heal. A press with nothing to counter locks the button 0.6 s (no mashing).
+  The button turns orange and reads "> COUNTER <" when it would work (colour + shape).
+- **DODGE** button: roll along the stick, or away from the attacker with no stick. Judgment call: a
+  roll, not a vault over the enemy (no vault clip on the shared skeleton yet).
+- **Double-tap** on the pad is now a second strike, not a roll.
+- **TAKEDOWN / FINISHER** on the context button at 5 / 8 hits; both spend the combo. A takedown drops
+  a minion outright; Vesper and Furfur take 40 instead (a takedown can't skip a boss).
+- **Pipe** durability 4 -> 8 (BUILD_SPEC said 3-5; raised so a weapon lasts most of a fight). The
+  autoplay weapon check sets the TUNE slider to 4 so it still breaks inside one dummy's HP.
+- **Stealth**: SNEAK toggle button (the tilt is gone; `sneak_stick_max` slider swapped for
+  `minion_sneak_aggro_scale`); the fight starting stands you up. Sneaking, a minion notices you at
+  3.2 x 0.35 m; SILENT KILL drops an unaware one within 1.8 m, nobody else turns. Judgment call: from
+  any side, not only behind, because idle minions don't patrol or turn yet.
+- **Demon Sight** toggle: markers drawn over walls (? unaware info-blue, ! hunting orange, !! red),
+  a ring at the feet, a light red screen tint. Free, any time.
+- **First hunt** prompts: TAP SNEAK TO CROUCH, TAP COUNTER ON ! (waits for the first warning), TAP
+  DODGE TO EVADE replace the tilt and double-tap ones (new ids, so returning players see them).
+- Keys/pad (fresh-eyes): COUNTER = U / LB, SNEAK = the CROUCH action (C / Y), DEMON SIGHT = V /
+  left-stick click; DODGE = K / B now rolls like the button. An unbreakable prayer
+  (`hands_interrupt` 0) can't be countered either.
+- For Duff to judge in play: COUNTER cancels every Vesper power within 4.5 m with no cooldown after
+  a success; if it makes him too easy, raise `counter_whiff_lock` or shrink `counter_range`.
+
 ## 2026-11-26: the 8.5 pass, first-timer fixes before M5 (Claude)
 Duff set a new bar (Nov 26): before building more, plan what it takes for a blind first-time player
 to score the game 8.5, OK it once, build it in one pass. A blind first-timer played the browser

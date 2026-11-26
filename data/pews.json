@@ -7,7 +7,8 @@
     "sneak_multiplier": 2.0,
     "sneak_stick_max": 0.5,
     "sight_radius": 5.0,
-    "ambush_range": 3.0
+    "ambush_range": 3.0,
+    "_sneak_why": "Nov 26: sneaking is the SNEAK button now (Duff: tilting the stick lightly was too hard). sneak_stick_max is no longer used."
   },
   "_why_field": "Nov 23 review of PR #20: ranges, timings and spawn points lived as bare numbers in pews_arena.gd, so Duff could not tune them from his phone. Numbers get TUNE sliders (pews_tuning.gd); positions are layout data.",
   "field": {
@@ -118,7 +119,9 @@
     "steer_probe": 0.8,
     "steer_margin": 0.35,
     "_aggro_why": "Nov 26 8.5 pass: minions stand still until you come within aggro_radius, hit them, or the fight with Vesper starts. The blind first-timer was jumped right at spawn.",
-    "aggro_radius": 3.2
+    "aggro_radius": 3.2,
+    "sneak_aggro_scale": 0.35,
+    "_sneak_why": "Nov 26 free-flow pass: while SNEAK is on, a minion only notices you at aggro_radius x sneak_aggro_scale, so you can get close enough for a SILENT KILL."
   },
   "finishers": {
     "clean": {

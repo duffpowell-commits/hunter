@@ -44,6 +44,11 @@ var combo_label: Label
 var weapon_label: Label
 var pause_btn: Button
 var pick_btn: Button
+var counter_btn: Button          # free-flow (Nov 26): pad side, above the strike ring
+var dodge_btn: Button            # pad side, under the strike ring
+var sneak_btn: Button            # stick side, Pews before the fight
+var sight_btn: Button            # stick side: Demon Sight
+var sight_tint: ColorRect
 var tutor: Node                  # the guided first hunt, Pews only
 var explainer: Node              # one-line explainers for the HUD numbers (8.5 pass)
 var _lair_map_done := false      # the MAP ROOM prompt is learned (no coach.cfg read every frame)
@@ -198,7 +203,7 @@ func _build() -> void:
 	weapon_label.offset_bottom = 258
 	weapon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(weapon_label)
-	var legend := ControlsLegend.make(["move_up", "attack", "heavy", "special", "dodge", "pause"])
+	var legend := ControlsLegend.make(["move_up", "attack", "heavy", "special", "dodge", "counter", "pause"])
 	legend.name = "Legend"
 	legend.top = 30 + UI.MIN_TOUCH + 64
 	add_child(legend)
@@ -221,6 +226,33 @@ func _build() -> void:
 	_corner(pick_btn, not left, true, CONTEXT_W)
 	pick_btn.offset_top = CONTEXT_TOP
 	pick_btn.offset_bottom = CONTEXT_TOP + 96
+	# Nov 26 free-flow pass (Duff tapped "Buttons + swipe specials"): COUNTER over the strike ring,
+	# DODGE under it, SNEAK and SIGHT on the stick side. The pad itself stays STRIKE: tap, hold, swipe.
+	counter_btn = UI.button("COUNTER", _counter, 96)
+	counter_btn.name = "Counter"
+	_corner(counter_btn, not left, true, ACTION_W)
+	counter_btn.offset_top = COUNTER_TOP
+	counter_btn.offset_bottom = COUNTER_TOP + 96
+	dodge_btn = UI.button("DODGE", _dodge, 96)
+	dodge_btn.name = "Dodge"
+	_corner(dodge_btn, not left, false, ACTION_W)
+	sneak_btn = UI.button("SNEAK", _sneak)
+	sneak_btn.name = "Sneak"
+	_corner(sneak_btn, left, true, 150)
+	sneak_btn.offset_top = CONTEXT_TOP
+	sneak_btn.offset_bottom = CONTEXT_TOP + UI.MIN_TOUCH
+	sight_btn = UI.button("SIGHT", _sight)
+	sight_btn.name = "Sight"
+	_corner(sight_btn, left, true, 150)
+	sight_btn.offset_top = CONTEXT_TOP + UI.MIN_TOUCH + UI.GAP
+	sight_btn.offset_bottom = CONTEXT_TOP + 2 * UI.MIN_TOUCH + UI.GAP
+	sight_tint = ColorRect.new()
+	sight_tint.name = "SightTint"
+	sight_tint.color = Color(0.55, 0.05, 0.05, 0.14)
+	sight_tint.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sight_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(sight_tint)
+	move_child(sight_tint, 0)
 	for sh in get_tree().get_nodes_in_group("sheet"):   # open sheets stay on top of the rebuilt HUD
 		if sh.get_parent() == self:
 			move_child(sh, -1)
@@ -254,6 +286,8 @@ func _corner(b: Button, right: bool, top: bool, w: int) -> void:
 
 const CONTEXT_W := 260
 const CONTEXT_TOP := 345
+const COUNTER_TOP := 465          # under the context button, above the strike ring (ring top ~624)
+const ACTION_W := 200
 
 
 func _refresh_hud() -> void:
@@ -290,13 +324,57 @@ func _refresh_hud() -> void:
 	var c: int = arena.combo_count()
 	combo_label.text = "%d HITS" % c if c >= 2 else ""
 	var w: String = arena.combat.weapon
-	weapon_label.text = "%s %d/%d" % [arena.weapon_data[w].name, arena.combat.durability, int(arena.weapon_data[w].durability)] if w != "" else ""
+	var w_max: int = arena.combat.durability_max if arena.combat.durability_max > 0 else int(arena.weapon_data[w].durability) if w != "" else 0
+	weapon_label.text = "%s %d/%d" % [arena.weapon_data[w].name, arena.combat.durability, w_max] if w != "" else ""
+	_refresh_actions()
 	if arena.has_method("context_label"):
 		pick_btn.text = str(arena.call("context_label"))
 		pick_btn.visible = bool(arena.call("context_visible"))
 	else:
 		pick_btn.text = "PICK UP"
 		pick_btn.visible = arena.can_pick_up
+
+
+## The free-flow buttons: COUNTER lights up (colour + arrows) while an enemy shows "!".
+func _refresh_actions() -> void:
+	if counter_btn == null:
+		return
+	var alive: bool = not arena.hero.dead
+	var fight: bool = alive and not arena._sight_targets().is_empty()
+	counter_btn.visible = fight
+	dodge_btn.visible = fight
+	var ready: bool = arena.counter_ready()
+	counter_btn.text = "> COUNTER <" if ready else "COUNTER"
+	counter_btn.modulate = UI.key("warn") if ready else Color(1, 1, 1, 0.75)
+	sneak_btn.visible = alive and arena.has_method("stealth_allowed") and arena.call("stealth_allowed") == true
+	sneak_btn.text = "SNEAK: ON" if arena.sneak else "SNEAK"
+	sight_btn.visible = alive
+	sight_btn.text = "SIGHT: ON" if arena.demon_sight else "SIGHT"
+	sight_tint.visible = arena.demon_sight
+
+
+func _counter() -> void:
+	if not (paused or over):
+		arena.counter()
+		if tutor != null:
+			tutor.saw("counter")
+
+
+func _dodge() -> void:
+	if not (paused or over):
+		arena.dodge_toward(stick.vec if stick != null else Vector2.ZERO)
+		if tutor != null:
+			tutor.saw("dodge")
+
+
+func _sneak() -> void:
+	if not (paused or over):
+		arena.toggle_sneak()
+
+
+func _sight() -> void:
+	if not (paused or over):
+		arena.set_demon_sight(not arena.demon_sight)
 
 
 # ---------------------------------------------------------------- PLAY (Hunter M1)
@@ -320,7 +398,7 @@ func _on_gesture(kind: String, v: Vector2) -> void:
 	match kind:
 		"light": arena.light()
 		"heavy": arena.heavy()
-		"dodge": arena.double_tap_input()
+		"dodge": arena.light()             # free-flow: two quick taps are two strikes (DODGE has a button)
 		"swipe": arena.swipe(v)
 
 
@@ -336,7 +414,13 @@ func _unhandled_input(e: InputEvent) -> void:
 		var v := stick.vec if stick != null and stick.held() else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 		arena.stick_special(v)
 	elif e.is_action_pressed("dodge"):
-		arena.dodge()
+		_dodge()
+	elif e.is_action_pressed("counter"):
+		_counter()
+	elif e.is_action_pressed("crouch"):
+		_sneak()
+	elif e.is_action_pressed("sight"):
+		_sight()
 
 
 func _context_action() -> void:

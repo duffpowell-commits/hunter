@@ -276,13 +276,56 @@ func _pews_checks() -> void:
 	await _shot("pews_map")
 
 	var stick_point: Vector2 = game.stick.get_global_rect().get_center()
-	_mouse(stick_point, true)
-	_mouse(stick_point + Vector2(24, 0), null)
+	# Nov 26 free-flow pass: SNEAK is a button (tilting the stick lightly was too hard).
+	await _click("SNEAK")
 	await _frames(3)
-	_check(arena.hero.crouching, "PEWS SNEAK PASS (light stick input crouch-walks)")
-	_mouse(stick_point + Vector2(24, 0), false)
+	_check(arena.hero.crouching and arena.sneak and _find("SNEAK: ON") != null, "PEWS SNEAK PASS (the SNEAK button crouches you, no stick needed)")
+	await _click("SNEAK")
 	await _frames(3)
-	_check(not arena.hero.crouching, "PEWS WALK PASS (releasing the stick stands up)")
+	_check(not arena.hero.crouching and _find("SNEAK: ON") == null, "PEWS WALK PASS (SNEAK again stands you up)")
+	# Demon Sight: a real tap; every enemy gets a marker drawn over walls.
+	await _click("SIGHT")
+	await _frames(3)
+	var marks := 0
+	for t in arena._sight_targets():
+		var mk: Node3D = t.get_node_or_null("SightMark")
+		if mk != null and mk.visible:
+			marks += 1
+	_check(arena.demon_sight and marks == 3 and game.sight_tint.visible,
+		"DEMON SIGHT PASS (SIGHT marks %d of 3 enemies through the walls)" % marks)
+	await _shot("pews_demon_sight")
+	await _click("SIGHT")
+	# Silent kill: sneak (real button) up behind the unaware Zealot and drop it; nobody else turns.
+	await _click("SNEAK")
+	var zealot: Dictionary = arena._foes[0]
+	# Staging: the camera shot at (0, -2.3) above stood within 3.2 m of both minions and woke them.
+	# Put them back to sleep at their spawns, so this measures sneaking, not that shot.
+	for i in arena._foes.size():
+		arena._foes[i].aggro = false
+		arena._foes[i].attack_cd = 9.0
+		arena._foes[i].actor.move_input = Vector2.ZERO
+	_place(zealot.actor, arena._v3(arena.rules.config.minions.zealot_spawn) + Vector3(0, 0.05, 0), 0.0)
+	_place(arena._foes[1].actor, arena._v3(arena.rules.config.minions.choir_spawn) + Vector3(0, 0.05, 0), 0.0)
+	# Staged next to it from a few sides (a pew may sit on one), then a real tap on the button.
+	var near_ok := false
+	var diag := ""
+	for off: Vector3 in [Vector3(1.3, 0.05, 0), Vector3(-1.3, 0.05, 0), Vector3(0, 0.05, 1.3), Vector3(0, 0.05, -1.3)]:
+		_place(arena.hero, zealot.actor.global_position + off, PI)
+		arena.rig.snap()
+		await _physics(3)
+		await _frames(2)
+		near_ok = arena._foes[0].aggro != true and _find("SILENT KILL") != null
+		diag = "crouch %s, %.1f m, aggro %s, context %s" % [arena.hero.crouching, arena._flat_dist(zealot.actor),
+			arena._foes[0].aggro, arena.context_label()]
+		if near_ok:
+			break
+	if near_ok:
+		await _click("SILENT KILL")
+	await _frames(3)
+	_check(near_ok and arena._foes[0].dead and arena.silent_kills == 1 and not arena._foes[1].aggro and not arena.encounter_started,
+		"SILENT KILL PASS (sneaked in unseen, dropped the Zealot, the Choir and Vesper never turned; %s)" % diag)
+	await _shot("pews_silent_kill")
+	await _click("SNEAK")
 	var tuning: Node = get_tree().get_first_node_in_group("tunable")
 	for candidate in get_tree().get_nodes_in_group("tunable"):
 		if candidate.get_parent() == arena and candidate.get("sermon_damage") != null:
@@ -301,6 +344,7 @@ func _pews_checks() -> void:
 	# Staging: the hero is put back on the 3.7 m spot between wiggles; the crouch and the study
 	# come from the real stick input.
 	var hide_at: Vector3 = arena.hero.position
+	await _click("SNEAK")                 # free-flow: the crouch comes from the button now
 	var stalk_by := Time.get_ticks_msec() + 12000
 	var wiggle := 1.0
 	_mouse(stick_point, true)
@@ -1349,12 +1393,10 @@ func _arena_checks(game: Node) -> void:
 	await _secs(0.3)
 	var hp_before: int = a.hp
 	var dodged0: int = a.dodged
-	var SwipePad = preload("res://scripts/swipe_pad.gd")
-	var gesture_kind: String = SwipePad.classify(0.05, Vector2.ZERO, 0.1, a.hold_time, a.double_tap, a.swipe_min)
-	_check(gesture_kind == "dodge", "DODGE CLASSIFIER PASS (two quick taps classify as dodge)")
-	# The SPECIAL above ended the string, so the last tap's light no longer counts (no setting it by
-	# hand, M2 review): the documented double-tap path is dodge.
-	_check(not a._last_light_landed, "DODGE SETUP PASS (the special ended the light string)")
+	# Nov 26 free-flow pass: DODGE is its own button; a double-tap on the pad is two strikes.
+	var dodge_r: Rect2 = game.dodge_btn.get_global_rect()
+	_check(game.dodge_btn.visible and not dodge_r.grow(70).has_point(pp + Vector2(0, game.pad.size.y * 0.12)),
+		"DODGE BUTTON PASS (DODGE sits under the strike ring, clear of it)")
 	a.dodge_iframes = 0.5
 	a.enemy_telegraph = 1.0
 	a.enemy_attack_every = 0.2
@@ -1363,10 +1405,10 @@ func _arena_checks(game: Node) -> void:
 	var wait_until := Time.get_ticks_msec() + 4000
 	while not (a.telegraphing and a._tele_t < 0.35) and Time.get_ticks_msec() < wait_until:
 		await get_tree().process_frame
-	# Dispatch both taps immediately. Waiting on render frames can miss the double-tap
-	# window or let the dummy finish its wind-up before the second release reaches the pad.
-	for pressed: bool in [true, false, true, false]:
-		_mouse(pp, pressed)
+	# One real tap on DODGE, dispatched at once so the wind-up can't finish first.
+	var dodge_at := dodge_r.get_center()
+	for pressed: bool in [true, false]:
+		_mouse(dodge_at, pressed)
 		Input.flush_buffered_events()
 	wait_until = Time.get_ticks_msec() + 2000
 	while a.telegraphing and Time.get_ticks_msec() < wait_until:
@@ -1378,10 +1420,17 @@ func _arena_checks(game: Node) -> void:
 	a._enemy_t = 999.0
 	a.enemy_telegraph = float(a.enemy.telegraph)
 	a.dodge_iframes = float(a.moves.player.dodge_iframes)
-	_check(rolling and a.dodged > dodged0 and a.hp == hp_before,
-		"DODGE PASS (double-tap rolled through the dummy's own swing: missed in the i-frames, HP %d)" % a.hp)
+	# The button rolls away from the attacker (free-flow), so the swing either whiffs in the
+	# i-frames or the roll has carried you out of its reach; either way it must not land.
+	var clear: float = a._flat_dist(dummy)
+	_check(rolling and a.hp == hp_before and (a.dodged > dodged0 or clear > float(a.enemy.attack_reach)),
+		"DODGE PASS (the DODGE button rolled away from the dummy's own swing: %s, %.1f m off, HP %d)" % [
+		"missed in the i-frames" if a.dodged > dodged0 else "out of reach", clear, a.hp])
 	await _secs(0.8)
 	# Weapon: pick up the pipe, 4 hits spend it, the 5th snaps it (x2.5, big knockback) and KOs.
+	# Since the free-flow pass the pipe lasts 8; the TUNE slider sets 4 here so the break still
+	# lands inside one dummy's HP.
+	a.pipe_durability = 4.0
 	a.reset_dummy()
 	_place(hero, a._pickup.global_position + Vector3(0, 0.05, 0.5), PI)
 	a.rig.snap()
@@ -1407,6 +1456,7 @@ func _arena_checks(game: Node) -> void:
 	_check(broke and a.combat.weapon == "" and absf(break_dmg - (8.0 + 4.0) * 2.5) < 0.01,
 		"WEAPON BREAK PASS (4 hits spent the pipe, the 5th snapped it for %.0f damage)" % break_dmg)
 	_check(a.kos > kos0 and dummy.dead, "KO PASS (dummy down, round %d)" % game.level)
+	a.pipe_durability = float(a.weapon_data.pipe.durability)
 	await _secs(float(a.enemy.respawn) + 0.5)
 	# The dummy fights back: telegraph (red ! + caption) for >= 0.5 s, then a swing that hurts.
 	a.enemy_attack_every = 0.3
@@ -1424,8 +1474,107 @@ func _arena_checks(game: Node) -> void:
 			tele_seen = true
 		await _frames(2)
 	_check(tele_seen and a.hero_hits_taken > hits_before_enemy and a.hp < hp1, "ENEMY PASS (red ! telegraph, then the swing took %d HP)" % (hp1 - a.hp))
+	await _freeflow_checks(game)
 	a.enemy_attack_every = float(a.enemy.attack_every)
 	a._enemy_t = a.enemy_attack_every
+
+
+## Nov 26 free-flow pass, with real taps: a strike lunges 4 m, COUNTER on the "!" cancels the
+## swing and hits back, and at 5 hits the context button's TAKEDOWN drops the dummy.
+func _freeflow_checks(game: Node) -> void:
+	var a: Node = game.arena
+	var hero: Node = a.hero
+	var dummy: Node = a.dummy
+	a.enemy_attack_every = 999.0
+	a._enemy_t = 999.0
+	a.telegraphing = false
+	a._warn.visible = false
+	await _secs(0.8)
+	a.reset_dummy()
+	_place(hero, dummy.global_position + Vector3(0, 0.05, 4.0), PI)
+	a.rig.snap()
+	await _secs(0.3)
+	var lunges0: int = a.lunges
+	var start: Vector3 = hero.global_position
+	var hit := await _pad_tap(game, 3.0)
+	var closed: float = start.distance_to(hero.global_position)
+	_check(hit and a.lunges > lunges0 and closed > 1.5,
+		"LUNGE PASS (one tap from 4 m: dashed %.1f m and the strike landed)" % closed)
+	await _shot("freeflow_lunge")
+	# Counter: the dummy winds up for real; tap COUNTER while the ! shows.
+	await _secs(0.6)
+	_place(hero, dummy.global_position + Vector3(0, 0.05, 1.3), PI)
+	a.rig.snap()
+	await _secs(0.3)
+	a.enemy_telegraph = 1.0
+	a._enemy_t = 0.05
+	a.enemy_attack_every = 0.05
+	var by := Time.get_ticks_msec() + 4000
+	while _find("> COUNTER") == null and Time.get_ticks_msec() < by:
+		await get_tree().process_frame
+	var lit := _find("> COUNTER") != null
+	await _shot("freeflow_counter_ready")
+	var hp0: int = a.hp
+	var counters0: int = a.counters
+	await _click("> COUNTER")
+	a.enemy_attack_every = 999.0
+	a._enemy_t = 999.0
+	by = Time.get_ticks_msec() + 2000
+	while a.last_hit.get("kind", "") != "counter" and Time.get_ticks_msec() < by:
+		await get_tree().process_frame
+	a.enemy_telegraph = float(a.enemy.telegraph)
+	_check(lit and a.counters > counters0 and a.last_hit.get("kind", "") == "counter" and a.hp == hp0,
+		"COUNTER PASS (button lit on the !, the swing was cancelled and the counter landed; HP %d)" % a.hp)
+	# Takedown: five real strikes build the combo, then the context button offers TAKEDOWN.
+	await _secs(0.6)
+	a.reset_dummy()
+	a.dummy_hp = 999.0
+	var hits: int = a.combo_count()
+	by = Time.get_ticks_msec() + 12000
+	while a.combo_count() < int(a.takedown_at) and Time.get_ticks_msec() < by:
+		_place(hero, dummy.global_position + Vector3(0, 0.05, 1.0), PI)
+		await _pad_tap(game, 1.5)
+		var rec_by := Time.get_ticks_msec() + 1500
+		while not a._free() and Time.get_ticks_msec() < rec_by:
+			await get_tree().process_frame
+	hits = a.combo_count()
+	var offered := _find("TAKEDOWN") != null
+	await _shot("freeflow_takedown_ready")
+	a.dummy_hp = a.takedown_damage - 1.0      # staged: the takedown is the blow that drops it
+	var kos0: int = a.kos
+	await _click("TAKEDOWN")
+	by = Time.get_ticks_msec() + 2500
+	while a.kos == kos0 and Time.get_ticks_msec() < by:
+		await get_tree().process_frame
+	_check(offered and hits >= int(a.takedown_at) and a.takedowns == 1 and a.kos > kos0,
+		"TAKEDOWN PASS (%d hits lit TAKEDOWN on the context button; it dropped the dummy)" % hits)
+	await _secs(float(a.enemy.respawn) + 0.5)
+	# Finisher: the takedown above built a real 5-hit combo, so here the meter is staged to one short
+	# of finisher_at and one real strike tips it over; then a real tap on FINISHER.
+	a.reset_dummy()
+	a.dummy_hp = 999.0
+	await _secs(0.5)
+	_place(hero, dummy.global_position + Vector3(0, 0.05, 1.0), PI)
+	await _physics(2)
+	a.combat.combo = int(a.finisher_at) - 1
+	a.combat._combo_t = a.combat.combo_gap
+	await _pad_tap(game, 1.5)
+	hits = a.combo_count()
+	await _frames(2)
+	var fin_offered := _find("FINISHER") != null
+	var before_fin: float = a.dummy_hp
+	if fin_offered:
+		await _click("FINISHER")
+	by = Time.get_ticks_msec() + 2500
+	while a.finishers == 0 or (a.dummy_hp == before_fin and Time.get_ticks_msec() < by):
+		if Time.get_ticks_msec() > by:
+			break
+		await get_tree().process_frame
+	await _shot("freeflow_finisher")
+	_check(fin_offered and hits >= int(a.finisher_at) and a.finishers == 1
+		and is_equal_approx(before_fin - a.dummy_hp, a.finisher_damage * a.damage_scale),
+		"FINISHER PASS (%d hits lit FINISHER; it hit for %.0f)" % [hits, before_fin - a.dummy_hp])
+	a.reset_dummy()
 
 
 # ---------------------------------------------------------------- house standards (GROK_STANDARDS.md)

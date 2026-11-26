@@ -12,10 +12,11 @@
     "_why_double_tap": "0.2 s, and a tap only counts toward a double-tap when the previous tap's light did not connect, so mashing light near the dummy stays a string (DECISIONS, Nov 21)."
   },
   "combo": {
-    "gap": 1.2,
+    "gap": 2.0,
     "cancel_window": 0.35,
     "cancel_bonus": 0.25,
-    "string_gap": 0.8
+    "string_gap": 1.2,
+    "_why_freeflow": "Nov 26 free-flow pass (Duff wanted free-flow brawling): the combo holds 2 s between hits (was 1.2) so it carries across enemies, and the jab-cross-hook string waits 1.2 s (was 0.8)."
   },
   "light": [
     {
@@ -122,6 +123,24 @@
     "auto_face": 3.6,
     "ko_knockback": 4.0,
     "ko_knockback_per_power": 6.0,
-    "input_buffer": 0.3
+    "input_buffer": 0.45
+  },
+  "freeflow": {
+    "_why": "Nov 26 free-flow pass. STRIKE lunges to the enemy the stick points at (else the nearest) up to lunge_range and swings on arrival. COUNTER works while an enemy shows its warning: cancels the attack, lunges and hits. DODGE rolls along the stick (else away from the nearest attacker). At takedown_at hits the context button offers TAKEDOWN (minion dies, boss takes takedown_damage); at finisher_at it offers FINISHER (finisher_damage to everyone within finisher_radius). Both spend the combo. Every number is a TUNE slider.",
+    "lunge_range": 6.0,
+    "lunge_speed": 14.0,
+    "lunge_cone": 70.0,
+    "lunge_max_time": 0.5,
+    "counter_range": 4.5,
+    "counter_damage": 14,
+    "counter_power": 0.8,
+    "counter_iframes": 0.45,
+    "counter_whiff_lock": 0.6,
+    "takedown_at": 5,
+    "finisher_at": 8,
+    "takedown_damage": 40,
+    "finisher_damage": 45,
+    "finisher_radius": 3.2,
+    "silent_range": 1.8
   }
 }

@@ -25,6 +25,7 @@ var horns: Node3D
 var low_hp_at := 0.3                     # share of max HP that triggers the low-HP voice line
 var combo_line_at := 5.0                   # hits in a combo that trigger the big-combo voice line
 var _equipped_dirs := {}                 # swipe dir -> voice id (read by tests and the HUD)
+var silent_kills := 0                    # SILENT KILLs (sneak up on an unaware minion; Nov 26)
 
 
 func tune_spec() -> Dictionary:
@@ -283,8 +284,12 @@ func _foe_ai(dt: float) -> void:
 		to.y = 0.0
 		var d := to.length()
 		# Nov 26 (8.5 pass): minions wait until you come close, hit them, or the fight starts.
-		if not bool(foe.get("aggro", true)):
-			if d < float(minions.get("aggro_radius", 0.0)) or foe.hp < foe.max_hp or foes_all_aggro():
+		# Free-flow pass: SNEAK shrinks how close you can get (sneak_aggro_scale).
+		if foe.get("aggro", true) != true:
+			var notice := float(minions.get("aggro_radius", 0.0))
+			if hero.crouching:
+				notice *= float(minions.get("sneak_aggro_scale", 1.0))
+			if d < notice or foe.hp < foe.max_hp or foes_all_aggro():
 				foe.aggro = true
 				get_node("/root/Subs").cue("[%s turns on you]" % foe.kind.to_lower())
 			else:
@@ -352,12 +357,116 @@ func _check_foe_hits() -> void:
 		if to.length() > reach or (arc < 360.0 and forward.dot(to.normalized()) <= cos(deg_to_rad(arc / 2.0))):
 			continue
 		var result := _land_hit(actor)
-		foe.hp = float(foe.hp) - float(result.damage)
-		if foe.hp <= 0.0:
-			kill_foe(i)
-		else:
-			_foes[i] = foe
+		_damage_foe(i, float(result.damage))
 		return
+
+
+func _damage_foe(i: int, damage: float) -> void:
+	var foe: Dictionary = _foes[i]
+	if foe.dead:
+		return
+	foe.hp = float(foe.hp) - damage
+	if foe.hp <= 0.0:
+		_foes[i] = foe
+		kill_foe(i)
+	else:
+		_foes[i] = foe
+
+
+func _foe_index(actor: Node) -> int:
+	for i in _foes.size():
+		if _foes[i].actor == actor:
+			return i
+	return -1
+
+
+func _apply_damage(target: Character3D, r: Dictionary) -> void:
+	var i := _foe_index(target)
+	if i >= 0:
+		_damage_foe(i, float(r.damage))
+	else:
+		super._apply_damage(target, r)
+
+
+# ---------------------------------------------------------------- free-flow hooks (Nov 26)
+
+func _sight_targets() -> Array[Character3D]:
+	var out := super._sight_targets()
+	for foe in _foes:
+		if not foe.dead:
+			out.append(foe.actor)
+	return out
+
+
+func _counter_threat() -> Character3D:
+	var best: Character3D = null
+	var best_d := counter_range
+	for foe in _foes:
+		if foe.dead or float(foe.windup) <= 0.0:
+			continue
+		var d := _flat_dist(foe.actor)
+		if d <= best_d:
+			best_d = d
+			best = foe.actor
+	return best if best != null else super._counter_threat()
+
+
+func _cancel_threat(t: Character3D) -> void:
+	var i := _foe_index(t)
+	if i < 0:
+		super._cancel_threat(t)
+		return
+	var foe: Dictionary = _foes[i]
+	foe.windup = 0.0
+	foe.warn.visible = false
+	foe.attack_cd = float(foe_rules().get("attack_cooldown", 2.0))
+	_foes[i] = foe
+
+
+func alertness(t: Character3D) -> String:
+	var i := _foe_index(t)
+	if i < 0:
+		return super.alertness(t)
+	var foe: Dictionary = _foes[i]
+	if float(foe.windup) > 0.0:
+		return "attacking"
+	return "hunting" if foe.get("aggro", true) == true else "unaware"
+
+
+## True where sneaking up on minions counts (the Pews before the fight).
+func stealth_allowed() -> bool:
+	return false
+
+
+## The unaware minion a SILENT KILL would take (-1 = none): sneaking, within silent_range.
+func silent_target() -> int:
+	if not stealth_allowed() or not hero.crouching or hero.dead:
+		return -1
+	var best := -1
+	var best_d := silent_range
+	for i in _foes.size():
+		var foe: Dictionary = _foes[i]
+		if foe.dead or foe.get("aggro", true) == true:
+			continue
+		var d := _flat_dist(foe.actor)
+		if d <= best_d:
+			best_d = d
+			best = i
+	return best
+
+
+## Sneak up on an unaware minion and drop it without a sound: nobody else turns.
+func silent_kill() -> bool:
+	var i := silent_target()
+	if i < 0:
+		return false
+	var actor: Character3D = _foes[i].actor
+	_face(actor.global_position - hero.global_position)
+	hero.act("heavy")
+	silent_kills += 1
+	get_node("/root/Subs").cue("[silent takedown]")
+	kill_foe(i)
+	return true
 
 
 func kill_foe(i: int) -> void:
