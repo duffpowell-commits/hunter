@@ -41,4 +41,4 @@ For any coding AI (Claude, Grok, Codex, ChatGPT...) or person working on a 3 Eye
 - Model: free CC0 fox (Khronos glTF sample, credits in `assets/pets/SOURCES.md`), recoloured by
   `tools/recolor_fox.py`; real clips only (Survey, Walk, Run). No sit or sleep clip yet. Renders:
   `docs/renders/fox_pet_sight_*.png`, `flow_lair_fox_greet.png`.
-- Still Duff's call: **the fox's name** (placeholder FOX in `data/fox.json`).
+- **Name: Vig** (Duff tapped it, Nov 26: the interest on a debt). `data/fox.json` "name"; captions use it.

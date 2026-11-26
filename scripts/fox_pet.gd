@@ -190,7 +190,7 @@ func _process(dt: float) -> void:
 		if state == "greet" and not greeted:
 			greeted = true
 			state = "follow"
-			_cue("[the fox yips hello]")
+			_cue("[%s yips hello]" % pet_name())
 
 
 ## Where the fox wants to stand: beside Cain on the screen (the camera never turns), a touch toward
@@ -211,6 +211,11 @@ func goal_point() -> Vector3:
 			goal = hp + Vector3(0, 0, 0.6)   # both sides walled: just behind him, toward the camera
 	goal.y = global_position.y
 	return goal
+
+
+## The fox's name (Duff named it Vig, Nov 26; data/fox.json "name").
+func pet_name() -> String:
+	return str(cfg().get("name", "Vig"))
 
 
 func sneaking() -> bool:
@@ -260,7 +265,7 @@ func _try_yip() -> void:
 			yipped = true
 			yip_at = p
 			yip_t = float(cfg().yip_hold)
-			_cue("[the fox yips: something close]")
+			_cue("[%s yips: something close]" % pet_name())
 			return
 
 

@@ -1838,6 +1838,7 @@ func test_fox_pet_follows_and_sees() -> void:
 	a.boss_defeated = true
 	check(fox.follow_distance() < float(fox.cfg().fight_distance), "Vesper dead: it comes back to Cain's side")
 	check(preload("res://scripts/settings_sheet.gd").FOX_CREDIT.contains("CC-BY"), "the fox's CC-BY credit is in the game")
+	check(fox.pet_name() == "Vig", "the fox is called Vig (Duff, Nov 26)")
 	a.hero.global_position += Vector3(40.0, 0, 0)
 	fox._process(0.1)
 	check(fox.global_position.distance_to(a.hero.global_position) < 6.0, "left far behind, it catches up at once")
