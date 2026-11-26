@@ -468,6 +468,9 @@ func _process(dt: float) -> void:
 
 
 func context_label() -> String:
+	var combo_c := combo_move()
+	if not combo_c.is_empty():
+		return combo_c
 	if can_pick_up:
 		return "PICK UP"
 	if _near_trap >= 0:
@@ -482,7 +485,9 @@ func context_visible() -> bool:
 
 
 func context_action() -> void:
-	if can_pick_up:
+	if not combo_move().is_empty():
+		combo_action()
+	elif can_pick_up:
 		pick_up()
 	elif _near_trap >= 0:
 		var prof := get_node("/root/Profile")
@@ -609,6 +614,12 @@ func start_invasion() -> void:
 	_spawn_foe("Furfur", GameData.vec3(furfur_cfg.invasion.spawn), Color("c0502a"), float(furfur_cfg.invasion.furfur_hp))
 	get_node("/root/Subs").cue("[FURFUR KEMP comes through the portal]")
 	get_node("/root/Audio").music_layers("music_loop", "music_combat")
+
+
+## Furfur takes takedown_damage like a boss: a TAKEDOWN can't skip his fight (Nov 26).
+func _is_boss(target: Character3D) -> bool:
+	var i := _foe_index(target)
+	return super._is_boss(target) or (i >= 0 and _foes[i].kind == "Furfur")
 
 
 func furfur_foe() -> Dictionary:

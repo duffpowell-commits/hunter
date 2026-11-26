@@ -1,6 +1,7 @@
 extends Control
 ## The right-thumb action pad (docs/BUILD_SPEC.md Controls). Gestures, no buttons:
-##   tap = light, hold >= hold_time then release = heavy, swipe = special, double-tap = dodge.
+##   tap = light, hold >= hold_time then release = heavy, swipe = special, double-tap = "dodge"
+##   (game.gd plays it as a second strike since Nov 26: DODGE and COUNTER are buttons now).
 ## Emits `gesture(kind, swipe)`; kind is "light", "heavy", "swipe" or "dodge"; swipe is the
 ## drag vector in canvas units (for "swipe"). Touch: tracks its own finger, so the stick and the
 ## pad work at the same time. Mouse (desktop, the autoplay bot): only when there's no touchscreen.
@@ -90,8 +91,9 @@ func _draw() -> void:
 	# Text size and high contrast apply here too (UI.font_size / UI.contrast).
 	var font := ThemeDB.fallback_font
 	var hc := UI.contrast()
-	draw_string(font, c + Vector2(-90, 40), "ATTACK", HORIZONTAL_ALIGNMENT_CENTER, 180, UI.font_size(20), Color(1, 1, 1, 1.0 if hc else 0.7))
-	draw_string(font, c + Vector2(-180, 100), "TAP  ·  HOLD  ·  2× TAP  ·  SWIPE", HORIZONTAL_ALIGNMENT_CENTER, 360, UI.font_size(15), Color(1, 1, 1, 0.9 if hc else 0.45))
+	# Nov 26 free-flow pass: the pad is STRIKE; COUNTER and DODGE are their own buttons.
+	draw_string(font, c + Vector2(-90, 40), "STRIKE", HORIZONTAL_ALIGNMENT_CENTER, 180, UI.font_size(20), Color(1, 1, 1, 1.0 if hc else 0.7))
+	draw_string(font, c + Vector2(-180, 100), "TAP  ·  HOLD  ·  SWIPE", HORIZONTAL_ALIGNMENT_CENTER, 360, UI.font_size(15), Color(1, 1, 1, 0.9 if hc else 0.45))
 	if _finger != -1:
 		var held := (Time.get_ticks_msec() - _t0) / 1000.0
 		draw_arc(_start, 50, -PI / 2, -PI / 2 + TAU * clampf(held / hold_time, 0.0, 1.0), 40, Color(1, 1, 1, 0.5), 6.0)

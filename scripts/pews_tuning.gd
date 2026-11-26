@@ -6,7 +6,7 @@ const PATHS := {
 	"view_cone_degrees": ["stalking", "view_cone_degrees"],
 	"study_per_second": ["stalking", "study_per_second"],
 	"sneak_multiplier": ["stalking", "sneak_multiplier"],
-	"sneak_stick_max": ["stalking", "sneak_stick_max"],
+	"minion_sneak_aggro_scale": ["minions", "sneak_aggro_scale"],
 	"sight_radius": ["stalking", "sight_radius"],
 	"zealot_hp": ["minions", "zealot_hp"],
 	"zealot_damage": ["minions", "zealot_damage"],
@@ -68,7 +68,7 @@ const PATHS := {
 const TUNE := {
 	"study_radius": [2.0, 12.0], "view_cone_degrees": [20.0, 120.0],
 	"study_per_second": [1.0, 25.0], "sneak_multiplier": [1.0, 4.0],
-	"sneak_stick_max": [0.15, 0.8], "sight_radius": [1.0, 10.0],
+	"minion_sneak_aggro_scale": [0.0, 1.0], "sight_radius": [1.0, 10.0],
 	"zealot_hp": [10.0, 150.0, 1.0], "zealot_damage": [0.0, 35.0, 1.0],
 	"choir_hp": [10.0, 150.0, 1.0], "choir_damage": [0.0, 35.0, 1.0],
 	"choir_bonus_damage": [0.0, 20.0, 1.0], "choir_buff_radius": [1.0, 10.0],

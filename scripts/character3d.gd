@@ -105,6 +105,8 @@ var _stop_t := 0.0
 var _flash := 0.0
 var _climb := {}
 var _buffer := {}                       # action -> seconds it stays queued
+var dash_velocity := Vector3.ZERO       # a short scripted dash (Hunter's free-flow lunge, Nov 26)
+var dash_t := 0.0                       # seconds of dash left; it wins over the stick and root motion
 var steps := {}                         # surface -> footsteps heard (tests read this)
 var _foot_up := [false, false]
 
@@ -364,6 +366,9 @@ func _do_walk(dt: float, rm: Vector3) -> void:
 		# The clip moves the body: the hips' real travel, scaled, turned to where the model faces.
 		var step := model.global_transform.basis * rm * float(ROOT_MOTION[rm_act])
 		flat = Vector3(step.x, 0, step.z) / dt
+	if dash_t > 0.0:
+		dash_t -= dt
+		flat = Vector3(dash_velocity.x, 0, dash_velocity.z)
 	velocity.x = flat.x
 	velocity.z = flat.z
 	# Air and landing.

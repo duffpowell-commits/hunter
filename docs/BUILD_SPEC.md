@@ -31,8 +31,20 @@ Read this, then docs/DESIGN.md (story and content), then docs/style-guide.md (ar
   - Tap = light attack. Three taps in rhythm = light string (L, L, L). The third hit knocks back.
   - Press and hold 0.3 s, then release = heavy attack (guard break).
   - Swipe = special. Four directions: up, down, toward the target, away from it. Each equipped voice owns one or two swipe slots (see Voices).
-  - Double-tap = dodge roll with i-frames (0.25 s, 0.6 s cooldown).
+  - Double-tap = two strikes (was dodge until Nov 26; DODGE is a button now).
   - INTERACT / SCAVENGE / FINISH appear as a context button above the pad when relevant.
+- **Free-flow (Duff, Nov 26: free-flow brawling and predator stealth; he
+  tapped "Buttons + swipe specials").** Numbers in `data/moves.json` "freeflow", all TUNE sliders.
+  - A strike lunges to the enemy the stick points at (else the nearest) up to 6 m, then swings.
+  - COUNTER button (pad side, above the strike ring): lights up while an enemy shows "!"; cancels
+    that attack, lunges, hits back, short i-frames. A press with nothing to counter locks it 0.6 s.
+  - DODGE button (pad side, under the ring): roll along the stick, else away from the attacker.
+  - The combo holds 2 s between hits, across targets; getting hit drops it. At 5 hits the context
+    button offers TAKEDOWN (a minion drops; a boss takes 40), at 8 FINISHER (45 to everyone within 3.2 m).
+  - SNEAK button (stick side, Pews before the fight) replaces the light stick tilt. Sneaking shrinks
+    how close a minion notices you (x0.35); SILENT KILL drops an unaware minion within 1.8 m.
+  - SIGHT button (Demon Sight): every enemy is marked through walls: ? unaware (blue), ! hunting
+    (orange), !! attacking (red), plus a ring at its feet and a red screen tint.
 - Combos: a special swiped within 0.35 s of a landed light or heavy hit "cancels" into it and gets +25% damage. Show the combo count on screen (it does not feed corruption: that was cut).
 - No quarter-circle motions, no buttons smaller than `UI.MIN_TOUCH`.
 
@@ -72,7 +84,7 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 - Grudge: a voice whose grudge is active has its specials locked (greyed with a padlock shape). Doing its revenge quest unlocks them for good.
 
 ### Improvised weapons
-- Weapons are picked up in the realm (pipe, chair, chain, etc.). Each has 3-5 durability, and each hit costs 1.
+- Weapons are picked up in the realm (pipe, chair, chain, etc.). Each has 3-5 durability, and each hit costs 1 (Nov 26: the pipe is 8, so a weapon lasts most of a fight).
 - When durability hits 0, the next hit breaks it as a combo ender: x2.5 damage and a big knockback. Then you're unarmed until you scavenge another.
 - Unarmed is always available. Weapons come from loot tables per realm.
 

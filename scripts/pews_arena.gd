@@ -288,17 +288,15 @@ func push_tune() -> void:
 
 
 func _process(dt: float) -> void:
-	var push := stick.length()
-	var sneak_limit := float(rules.config.stalking.sneak_stick_max)
-	var sneaking := not encounter_started and push > 0.05 and push <= sneak_limit
-	hero.set_crouch(sneaking)
+	# Nov 26 free-flow pass: SNEAK is a button now (Duff: tilting the stick lightly was too hard).
+	# The fight starting stands you up.
+	if encounter_started:
+		sneak = false
+	hero.set_crouch(sneak and not hero.dead)
 	super._process(dt)
 	if rules != null:
 		var phase_max := float(rules.config.boss.phase_hp[clampi(rules.boss_phase - 1, 0, 1)])
 		set_hp_bar(_boss_bar, 0.0 if boss_defeated else rules.boss_hp / maxf(phase_max, 1.0))
-	if sneaking:
-		# Remap the light half of the stick to the full crouch-walk speed.
-		hero.move_input = (stick / sneak_limit).limit_length(1.0)
 	_nearest_plate = null
 	_nearest_loot = null
 	var best_plate := float(rules.config.field.interact_radius)
@@ -604,7 +602,7 @@ func _attack_target() -> Character3D:
 
 
 func _input_move(q: Dictionary) -> void:
-	if boss_defeated or (not encounter_started and _attack_target() == null):
+	if boss_defeated or (not encounter_started and lunge_target() == null):
 		return
 	var previous_special := last_special
 	super._input_move(q)
@@ -613,17 +611,77 @@ func _input_move(q: Dictionary) -> void:
 		_ambush_free_special = false
 
 
+# ---------------------------------------------------------------- free-flow hooks (Nov 26)
+
+## Before the fight a strike can only reach the minions: Vesper is stalked, not struck.
+func _targets() -> Array[Character3D]:
+	var out := super._targets()
+	if not encounter_started or boss_defeated:
+		out.erase(dummy)
+	return out
+
+
+func _sight_targets() -> Array[Character3D]:
+	var out := super._sight_targets()
+	if boss_defeated:
+		out.erase(dummy)
+	return out
+
+
+func stealth_allowed() -> bool:
+	return not encounter_started and not boss_defeated
+
+
+func alertness(t: Character3D) -> String:
+	if t == dummy:
+		if not encounter_started:
+			return "unaware"
+		return "attacking" if _boss_telegraph > 0.0 else "hunting"
+	return super.alertness(t)
+
+
+## Vesper's powers can be countered while his warning is up; a countered prayer counts as broken.
+func _counter_threat() -> Character3D:
+	if encounter_started and not boss_defeated and _boss_telegraph > 0.0 and not dummy.dead \
+			and _flat_dist(dummy) <= counter_range:
+		return dummy
+	return super._counter_threat()
+
+
+func _cancel_threat(t: Character3D) -> void:
+	if t != dummy:
+		super._cancel_threat(t)
+		return
+	if not break_heal():
+		_cancel_boss_attack()
+	dummy.act("hit_chest")
+
+
+func _damage_dummy(r: Dictionary) -> void:
+	if not encounter_started or boss_defeated:
+		return
+	super._damage_dummy(r)
+	if not boss_defeated and dummy_hp > 0.0:
+		rules.boss_hp = dummy_hp
+	break_heal()
+
+
 func _special_move(dir: String) -> Dictionary:
 	return combat.special(dir, _ambush_free_special)
 
 
 func context_label() -> String:
+	var combo_c := combo_move()
+	if not combo_c.is_empty() and not boss_defeated:
+		return combo_c
 	if can_pick_up:
 		return "PICK UP"
 	if _nearest_plate != null:
 		return "COLLECT PLATE"
 	if _nearest_loot != null:
 		return "SCAVENGE"
+	if silent_target() >= 0:
+		return "SILENT KILL"
 	if rules != null and rules.ambush_ready():
 		return "AMBUSH"
 	if boss_defeated and rules.finisher.is_empty():
@@ -640,7 +698,9 @@ func context_visible() -> bool:
 
 
 func context_action() -> void:
-	if can_pick_up:
+	if not combo_move().is_empty() and not boss_defeated:
+		combo_action()
+	elif can_pick_up:
 		pick_up()
 	elif _nearest_plate != null:
 		var result := rules.collect_plate()
@@ -660,6 +720,8 @@ func context_action() -> void:
 		_loot_nodes.erase(_nearest_loot)
 		_nearest_loot = null
 		get_node("/root/Subs").cue("[scavenged %s]" % id.replace("_", " "))
+	elif silent_target() >= 0:
+		silent_kill()
 	elif rules.ambush_ready():
 		var result := rules.start_ambush()
 		encounter_started = true

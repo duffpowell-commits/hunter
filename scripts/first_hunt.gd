@@ -1,7 +1,9 @@
 extends Node
 ## The guided first hunt (Nov 26, 8.5 pass, item 1). The blind first-timer got no controls and no
 ## goal (s08). This runs Coach prompts one at a time in the Pews, each gone once you do it:
-##   move -> sneak (light tilt) -> attack (tap) -> heavy (hold) -> dodge (double tap) -> special (swipe)
+##   move -> sneak (SNEAK button) -> strike (tap) -> heavy (hold) -> counter (on "!") -> dodge (DODGE)
+##   -> special (swipe). Nov 26 free-flow pass: sneak, counter and dodge are buttons now; the old
+##   tilt and double-tap prompts got new ids so a returning player is taught the new controls.
 ## The fight prompts wait until there's someone to hit (the fight started or a minion is close).
 ## Each prompt is learned once, ever (user://coach.cfg), so a second hunt shows none of them.
 ## game.gd adds it in the Pews and calls saw(kind) for every pad gesture.
@@ -11,10 +13,11 @@ const Coach = preload("res://scripts/coach.gd")
 ## [id, text (4 words max), needs a target]
 const STEPS := [
 	["hunt_move", "DRAG {stick} TO MOVE", false],
-	["hunt_sneak", "TILT LIGHTLY TO SNEAK", false],
-	["hunt_light", "TAP {pad} TO ATTACK", true],
+	["hunt_sneak_btn", "TAP SNEAK TO CROUCH", false],
+	["hunt_light", "TAP {pad} TO STRIKE", true],
 	["hunt_heavy", "HOLD FOR HEAVY", true],
-	["hunt_dodge", "DOUBLE-TAP TO DODGE", true],
+	["hunt_counter", "TAP COUNTER ON !", true],
+	["hunt_dodge_btn", "TAP DODGE TO EVADE", true],
 	["hunt_special", "SWIPE FOR SPECIAL", true],
 ]
 
@@ -54,13 +57,15 @@ func _check(id: String) -> bool:
 	match id:
 		"hunt_move":
 			return arena.hero.speed() > 1.0
-		"hunt_sneak":
+		"hunt_sneak_btn":
 			return _sneak_t > 0.6
+		"hunt_counter":
+			return seen_kinds.has("counter")
 		"hunt_light":
 			return seen_kinds.has("light")
 		"hunt_heavy":
 			return seen_kinds.has("heavy")
-		"hunt_dodge":
+		"hunt_dodge_btn":
 			return seen_kinds.has("dodge")
 		"hunt_special":
 			return seen_kinds.has("swipe")
@@ -81,8 +86,11 @@ func _process(dt: float) -> void:
 		return
 	_sneak_t = _sneak_t + dt if arena.hero.crouching and arena.hero.speed() > 0.2 else 0.0
 	# Never over a pause, settings or GAME OVER sheet (fresh-eyes, PR #30).
+	# Nor under a one-line explainer: both use the same strip (Nov 26 renders); the prompt steps
+	# aside for the explainer's few seconds and comes back.
+	var ex := ui_parent.get_node_or_null("Explainer") as CanvasItem
 	var blocked: bool = ui_parent.get("paused") == true or ui_parent.get("over") == true \
-		or not get_tree().get_nodes_in_group("sheet").is_empty()
+		or not get_tree().get_nodes_in_group("sheet").is_empty() or (ex != null and ex.visible)
 	if is_instance_valid(_current):
 		_current.visible = not blocked
 		return
@@ -97,10 +105,13 @@ func _process(dt: float) -> void:
 		set_process(false)
 		return
 	var step: Array = STEPS[next]
-	if bool(step[2]) and not _has_target():
+	if step[2] == true and not _has_target():
+		return
+	# The counter prompt waits for the first "!" so the button has something to answer.
+	if step[0] == "hunt_counter" and not arena.counter_ready():
 		return
 	# Sneaking only makes sense before he's seen you; skip it once the fight is on.
-	if step[0] == "hunt_sneak" and arena.get("encounter_started") == true:
+	if step[0] == "hunt_sneak_btn" and arena.get("encounter_started") == true:
 		_learn(step[0])
 		return
 	if next != _step:
@@ -110,7 +121,7 @@ func _process(dt: float) -> void:
 	var lh := left_handed
 	var st := get_node_or_null("/root/Settings")
 	if st != null:
-		lh = bool(st.get_value("left_handed"))     # read live: the player may flip it mid-hunt
+		lh = st.get_value("left_handed") == true     # read live: the player may flip it mid-hunt
 	var text: String = str(step[1]).replace("{stick}", "RIGHT" if lh else "LEFT").replace("{pad}", "LEFT" if lh else "RIGHT")
 	_current = Coach.teach(ui_parent, id, text, func():
 		var done := _check(id)

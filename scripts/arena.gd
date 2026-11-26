@@ -28,7 +28,13 @@ const TUNE := {"enemy_attack_every": [0.5, 8.0], "enemy_telegraph": [0.2, 1.5], 
 	"combo_gap": [0.4, 3.0], "cancel_window": [0.1, 1.0], "cancel_bonus": [0.0, 1.0], "string_gap": [0.3, 2.0],
 	"hold_time": [0.15, 0.8], "swipe_min": [20.0, 160.0], "double_tap": [0.0, 0.4],
 	"dodge_iframes": [0.0, 0.6], "dodge_cooldown": [0.1, 2.0], "damage_scale": [0.25, 4.0],
-	"dummy_max_hp": [10.0, 300.0], "pipe_durability": [1.0, 10.0], "break_mult": [1.0, 5.0]}
+	"dummy_max_hp": [10.0, 300.0], "pipe_durability": [1.0, 20.0], "break_mult": [1.0, 5.0],
+	# Nov 26 free-flow pass (data/moves.json "freeflow").
+	"lunge_range": [0.0, 10.0], "lunge_speed": [4.0, 30.0], "lunge_cone": [10.0, 120.0],
+	"counter_range": [1.0, 8.0], "counter_damage": [0.0, 60.0], "counter_iframes": [0.0, 1.0],
+	"counter_whiff_lock": [0.0, 2.0], "takedown_at": [2.0, 15.0, 1.0], "finisher_at": [3.0, 25.0, 1.0],
+	"takedown_damage": [0.0, 150.0], "finisher_damage": [0.0, 150.0], "finisher_radius": [1.0, 8.0],
+	"lunge_max_time": [0.1, 1.5], "counter_power": [0.0, 1.5], "silent_range": [0.5, 4.0]}
 
 var enemy_attack_every := 2.5
 var enemy_telegraph := 0.6
@@ -46,6 +52,21 @@ var damage_scale := 1.0
 var dummy_max_hp := 60.0
 var pipe_durability := 4.0
 var break_mult := 2.5
+var lunge_range := 6.0
+var lunge_speed := 14.0
+var lunge_cone := 70.0
+var counter_range := 4.5
+var counter_damage := 14.0
+var counter_iframes := 0.45
+var counter_whiff_lock := 0.6
+var takedown_at := 5.0
+var finisher_at := 8.0
+var takedown_damage := 40.0
+var finisher_damage := 45.0
+var finisher_radius := 3.2
+var lunge_max_time := 0.5
+var counter_power := 0.8
+var silent_range := 1.8
 
 var moves: Dictionary
 var enemy: Dictionary
@@ -80,6 +101,19 @@ var _respawn_t := 0.0
 var _pickup: Node3D
 var _held: Node3D
 var _warn: Label3D
+# Free-flow (Nov 26). Counters below are read by tests, autoplay and the first-hunt prompts.
+var freeflow: Dictionary
+var sneak := false                     # the SNEAK toggle (the Pews reads it before the fight)
+var demon_sight := false               # the SIGHT toggle: enemies marked through walls
+var lunges := 0
+var counters := 0                      # COUNTER presses that caught an attack
+var counters_tried := 0                # every COUNTER press
+var dodges := 0                        # DODGE presses that rolled
+var takedowns := 0
+var finishers := 0
+var _lunge := {}                       # {"move", "target"} while the hero dashes in to swing
+var _counter_lock := 0.0               # a whiffed COUNTER locks it out briefly (no mashing)
+var _marks := {}                       # actor instance id -> its Demon Sight marker
 
 
 func _ready() -> void:
@@ -105,6 +139,12 @@ func _ready() -> void:
 	dummy_max_hp = float(enemy.hp)
 	pipe_durability = float(weapon_data.pipe.durability)
 	break_mult = float(weapon_data.pipe.break_mult)
+	freeflow = moves.get("freeflow", {})
+	for k in ["lunge_range", "lunge_speed", "lunge_cone", "counter_range", "counter_damage", "counter_iframes",
+			"counter_whiff_lock", "takedown_at", "finisher_at", "takedown_damage", "finisher_damage", "finisher_radius",
+			"lunge_max_time", "counter_power", "silent_range"]:
+		if freeflow.has(k):
+			set(k, float(freeflow[k]))
 	_enemy_t = enemy_attack_every
 	dummy_hp = dummy_max_hp
 	_build_world()
@@ -278,6 +318,7 @@ func _process(dt: float) -> void:
 	combat.tick(dt)
 	_dodge_cd -= dt
 	_iframes -= dt
+	_counter_lock -= dt
 	var v := bot_stick if bot_stick != Vector2.INF else stick
 	if v == Vector2.ZERO:
 		v = Input.get_vector("move_left", "move_right", "move_up", "move_down")   # keys + pad
@@ -285,7 +326,12 @@ func _process(dt: float) -> void:
 	can_pick_up = _pickup != null and not hero.dead and combat.weapon == "" \
 		and hero.global_position.distance_to(_pickup.global_position) < float(moves.arena.pickup_radius)
 	_move_age += dt * hero.time_scale        # hero time: hit-stop pauses the swing's clock too
-	_check_hit()
+	if not _lunge.is_empty():
+		_update_lunge()
+	if _move.get("kind", "") == "finisher":
+		_check_finisher()
+	else:
+		_check_hit()
 	if not _queued.is_empty() and hero.dead:
 		_queued = {}
 	elif not _queued.is_empty() and _free():
@@ -295,6 +341,7 @@ func _process(dt: float) -> void:
 	_enemy(dt)
 	var near := not dummy.dead and hero.global_position.distance_to(dummy.global_position) < 5.0
 	get_node("/root/Audio").set_intensity(1.0 if near else 0.0)
+	_update_sight()
 
 
 ## A swing lands once, while it plays, if the dummy is within reach and in front (or all
@@ -316,9 +363,25 @@ func _check_hit() -> void:
 	if to.length() > combat.reach(_move) or not in_arc:
 		return
 	var r := _land_hit(dummy)
+	_damage_dummy(r)
+
+
+## The dummy (or a boss using it) takes a landed hit. The Pews keeps its boss rules in sync.
+func _damage_dummy(r: Dictionary) -> void:
 	dummy_hp -= float(r.damage)
 	if dummy_hp <= 0.0:
 		_ko(r)
+
+
+## A landed hit's damage reaches `target`, whoever it is (the finisher hits several).
+func _apply_damage(target: Character3D, r: Dictionary) -> void:
+	if target == dummy and not dummy.dead:
+		_damage_dummy(r)
+
+
+## Bosses survive a TAKEDOWN (they take takedown_damage); anyone else goes down.
+func _is_boss(target: Character3D) -> bool:
+	return target == dummy
 
 
 func _land_hit(target: Character3D) -> Dictionary:
@@ -326,6 +389,8 @@ func _land_hit(target: Character3D) -> Dictionary:
 	var r := combat.land(_move)
 	r["cancel"] = _move.get("cancel", false)
 	r["kind"] = _move.kind
+	if r.kind == "takedown" and not _is_boss(target):
+		r["damage"] = 99999.0
 	last_hit = r
 	hits_landed += 1
 	var feel: Node = get_node("/root/Feel")
@@ -463,9 +528,9 @@ func _staggered() -> bool:
 	return false
 
 
-## Free to start a new swing: no stagger, and the current swing has recovered.
+## Free to start a new swing: no stagger, no lunge under way, and the current swing has recovered.
 func _free() -> bool:
-	if hero.dead or _staggered():
+	if hero.dead or _staggered() or not _lunge.is_empty():
 		return false
 	return _move.is_empty() or _move_age >= float(_move.get("recover", 0.0))
 
@@ -535,8 +600,30 @@ func dodge() -> void:
 	_iframes = dodge_iframes
 	_move = {}
 	_queued = {}
+	_end_lunge()
 	_last_light_landed = false
+	dodges += 1
 	hero.act("dodge")
+
+
+## The DODGE button (Nov 26): roll along the stick, or with no stick away from whoever is
+## attacking (else the nearest enemy), so one tap gets you out of a swing.
+func dodge_toward(v: Vector2) -> void:
+	if _dodge_cd > 0.0 or hero.dead:
+		return
+	var dir := Vector3(v.x, 0, v.y)
+	if v.length() < 0.3:
+		dir = Vector3.ZERO
+		var t := _counter_threat()
+		if t == null:
+			t = lunge_target()
+		if t != null:
+			dir = hero.global_position - t.global_position
+			dir.y = 0.0
+	if dir.length() > 0.01:
+		hero.heading = atan2(dir.x, dir.z)
+		hero.model.rotation.y = hero.heading
+	dodge()
 
 
 func pick_up() -> void:
@@ -559,20 +646,316 @@ func pick_up() -> void:
 	weapon_changed.emit(combat.weapon, combat.durability)
 
 
-func _start(m: Dictionary) -> void:
+## Free-flow (Nov 26): face the target the stick points at (else the nearest). If it's past the
+## swing's reach but inside lunge_range, dash to it first and swing on arrival (_update_lunge).
+func _start(m: Dictionary, forced: Character3D = null) -> void:
 	if m.is_empty() or hero.dead:
 		return
-	# Snap to face a close target so touch input can aim the swing.
-	var target := _attack_target()
+	var target := forced if forced != null else lunge_target()
+	if target == null:
+		target = _attack_target()
 	if target != null:
 		var to := target.global_position - hero.global_position
-		if Vector2(to.x, to.z).length() < float(moves.arena.auto_face):
-			hero.heading = atan2(to.x, to.z)
-			hero.model.rotation.y = hero.heading
+		to.y = 0.0
+		var d := to.length()
+		if d < maxf(float(moves.arena.auto_face), lunge_range):
+			_face(to)
+		if lunge_range > 0.0 and d > combat.reach(m) * 0.9 and d <= lunge_range:
+			_lunge = {"move": m, "target": target}
+			lunges += 1
+			_move = {}
+			_landed = false
+			hero.dash_t = lunge_max_time
+			hero.dash_velocity = to.normalized() * lunge_speed
+			return
+	_begin(m)
+
+
+func _begin(m: Dictionary) -> void:
 	_move = m
 	_landed = false
 	_move_age = 0.0
 	hero.act(m.action)
+
+
+func _face(to: Vector3) -> void:
+	if Vector2(to.x, to.z).length() < 0.001:
+		return
+	hero.heading = atan2(to.x, to.z)
+	hero.model.rotation.y = hero.heading
+
+
+func _update_lunge() -> void:
+	var t: Character3D = _lunge.target
+	if hero.dead or _staggered():
+		_end_lunge()
+		return
+	var m: Dictionary = _lunge.move
+	if not is_instance_valid(t) or t.dead:
+		_end_lunge()
+		_begin(m)                              # swing where you are: the input still counts
+		return
+	var to := t.global_position - hero.global_position
+	to.y = 0.0
+	_face(to)
+	if to.length() <= combat.reach(m) * 0.8 or hero.dash_t <= 0.0:
+		_end_lunge()
+		_begin(m)
+	else:
+		hero.dash_velocity = to.normalized() * lunge_speed
+
+
+func _end_lunge() -> void:
+	_lunge = {}
+	hero.dash_t = 0.0
+
+
+func lunging() -> bool:
+	return not _lunge.is_empty()
+
+
+## Who a strike can lunge to (alive, in this fight). The Pews leaves Vesper out before the fight.
+func _targets() -> Array[Character3D]:
+	return _sight_targets()
+
+
+## Everyone Demon Sight marks: the dummy here; hunts add their minions.
+func _sight_targets() -> Array[Character3D]:
+	var out: Array[Character3D] = []
+	if not dummy.dead and dummy.visible:
+		out.append(dummy)
+	return out
+
+
+func lunge_target() -> Character3D:
+	var ts := _targets()
+	var pts: Array = []
+	for t in ts:
+		pts.append(t.global_position)
+	var v := hero.move_input
+	var i := Combat.pick_target(hero.global_position, Vector3(v.x, 0, v.y), pts, lunge_range, lunge_cone)
+	return ts[i] if i >= 0 else null
+
+
+func _flat_dist(t: Node3D) -> float:
+	var to := t.global_position - hero.global_position
+	to.y = 0.0
+	return to.length()
+
+
+func _abort_actions() -> void:
+	for a in hero.actions:
+		if not a in STAGGER and a != "dodge" and hero.is_acting(a):
+			hero.tree.set("parameters/shot_%s/request" % a, AnimationNodeOneShot.ONE_SHOT_REQUEST_ABORT)
+
+
+# ---------------------------------------------------------------- COUNTER (Nov 26)
+
+## The nearest enemy showing its attack warning inside counter_range (null = nothing to counter).
+func _counter_threat() -> Character3D:
+	if telegraphing and not dummy.dead and _flat_dist(dummy) <= counter_range:
+		return dummy
+	return null
+
+
+## The countered attack never lands.
+func _cancel_threat(t: Character3D) -> void:
+	if t == dummy:
+		telegraphing = false
+		_warn.visible = false
+		_enemy_t = enemy_attack_every
+
+
+func counter_ready() -> bool:
+	return _counter_lock <= 0.0 and not hero.dead and not _staggered() and _counter_threat() != null
+
+
+## COUNTER: while an enemy shows "!", cancel its attack, lunge in and hit back (+1 combo, a moment
+## of i-frames). Pressed with nothing to counter, it locks out for counter_whiff_lock.
+func counter() -> void:
+	if hero.dead or _staggered():
+		return
+	counters_tried += 1
+	if _counter_lock > 0.0:
+		return
+	var t := _counter_threat()
+	if t == null:
+		_counter_lock = counter_whiff_lock
+		get_node("/root/Subs").cue("[counter misses: wait for the !]")
+		return
+	_cancel_threat(t)
+	counters += 1
+	_iframes = maxf(_iframes, counter_iframes)
+	_queued = {}
+	_end_lunge()
+	_abort_actions()
+	var armed := combat.weapon != ""
+	var m := {"id": "counter", "kind": "counter", "action": "slash_c" if armed else "hook",
+		"damage": counter_damage, "power": counter_power, "reach": 1.6,
+		"arc": 140, "hit_at": 0.12, "recover": 0.35}
+	get_node("/root/Audio").sfx("hit_heavy", 0.5)
+	get_node("/root/Subs").cue("[counter]")
+	_start(m, t)
+
+
+# ---------------------------------------------------------------- TAKEDOWN / FINISHER (Nov 26)
+
+## What the combo meter offers now: "FINISHER" at finisher_at hits, "TAKEDOWN" at takedown_at,
+## else "". Needs someone to lunge to.
+func combo_move() -> String:
+	if hero.dead or _staggered():
+		return ""
+	var c := combat.combo
+	if c < int(takedown_at) or lunge_target() == null:
+		return ""
+	return "FINISHER" if c >= int(finisher_at) else "TAKEDOWN"
+
+
+## Spends the combo. TAKEDOWN: one enemy goes down (a boss takes takedown_damage). FINISHER: a
+## spin that hits everyone within finisher_radius for finisher_damage.
+func combo_action() -> void:
+	var what := combo_move()
+	if what.is_empty():
+		return
+	combat.combo = 0
+	_queued = {}
+	_end_lunge()
+	_abort_actions()
+	_iframes = maxf(_iframes, 0.6)
+	var m: Dictionary
+	if what == "FINISHER":
+		finishers += 1
+		m = {"id": "finisher", "kind": "finisher", "action": "spin", "damage": finisher_damage, "power": 1.0,
+			"reach": finisher_radius, "arc": 360, "hit_at": 0.3, "recover": 0.55}
+	else:
+		takedowns += 1
+		m = {"id": "takedown", "kind": "takedown", "action": "heavy", "damage": takedown_damage, "power": 1.0,
+			"reach": 1.8, "hit_at": 0.3, "recover": 0.55}
+	get_node("/root/Subs").cue("[%s]" % what.to_lower())
+	_start(m)
+
+
+func _check_finisher() -> void:
+	if _landed or hero.dead:
+		return
+	if not hero.is_acting(_move.action):
+		if _move_age > 0.2:
+			_move = {}
+		return
+	if _move_age < float(_move.get("hit_at", 0.0)):
+		return
+	var victims: Array[Character3D] = []
+	for t in _targets():
+		if _flat_dist(t) <= combat.reach(_move):
+			victims.append(t)
+	if victims.is_empty():
+		_landed = true
+		return
+	var r := _land_hit(victims[0])
+	for v in victims:
+		if v != victims[0]:
+			v.hit(hero.global_position + Vector3(0, 1.2, 0), float(r.power))
+		_apply_damage(v, r)
+
+
+# ---------------------------------------------------------------- SNEAK + DEMON SIGHT (Nov 26)
+
+func toggle_sneak() -> void:
+	sneak = not sneak
+
+
+func set_demon_sight(on: bool) -> void:
+	demon_sight = on
+	get_node("/root/Subs").cue("[demon sight on]" if on else "[demon sight off]")
+	if not on:
+		for id in _marks:
+			if is_instance_valid(_marks[id]):
+				_marks[id].visible = false
+
+
+## "unaware", "hunting" or "attacking" (Demon Sight colours and shapes).
+func alertness(t: Character3D) -> String:
+	if t == dummy:
+		return "attacking" if telegraphing else "hunting"
+	return "hunting"
+
+
+const SIGHT := {"unaware": ["?", "info"], "hunting": ["!", "warn"], "attacking": ["!!", "bad"]}
+
+
+func _update_sight() -> void:
+	if not demon_sight:
+		return
+	var live := {}
+	for t in _sight_targets():
+		var id := t.get_instance_id()
+		live[id] = true
+		var mk: Node3D = _marks.get(id)
+		if mk == null or not is_instance_valid(mk):
+			mk = _make_mark(t)
+			_marks[id] = mk
+		var look: Array = SIGHT[alertness(t)]
+		var label := mk.get_node("Text") as Label3D
+		label.text = look[0]
+		label.modulate = UI.key(look[1])
+		(mk.get_node("Ring") as MeshInstance3D).material_override.albedo_color = Color(UI.key(look[1]), 0.55)
+		mk.visible = true
+	for id in _marks:
+		if not live.has(id) and is_instance_valid(_marks[id]):
+			_marks[id].visible = false
+
+
+## A Demon Sight marker: a ring at the feet and a sign over the head, both drawn over walls.
+func _make_mark(t: Character3D) -> Node3D:
+	var mk := Node3D.new()
+	mk.name = "SightMark"
+	var label := Label3D.new()
+	label.name = "Text"
+	label.font_size = 120
+	label.outline_size = 32
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.position = Vector3(0, 2.9, 0)
+	mk.add_child(label)
+	var ring := MeshInstance3D.new()
+	ring.name = "Ring"
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.7
+	cm.bottom_radius = 0.7
+	cm.height = 0.02
+	cm.radial_segments = 24
+	ring.mesh = cm
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring.material_override = mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position.y = 0.05
+	mk.add_child(ring)
+	t.add_child(mk)
+	return mk
+
+
+# ---------------------------------------------------------------- context button
+
+## The context button in a plain arena: TAKEDOWN / FINISHER when the combo allows, else PICK UP.
+func context_label() -> String:
+	var c := combo_move()
+	if not c.is_empty():
+		return c
+	return "PICK UP" if can_pick_up else ""
+
+
+func context_visible() -> bool:
+	return not context_label().is_empty()
+
+
+func context_action() -> void:
+	if not combo_move().is_empty():
+		combo_action()
+	elif can_pick_up:
+		pick_up()
 
 
 func combo_count() -> int:

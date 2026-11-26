@@ -1,7 +1,7 @@
 {
-  "_why": "Hunter M1 (Nov 21, 2026): improvised weapons are data (docs/BUILD_SPEC.md: 3-5 durability, each hit costs 1; at 0 the next hit breaks it for x2.5 damage and a big knockback).",
+  "_why": "Hunter M1 (Nov 21, 2026): improvised weapons are data (docs/BUILD_SPEC.md: 3-5 durability, each hit costs 1 (Nov 26 free-flow pass: pipe raised to 8 so a weapon lasts most of a fight); at 0 the next hit breaks it for x2.5 damage and a big knockback).",
   "pipe": {
-    "name": "PIPE", "durability": 4, "damage_bonus": 4, "reach_bonus": 0.3,
+    "name": "PIPE", "durability": 8, "damage_bonus": 4, "reach_bonus": 0.3,
     "break_mult": 2.5, "break_power": 1.0, "color": [0.62, 0.64, 0.7], "length": 0.9, "spawn": [2.5, 0.0, 1.5]
   }
 }

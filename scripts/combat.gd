@@ -155,3 +155,33 @@ static func swipe_dir(swipe: Vector2, to_target: Vector2) -> String:
 		if a >= PI * 3.0 / 4.0:
 			return "away"
 	return "up" if swipe.y < 0.0 else "down"
+
+
+## Free-flow target pick (Nov 26): which of `points` a strike lunges to. With a stick direction
+## (`dir`, flat, length >= 0.3) the best one inside `cone_deg` of it wins (near and on-line beats
+## far or off to the side); with no stick, or nobody that way, the nearest. -1 = nobody within
+## `max_range`. Pure, so the tests check it without a scene.
+static func pick_target(from: Vector3, dir: Vector3, points: Array, max_range: float, cone_deg: float) -> int:
+	var flat_dir := Vector3(dir.x, 0, dir.z)
+	var use_dir := flat_dir.length() >= 0.3
+	var best := -1
+	var best_score := INF
+	var nearest := -1
+	var nearest_d := INF
+	for i in points.size():
+		var to: Vector3 = points[i] - from
+		to.y = 0.0
+		var d := to.length()
+		if d > max_range:
+			continue
+		if d < nearest_d:
+			nearest_d = d
+			nearest = i
+		if use_dir and d > 0.001:
+			var ang := flat_dir.normalized().angle_to(to / d)
+			if ang <= deg_to_rad(cone_deg):
+				var score := d * (1.0 + 2.0 * ang)
+				if score < best_score:
+					best_score = score
+					best = i
+	return best if best >= 0 else nearest

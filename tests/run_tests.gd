@@ -426,12 +426,12 @@ func test_combo_counter() -> void:
 	check(c.combo == 0, "getting hit drops it")
 
 
-## The pipe: 4 durability, each hit costs 1, the next hit at 0 breaks it for x2.5 and a big knockback.
+## The pipe: 8 durability (4 until the Nov 26 free-flow pass), each hit costs 1, the next hit at 0 breaks it for x2.5 and a big knockback.
 func test_weapon_breaks() -> void:
 	var c := _combat()
 	check(c.pick_up("pipe") and c.weapon == "pipe", "picked up")
 	var w: Dictionary = c.weapons.pipe
-	check(int(w.durability) >= 3 and int(w.durability) <= 5, "durability 3-5 (spec)")
+	check(int(w.durability) >= 3 and int(w.durability) <= 10, "durability 3-10 (spec, raised Nov 26)")
 	check(c.light().action == "slash_a", "armed swings use the weapon clips")
 	for i in int(w.durability):
 		var r := c.land({"kind": "light", "damage": 8, "power": 0.3})
@@ -615,7 +615,9 @@ func test_double_tap_resolves() -> void:
 	a._move = {}
 	a._last_light_landed = true
 	a.double_tap_input()
-	check(a._dodge_cd == 0.0 and a._move.get("kind", "") == "light", "double-tap after a landed light = light")
+	# Free-flow (Nov 26): the dummy is out of reach, so the light starts as a lunge toward it.
+	var started: Dictionary = a._move if not a._move.is_empty() else a._lunge.get("move", {})
+	check(a._dodge_cd == 0.0 and started.get("kind", "") == "light", "double-tap after a landed light = light")
 	a.queue_free()
 	await process_frame
 
@@ -634,6 +636,7 @@ func test_keyboard_reaches_every_special() -> void:
 		a.combat.cooldowns.clear()
 		a._move = {}
 		a._queued = {}
+		a._end_lunge()                 # free-flow: each press starts fresh, not behind the last lunge
 		a.last_special = {}
 		a.stick_special(v)
 		got[a.last_special.get("id", "?")] = true
@@ -1407,7 +1410,7 @@ func test_first_hunt_prompts() -> void:
 	for s in FirstHunt.STEPS:
 		ids.append(s[0])
 		check(str(s[1]).split(" ", false).size() <= 4, "prompt is 4 words max: " + str(s[1]))
-	for id in ["hunt_move", "hunt_sneak", "hunt_light", "hunt_heavy", "hunt_dodge", "hunt_special"]:
+	for id in ["hunt_move", "hunt_sneak_btn", "hunt_light", "hunt_heavy", "hunt_counter", "hunt_dodge_btn", "hunt_special"]:
 		check(ids.has(id), "the first hunt teaches " + id)
 
 
@@ -1526,7 +1529,7 @@ func test_first_hunt_prompt_survives_rebuild() -> void:
 	ui.get_node("Coach_hunt_move").free()
 	await process_frame
 	await process_frame
-	check(ui.has_node("Coach_hunt_move") and not ui.has_node("Coach_hunt_sneak"), "freed by a rebuild, the same prompt comes back")
+	check(ui.has_node("Coach_hunt_move") and not ui.has_node("Coach_hunt_sneak_btn"), "freed by a rebuild, the same prompt comes back")
 	Coach.forget_all()
 	for n in [t, ui, a]:
 		n.queue_free()
@@ -1560,4 +1563,205 @@ func test_first_hunt_prompt_hides_behind_sheets() -> void:
 	Coach.forget_all()
 	for n in [t, ui, a]:
 		n.queue_free()
+	await process_frame
+
+
+# ---------------------------------------------------------------- Nov 26: free-flow combat
+
+## The stick picks who a strike lunges to; no stick = the nearest; nobody past lunge_range.
+func test_freeflow_pick_target() -> void:
+	var pts := [Vector3(0, 0, 3), Vector3(4, 0, 0), Vector3(0, 0, -9)]
+	check(Combat.pick_target(Vector3.ZERO, Vector3.ZERO, pts, 6.0, 70.0) == 0, "no stick: the nearest")
+	check(Combat.pick_target(Vector3.ZERO, Vector3(1, 0, 0), pts, 6.0, 70.0) == 1, "stick right: the one on the right, though further")
+	check(Combat.pick_target(Vector3.ZERO, Vector3(0, 0, -1), pts, 6.0, 70.0) == 0, "nobody that way in range: the nearest")
+	check(Combat.pick_target(Vector3.ZERO, Vector3.ZERO, [Vector3(0, 0, 7)], 6.0, 70.0) == -1, "out of lunge range: nobody")
+
+
+## A strike at an enemy 4 m off dashes in and lands; the combo carries 2 s between hits.
+func test_freeflow_lunge_lands() -> void:
+	var a := Arena.new()
+	root.add_child(a)
+	await process_frame
+	a.enemy_attack_every = 999.0
+	a._enemy_t = 999.0
+	a.dummy.position = a.hero.position + Vector3(0, 0, 4.0)
+	await physics_frame
+	var before := a.hits_landed
+	a.light()
+	check(a.lunging() and a.lunges == 1 and a._move.is_empty(), "the strike starts as a lunge, not a swing at air")
+	for i in 90:
+		await physics_frame
+		if a.hits_landed > before:
+			break
+	check(a.hits_landed > before, "the lunge closed %.1f m and the strike landed" % 4.0)
+	check(a.hero.global_position.distance_to(a.dummy.global_position) < 2.2, "the hero ends up next to the target")
+	check(is_equal_approx(a.combat.combo_gap, 2.0), "the combo holds 2 s between hits (data)")
+	a.queue_free()
+	await process_frame
+
+
+## COUNTER on the "!" cancels the swing and hits back; with nothing to counter it whiffs and locks.
+func test_freeflow_counter() -> void:
+	var a := Arena.new()
+	root.add_child(a)
+	await process_frame
+	a.dummy.position = a.hero.position + Vector3(0, 0, 2.5)
+	await physics_frame
+	a.counter()
+	check(a.counters == 0 and a.counters_tried == 1 and a._counter_lock > 0.0, "no warning: the counter whiffs and locks out")
+	a._counter_lock = 0.0
+	a.telegraphing = true
+	a._warn.visible = true
+	check(a.counter_ready(), "the button lights up while the dummy shows !")
+	var hp0 := a.hp
+	a.counter()
+	check(a.counters == 1 and not a.telegraphing and not a._warn.visible and a._iframes > 0.0,
+		"the counter cancels the swing and gives i-frames")
+	var landed := false
+	for i in 90:
+		await physics_frame
+		if a.last_hit.get("kind", "") == "counter":
+			landed = true
+			break
+	check(landed and a.hp == hp0, "the counter hit lands and the dummy's swing never did")
+	a.queue_free()
+	await process_frame
+
+
+## A minion's wind-up and Vesper's powers can be countered; a countered prayer is broken.
+func test_freeflow_counter_in_the_pews() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	var foe: Dictionary = a._foes[0]
+	a.hero.global_position = foe.actor.global_position + Vector3(0, 0, 1.5)
+	foe.windup = 0.4
+	foe.warn.visible = true
+	a._foes[0] = foe
+	check(a._counter_threat() == foe.actor and a.alertness(foe.actor) == "attacking", "a winding-up minion is counterable")
+	a.counter()
+	check(a._foes[0].windup == 0.0 and not a._foes[0].warn.visible, "its swing is cancelled")
+	a._end_lunge()
+	a._move = {}
+	a.encounter_started = true
+	a.hero.global_position = a.dummy.global_position + Vector3(0, 0, 2.0)
+	a._boss_move = "laying_of_hands"
+	a._boss_telegraph = 1.0
+	a._counter_lock = 0.0
+	var broken: int = a.heals_broken
+	check(a._counter_threat() == a.dummy, "Vesper praying is counterable")
+	a.counter()
+	check(a.heals_broken == broken + 1 and a._boss_telegraph == 0.0, "countering the prayer breaks the heal")
+	a.queue_free()
+	await process_frame
+
+
+## TAKEDOWN at takedown_at hits drops a minion outright; FINISHER at finisher_at hits everyone near.
+func test_freeflow_takedown_and_finisher() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a._boss_cd = 999.0
+	var foe: Dictionary = a._foes[0]
+	a.hero.global_position = foe.actor.global_position + Vector3(0, 0, 1.2)
+	a.dummy.global_position = foe.actor.global_position + Vector3(30, 0, 0)
+	await physics_frame
+	a.combat.combo = 4
+	check(a.combo_move() == "", "4 hits: nothing yet")
+	a.combat.combo = int(a.takedown_at)
+	check(a.combo_move() == "TAKEDOWN" and a.context_label() == "TAKEDOWN", "5 hits: the context button offers TAKEDOWN")
+	a.context_action()
+	check(a.takedowns == 1 and a.combat.combo == 0, "TAKEDOWN spends the combo")
+	for i in 90:
+		await physics_frame
+		if a._foes[0].dead:
+			break
+	check(a._foes[0].dead, "the takedown drops the minion outright")
+	var choir: Dictionary = a._foes[1]
+	a.hero.global_position = choir.actor.global_position + Vector3(0, 0, 1.0)
+	await physics_frame
+	a._move = {}
+	a.combat.combo = int(a.finisher_at)
+	check(a.combo_move() == "FINISHER", "8 hits: FINISHER")
+	var hp0: float = choir.hp
+	a.combo_action()
+	for i in 90:
+		await physics_frame
+		if a._foes[1].hp < hp0:
+			break
+	check(a.finishers == 1 and a._foes[1].hp <= hp0 - minf(a.finisher_damage, hp0) + 0.01, "the finisher hit for finisher_damage")
+	a.queue_free()
+	await process_frame
+
+
+## SNEAK is a button; sneaking lets you reach an unaware minion and SILENT KILL it, nobody turns.
+func test_freeflow_sneak_and_silent_kill() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.toggle_sneak()
+	await process_frame
+	check(a.hero.crouching and a.stealth_allowed(), "SNEAK crouches you before the fight, no stick needed")
+	var zealot: Dictionary = a._foes[0]
+	a.hero.global_position = zealot.actor.global_position + Vector3(0, 0, 1.5)
+	a._foe_ai(0.1)
+	check(not a._foes[0].aggro and a.alertness(zealot.actor) == "unaware", "sneaking at 1.5 m, the minion doesn't notice")
+	check(a.context_label() == "SILENT KILL", "the context button offers SILENT KILL")
+	a.context_action()
+	check(a._foes[0].dead and a.silent_kills == 1 and not a._foes[1].aggro and not a.encounter_started,
+		"one silent kill: the other minion and Vesper never turn")
+	a.toggle_sneak()
+	await process_frame
+	check(not a.hero.crouching, "SNEAK again stands up")
+	a.sneak = true
+	a.encounter_started = true
+	await process_frame
+	check(not a.sneak and not a.hero.crouching and not a.stealth_allowed(), "the fight starting stands you up")
+	a.queue_free()
+	await process_frame
+
+
+## Demon Sight marks every enemy through walls, coloured and shaped by how alert it is.
+func test_freeflow_demon_sight() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.set_demon_sight(true)
+	await process_frame
+	var mark: Node3D = a._foes[0].actor.get_node_or_null("SightMark")
+	check(mark != null and mark.visible and (mark.get_node("Text") as Label3D).no_depth_test, "a minion gets a marker drawn over walls")
+	check((mark.get_node("Text") as Label3D).text == "?" and a.dummy.get_node_or_null("SightMark") != null, "unaware = ?, Vesper is marked too")
+	a._foes[0].aggro = true
+	await process_frame
+	check((mark.get_node("Text") as Label3D).text == "!", "hunting = !")
+	a.set_demon_sight(false)
+	await process_frame
+	check(not mark.visible, "SIGHT off hides the markers")
+	a.queue_free()
+	await process_frame
+
+
+## The HUD: COUNTER and DODGE on the pad side, clear of the strike ring; SNEAK and SIGHT on the
+## stick side; a double-tap is a second strike now, not a roll.
+func test_freeflow_hud() -> void:
+	var g: Node = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	var pad_r: Rect2 = g.pad.get_global_rect()
+	var ring := pad_r.position + pad_r.size * Vector2(0.5, 0.62)
+	for b in [g.counter_btn, g.dodge_btn]:
+		var r: Rect2 = b.get_global_rect()
+		check(pad_r.encloses(r.grow(-1)) and not r.grow(70).has_point(ring), "%s on the pad side, clear of the ring" % b.name)
+		check(r.size.y >= UI.MIN_TOUCH, "%s is a full-size button" % b.name)
+	check(not g.counter_btn.get_global_rect().intersects(g.pick_btn.get_global_rect()), "COUNTER and the context button don't overlap")
+	var stick_r: Rect2 = g.stick.get_global_rect()
+	check(stick_r.encloses(g.sight_btn.get_global_rect().grow(-1)), "SIGHT on the stick side")
+	var cd0: float = g.arena._dodge_cd
+	g._on_gesture("dodge", Vector2.ZERO)
+	check(g.arena._dodge_cd == cd0, "a double-tap no longer rolls")
+	g._dodge()
+	check(g.arena.dodges == 1, "the DODGE button rolls")
+	g.queue_free()
 	await process_frame
