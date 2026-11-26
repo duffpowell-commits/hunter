@@ -52,10 +52,17 @@ static func open(parent: Node) -> VBoxContainer:
 	return box
 
 
+const FOX_CREDIT := "Fox model: PixelMannen (CC0). Rig and animation: tomkranis. glTF: AsoboStudio and scurest (CC-BY 4.0)."
+
+
 static func _open_credits(parent: Node) -> void:
 	var box := UI.sheet(parent, 500)
 	box.add_child(UI.label("CREDITS", 28, UI.ACCENT))
 	box.add_child(UI.label("Published by " + StudioSplash.PUBLISHER))
+	# CC-BY 4.0 needs credit wherever the fox ships (assets/pets/SOURCES.md; Nov 26).
+	var fox := UI.label(FOX_CREDIT)
+	fox.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(fox)
 	box.add_child(UI.button("DONE", func(): UI.close_sheet(box)))
 
 

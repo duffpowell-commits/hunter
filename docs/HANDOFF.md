@@ -7,7 +7,8 @@ in every PR**, not only at the end: the log at the bottom is the running record.
 
 ## Studio mascot (Duff, Nov 26)
 - **Here the three-eyed fox is Cain's pet**, not the usual cameo (every
-  other game gets a rare cameo). Duff OKs the fox art on a card before it's built. Details: `docs/MASCOT.md`.
+  other game gets a rare cameo). Art B approved and the pet built Nov 26 (`scripts/fox_pet.gd`,
+  `data/fox.json`). Details: `docs/MASCOT.md`. Its name is still Duff's call.
 
 ## Current state (updated 2026-11-26, 17:30 UTC)
 - Game: **The Devil You Owe**, hero **Cain Vantre**. Godot 4.7.2, GDScript, Compatibility renderer,
@@ -51,6 +52,7 @@ score against 8.5. No one-fix-per-PR loops.
 8. Captions: `scripts/subs.gd` newest wins; dialogue never cut by a cue.
 
 ## Next steps, in order
+0. Fox pet PR (`claude/hunter-fox-pet`): merge when green + fresh-eyes. Then Duff names the fox.
 1. Merge the free-flow PR (green CI + fresh-eyes PASS, docs/FRESH_EYES.md).
 2. Duff plays it on his phone (APK from the `dev` release; browser once Pages is on) and tunes the
    feel in DEV MENU -> TUNE (lunge_range, lunge_speed, counter_*, takedown_at, finisher_at...).
@@ -69,6 +71,9 @@ score against 8.5. No one-fix-per-PR loops.
 - CI: `gh api repos/duffpowell-commits/hunter/actions/runs?per_page=3` (GraphQL is blocked).
 
 ## Gotchas (learned the hard way)
+- Non-humanoid models (the fox) live in `assets/pets/`, never `assets/models/`: `test_models_portable`
+  requires the shared humanoid skeleton there. Every texture `.import` needs `compress/normal_map`
+  set explicitly (`test_texture_imports_explicit`).
 - Autoplay taps are real taps: a button sitting over the attack pad eats them (that's how the
   context-button problem was found). Keep `game.gd CONTEXT_TOP` clear of the pad ring.
 - `game.gd _build()` frees every HUD child not in group "keep" or "sheet" whenever text size,
@@ -86,6 +91,7 @@ score against 8.5. No one-fix-per-PR loops.
   `_damage_dummy` override. New damage paths should use those, not subtract HP by hand.
 
 ## Log (newest first; one line per chunk of work)
+- 2026-11-26 18:30 Claude: the fox pet (look B) on `claude/hunter-fox-pet`: follows Cain, eye = Demon Sight, lair greet, yip; tests 85 pass (2 new), autoplay FOX SIGHT/FOLLOW/EYE CLOSE/GREET.
 - 2026-11-26 17:30 Claude: free-flow combat + predator stealth built on `claude/hunter-freeflow`; tests 82 pass (8 new), autoplay checks for lunge, counter, takedown, DODGE button, SNEAK button, Demon Sight, SILENT KILL.
 - 2026-11-26 16:00 Claude: Duff asked for free-flow fighting + stealth; tapped "Buttons + swipe specials".
 - 2026-11-26 13:25 Claude: PR #30 merged (CI green, fresh-eyes PASS c6463b1). Duff cancelled the second blind review. Polish PR for the review notes.

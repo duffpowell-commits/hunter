@@ -26,6 +26,7 @@ var low_hp_at := 0.3                     # share of max HP that triggers the low
 var combo_line_at := 5.0                   # hits in a combo that trigger the big-combo voice line
 var _equipped_dirs := {}                 # swipe dir -> voice id (read by tests and the HUD)
 var silent_kills := 0                    # SILENT KILLs (sneak up on an unaware minion; Nov 26)
+var fox: Node3D                          # Cain's pet (fox_pet.gd; Nov 26), in the Pews and the lair
 
 
 func tune_spec() -> Dictionary:
@@ -59,6 +60,9 @@ func foe_rules() -> Dictionary:
 func _ready() -> void:
 	super._ready()
 	add_child(preload("res://scripts/lair_tuning.gd").new())
+	fox = preload("res://scripts/fox_pet.gd").new()
+	fox.setup(self, hero)
+	add_child(fox)
 
 
 ## Reads Profile at the start of the scene: full HP at the perk-raised max, the loadout, the look.

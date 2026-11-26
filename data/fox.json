@@ -1,0 +1,22 @@
+{
+  "_why": "Cain's pet, the three-eyed fox (Duff, Nov 26; look B). Every number has a TUNE slider in lair_tuning.gd. Placeholder name until Duff names it.",
+  "name": "FOX",
+  "scale": 0.0075,
+  "fight_distance": 4.5,
+  "walk_speed": 2.6,
+  "run_speed": 6.5,
+  "run_at": 3.0,
+  "catch_up_at": 12.0,
+  "turn_rate": 9.0,
+  "sneak_speed_scale": 0.55,
+  "sneak_crouch": 0.8,
+  "eye_idle_glow": 0.6,
+  "eye_sight_glow": 4.0,
+  "eye_sight_scale": 1.6,
+  "yip_range": 7.0,
+  "yip_hold": 1.6,
+  "greet_distance": 4.0,
+  "wary_follow": [1.2, 1.8, 2.8],
+  "rim": 1.5,
+  "outline_px": 2.5
+}

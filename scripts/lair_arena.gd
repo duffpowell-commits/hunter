@@ -104,6 +104,7 @@ func _ready() -> void:
 	_enemy_t = 999.0
 	apply_profile()
 	refresh()
+	fox.start_greet()
 
 
 func foe_rules() -> Dictionary:

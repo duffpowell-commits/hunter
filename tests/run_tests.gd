@@ -1796,3 +1796,86 @@ func test_freeflow_rules_from_review() -> void:
 			else:
 				keys += 1
 		check(ctl.ACTIONS.has(act) and keys > 0 and pads > 0, "action %s has a key and a pad button" % act)
+
+
+# ---------------------------------------------------------------- Nov 26: Cain's pet fox
+
+## The fox follows Cain, can't be hurt, keeps clear of fights, slows with SNEAK, and its third eye
+## opens with Demon Sight.
+func test_fox_pet_follows_and_sees() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	var fox: Node3D = a.fox
+	check(fox != null and fox.get_parent() == a, "the Pews has the fox")
+	check(fox.global_position.distance_to(a.hero.global_position) < 2.0, "it starts at Cain's heels")
+	for t in a._targets():
+		check(not fox.is_ancestor_of(t) and t != fox, "the fox is never a target")
+	var idle_glow: float = fox.eye_glow()
+	a.set_demon_sight(true)
+	await process_frame
+	check(fox.eye_glow() > idle_glow and fox.eye.scale.y > 1.0, "SIGHT opens the third eye (%.1f -> %.1f)" % [idle_glow, fox.eye_glow()])
+	a.set_demon_sight(false)
+	await process_frame
+	check(is_equal_approx(fox.eye_glow(), idle_glow), "SIGHT off closes it")
+	fox.yipped = true
+	var d0: float = fox.global_position.distance_to(a.hero.global_position)
+	a.hero.global_position += Vector3(5.0, 0, 0)
+	fox._process(0.1)
+	check(fox.clip == "Run" and fox.speed > fox.cfg().walk_speed, "far behind: it runs (clip %s)" % fox.clip)
+	for i in 40:
+		fox._process(0.1)
+	var d1: float = fox.global_position.distance_to(a.hero.global_position)
+	check(d1 < d0 + 5.0 - 2.0 and d1 < fox.follow_distance() + 0.5, "it catches up (%.1f m)" % d1)
+	check(fox.clip == "Survey", "caught up: it idles")
+	a.hero.global_position += Vector3(1.2, 0, 0)
+	a.sneak = true
+	fox._process(0.1)
+	check(fox.clip == "Walk" and fox.speed <= float(fox.cfg().walk_speed) * float(fox.cfg().sneak_speed_scale) + 0.01, "SNEAK: it creeps")
+	a.sneak = false
+	a.encounter_started = true
+	check(fox.follow_distance() == float(fox.cfg().fight_distance), "in a fight it hangs back")
+	a.boss_defeated = true
+	check(fox.follow_distance() < float(fox.cfg().fight_distance), "Vesper dead: it comes back to Cain's side")
+	check(preload("res://scripts/settings_sheet.gd").FOX_CREDIT.contains("CC-BY"), "the fox's CC-BY credit is in the game")
+	a.hero.global_position += Vector3(40.0, 0, 0)
+	fox._process(0.1)
+	check(fox.global_position.distance_to(a.hero.global_position) < 6.0, "left far behind, it catches up at once")
+	a.queue_free()
+	await process_frame
+
+
+## Once a hunt the fox yips at an unaware enemy nearby; in the lair it greets Cain at the door and
+## keeps a warier distance as corruption climbs.
+func test_fox_pet_yip_and_lair_greet() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.fox.yipped = false
+	a.hero.global_position = a._foes[0].actor.global_position + Vector3(0, 0, 3.0)
+	a.fox._process(0.05)
+	check(a.fox.yipped and a.fox.yip_t > 0.0, "an unaware minion close by: one yip")
+	a.fox.yip_t = 0.0
+	a.fox.yipped = false
+	a._foes[0].aggro = true
+	a._foes[1].aggro = true
+	a.fox._process(0.05)
+	check(not a.fox.yipped, "no yip once they're onto you")
+	a.queue_free()
+	await process_frame
+	var prof := _fresh_profile("test_prof_fox")
+	var l = preload("res://scripts/lair_arena.gd").new()
+	root.add_child(l)
+	await process_frame
+	var fox: Node3D = l.fox
+	check(fox.state == "greet" and fox.global_position.distance_to(l.hero.global_position) > 3.0, "the fox waits at the door")
+	for i in 60:
+		fox._process(0.05)
+	check(fox.greeted and fox.state == "follow", "it runs to Cain and greets him")
+	fox.band = 0
+	var warm: float = fox.follow_distance()
+	fox.band = 2
+	check(fox.follow_distance() > warm, "high corruption: it keeps its distance")
+	l.queue_free()
+	await process_frame
+	_restore_profile(prof)

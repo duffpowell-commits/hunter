@@ -16,3 +16,5 @@ All Forge jobs live in duffpowell-commits/Foxboard: forge/jobs/<id>.json (full p
 
 Style LOCKED by Duff, Nov 20: ink and blood on real-time 3D, full range of movement (docs/style-guide.md). The pixel takes above are exploration only, not approved for the game; the hero and bosses get rerendered in the ink style (tasks/todo.md).
 Why this note (Nov 21): this log still said "no style picked" after the Nov 20 lock; fixed to match docs/style-guide.md.
+
+| Nov 26 | Pet fox, look B (docs/art/fox-pet/fox_pet_B_approved.png) | Forge dh-fox-pet-20261126, seed 194755873 | Duff tapped "B: upright third eye". Built in 3D from a free CC0 fox, recoloured; renders `docs/renders/fox_pet_sight_*.png`. |
