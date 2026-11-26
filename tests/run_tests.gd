@@ -1765,3 +1765,34 @@ func test_freeflow_hud() -> void:
 	check(g.arena.dodges == 1, "the DODGE button rolls")
 	g.queue_free()
 	await process_frame
+
+
+## Fresh-eyes (PR #32): an unbreakable prayer (hands_interrupt 0) can't be countered either, and
+## COUNTER, SNEAK (crouch) and DEMON SIGHT have keyboard + pad bindings (standards/06).
+func test_freeflow_rules_from_review() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.hero.global_position = a.dummy.global_position + Vector3(0, 0, 2.0)
+	a._boss_move = "laying_of_hands"
+	a._boss_telegraph = 1.0
+	var hands: Dictionary = a.rules.config.boss.moves.laying_of_hands
+	var was = hands.get("interrupt", 1)
+	hands["interrupt"] = 0
+	check(a._counter_threat() == null, "an unbreakable prayer isn't counterable")
+	hands["interrupt"] = 1
+	check(a._counter_threat() == a.dummy, "a breakable one is")
+	hands["interrupt"] = was
+	a.queue_free()
+	await process_frame
+	var ctl: Node = root.get_node("Controls")
+	for act in ["counter", "crouch", "sight", "dodge"]:
+		var keys := 0
+		var pads := 0
+		for e in InputMap.action_get_events(act):
+			if ctl.is_pad(e):
+				pads += 1
+			else:
+				keys += 1
+		check(ctl.ACTIONS.has(act) and keys > 0 and pads > 0, "action %s has a key and a pad button" % act)

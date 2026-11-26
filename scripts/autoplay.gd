@@ -1549,6 +1549,32 @@ func _freeflow_checks(game: Node) -> void:
 	_check(offered and hits >= int(a.takedown_at) and a.takedowns == 1 and a.kos > kos0,
 		"TAKEDOWN PASS (%d hits lit TAKEDOWN on the context button; it dropped the dummy)" % hits)
 	await _secs(float(a.enemy.respawn) + 0.5)
+	# Finisher: the takedown above built a real 5-hit combo, so here the meter is staged to one short
+	# of finisher_at and one real strike tips it over; then a real tap on FINISHER.
+	a.reset_dummy()
+	a.dummy_hp = 999.0
+	await _secs(0.5)
+	_place(hero, dummy.global_position + Vector3(0, 0.05, 1.0), PI)
+	await _physics(2)
+	a.combat.combo = int(a.finisher_at) - 1
+	a.combat._combo_t = a.combat.combo_gap
+	await _pad_tap(game, 1.5)
+	hits = a.combo_count()
+	await _frames(2)
+	var fin_offered := _find("FINISHER") != null
+	var before_fin: float = a.dummy_hp
+	if fin_offered:
+		await _click("FINISHER")
+	by = Time.get_ticks_msec() + 2500
+	while a.finishers == 0 or (a.dummy_hp == before_fin and Time.get_ticks_msec() < by):
+		if Time.get_ticks_msec() > by:
+			break
+		await get_tree().process_frame
+	await _shot("freeflow_finisher")
+	_check(fin_offered and hits >= int(a.finisher_at) and a.finishers == 1
+		and is_equal_approx(before_fin - a.dummy_hp, a.finisher_damage * a.damage_scale),
+		"FINISHER PASS (%d hits lit FINISHER; it hit for %.0f)" % [hits, before_fin - a.dummy_hp])
+	a.reset_dummy()
 
 
 # ---------------------------------------------------------------- house standards (GROK_STANDARDS.md)

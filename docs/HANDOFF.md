@@ -50,7 +50,7 @@ score against 8.5. No one-fix-per-PR loops.
 1. Merge the free-flow PR (green CI + fresh-eyes PASS, docs/FRESH_EYES.md).
 2. Duff plays it on his phone (APK from the `dev` release; browser once Pages is on) and tunes the
    feel in DEV MENU -> TUNE (lunge_range, lunge_speed, counter_*, takedown_at, finisher_at...).
-   Left over: keyboard/gamepad bindings for COUNTER and SNEAK; a vault-over dodge clip.
+   Left over: a vault-over dodge clip; maybe a cooldown after a successful COUNTER on Vesper.
 3. Milestone 5 (Cellar Casino, Gus; docs/BUILD_SPEC.md) when Duff says go. Under the 8.5 rule, a new
    round of fixes starts with a plan on one card for Duff; blind reviews only when he asks.
 

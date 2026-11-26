@@ -687,8 +687,8 @@ func _face(to: Vector3) -> void:
 
 func _update_lunge() -> void:
 	var t: Character3D = _lunge.target
-	if hero.dead or _staggered():
-		_end_lunge()
+	if hero.dead or _staggered() or not hero.mode in ["ground", "crouch"]:
+		_end_lunge()                           # climbing, swimming or airborne: no dash (fresh-eyes)
 		return
 	var m: Dictionary = _lunge.move
 	if not is_instance_valid(t) or t.dead:

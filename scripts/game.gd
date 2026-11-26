@@ -203,7 +203,7 @@ func _build() -> void:
 	weapon_label.offset_bottom = 258
 	weapon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(weapon_label)
-	var legend := ControlsLegend.make(["move_up", "attack", "heavy", "special", "dodge", "pause"])
+	var legend := ControlsLegend.make(["move_up", "attack", "heavy", "special", "dodge", "counter", "pause"])
 	legend.name = "Legend"
 	legend.top = 30 + UI.MIN_TOUCH + 64
 	add_child(legend)
@@ -414,7 +414,13 @@ func _unhandled_input(e: InputEvent) -> void:
 		var v := stick.vec if stick != null and stick.held() else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 		arena.stick_special(v)
 	elif e.is_action_pressed("dodge"):
-		arena.dodge_toward(stick.vec if stick != null else Vector2.ZERO)
+		_dodge()
+	elif e.is_action_pressed("counter"):
+		_counter()
+	elif e.is_action_pressed("crouch"):
+		_sneak()
+	elif e.is_action_pressed("sight"):
+		_sight()
 
 
 func _context_action() -> void:

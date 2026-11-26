@@ -642,8 +642,11 @@ func alertness(t: Character3D) -> String:
 
 ## Vesper's powers can be countered while his warning is up; a countered prayer counts as broken.
 func _counter_threat() -> Character3D:
+	# A prayer set to unbreakable (hands_interrupt 0) can't be countered either (fresh-eyes).
+	var unbreakable: bool = _boss_move == "laying_of_hands" \
+		and int(rules.config.boss.moves.laying_of_hands.get("interrupt", 0)) <= 0
 	if encounter_started and not boss_defeated and _boss_telegraph > 0.0 and not dummy.dead \
-			and _flat_dist(dummy) <= counter_range:
+			and not unbreakable and _flat_dist(dummy) <= counter_range:
 		return dummy
 	return super._counter_threat()
 

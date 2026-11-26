@@ -26,7 +26,11 @@ Duff tapped **"Buttons + swipe specials"**. Built in one PR; numbers in `data/mo
   a ring at the feet, a light red screen tint. Free, any time.
 - **First hunt** prompts: TAP SNEAK TO CROUCH, TAP COUNTER ON ! (waits for the first warning), TAP
   DODGE TO EVADE replace the tilt and double-tap ones (new ids, so returning players see them).
-- Not done: keyboard/gamepad COUNTER and SNEAK bindings (Controls has no actions for them yet).
+- Keys/pad (fresh-eyes): COUNTER = U / LB, SNEAK = the CROUCH action (C / Y), DEMON SIGHT = V /
+  left-stick click; DODGE = K / B now rolls like the button. An unbreakable prayer
+  (`hands_interrupt` 0) can't be countered either.
+- For Duff to judge in play: COUNTER cancels every Vesper power within 4.5 m with no cooldown after
+  a success; if it makes him too easy, raise `counter_whiff_lock` or shrink `counter_range`.
 
 ## 2026-11-26: the 8.5 pass, first-timer fixes before M5 (Claude)
 Duff set a new bar (Nov 26): before building more, plan what it takes for a blind first-time player
