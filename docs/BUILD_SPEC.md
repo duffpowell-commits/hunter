@@ -103,7 +103,7 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 - **M1 Movement and combat feel**: one 3D test arena with the toon/outline shader. Player model with full 360° walk/run blend and real attack animations, virtual stick, the light/heavy/dodge/special swipe pad, 1 dummy enemy type, 1 improvised weapon with breaking, combo counter, hit-stop (60 ms) and screen shake. Autoplay: move, light string, special, weapon break.
 - **M2 The Pews and Vesper (vertical slice)**: the Pews realm (one map), zealots plus a choir buff enemy, collection-plate hazard, scavenging, Vesper boss (2 phases, Sermon/Flock/Laying of Hands), stalking/ambush, CLEAN vs BRUTAL finisher, EAT, Vesper as the first voice with dialogue boxes. Portal home.
 - **M3 The lair**: hub with the trophy wall, workshop crafting, map room, voice equip, Heat, a lair raid, Corruption tint. Save and resume all of it.
-- **M4 Furfur**: the lost-hunt intro, the home-invasion fight, the cage, the talk menu, VENT gated on real failures.
+- **M4 Furfur** (built Nov 26): the lost-hunt intro, the home-invasion fight, the cage, the talk menu, VENT gated on real failures.
 - **M5+**: one realm and boss per milestone in the order Casino (Gus) -> Quarry (Rook) / Ballroom (Ines) -> Nursery (Hollis) -> Price & Partners (Price, specials-void "objection" zones, loophole counters). Then endings.
 
 ## File layout to aim for
@@ -113,7 +113,7 @@ Lair (hub) -> map room: pick a realm and a target -> realm: explore, scavenge, s
 - `assets/models/<id>.glb` (skinned, shared humanoid skeleton), `assets/anims/` (the shared animation library), `shaders/toon.gdshader`, `shaders/outline.gdshader`. 2D art (`assets/art/`) only for UI, portraits in the voice dialogue boxes, and the trophy wall.
 
 ## Still open (Duff decides; use the placeholder until then)
-- Protagonist name: TBD. Placeholder `HUNTER`.
+- Protagonist name: **Cain Vantre** (Duff, Nov 26, 2026; "Cain Mercer" was dropped because it echoes Alex Mercer of Prototype, whose powers also come from eating enemies). Use it in text; the title is "The Devil You Owe".
 - Mom's name and past: TBD. Placeholder `MOM`.
 - The rival hunter/detective: TBD (not before M5).
 - Endings: TBD (not before M5).

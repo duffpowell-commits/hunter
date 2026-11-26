@@ -68,8 +68,8 @@ Order: Pews -> Casino -> Quarry and Ballroom (either order) -> Nursery -> Price 
 ## OPEN (next design topics, in suggested order)
 1. ~~Art style lock~~ DONE: LOCKED by Duff Nov 20, ink and blood on real-time 3D (docs/style-guide.md).
    Why struck (Nov 21): it was still listed as open after the lock; style-guide.md, QUEUE.md and BUILD_SPEC.md already had it.
-2. The protagonist: name, look, what you do by day.
+2. The protagonist: look, what you do by day. Name LOCKED Nov 26: **Cain Vantre** (Duff tapped it; Cain Mercer dropped, it echoes Prototype's Alex Mercer).
 3. Mom's name and hunter past.
 4. The hunter/detective on your tail.
 5. Endings (power vs humanity split).
-6. Game title.
+6. ~~Game title~~ DONE: **The Devil You Owe** (Duff, Nov 23).

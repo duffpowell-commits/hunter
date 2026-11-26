@@ -1,0 +1,33 @@
+{
+  "_why": "Hunter M4 (Nov 26): how Furfur Kemp talks, in the same dialogue box as the voices (voice_box.gd reads name and colour here). He is NOT an equippable voice: he never joins the profile's voices list. Lines are placeholders until Duff signs off the writing.",
+  "id": "furfur",
+  "name": "FURFUR KEMP",
+  "short": "FURFUR",
+  "color": "c0502a",
+  "lines": {
+    "invade": [
+      "You left a blood trail from the church to your front door. Rude not to visit.",
+      "Price wants you broken. I want the overtime."
+    ],
+    "knockdown": [
+      "Stay down. I bill by the hour.",
+      "Up again? Your mother was stubborn too."
+    ],
+    "chained": [
+      "Chains. Cute. I've been bound by better lawyers.",
+      "Fine. I'll stay. Someone has to watch you fail."
+    ],
+    "home": [
+      "Back already? Did they at least tip?",
+      "I hear Price in the walls. He says you're doing great. He lies too."
+    ],
+    "after_fail": [
+      "Limping again. You hunt like a man paying off someone else's debt.",
+      "Oh, it went badly. Come on. You know where I am."
+    ],
+    "vent": [
+      "Ha. There it is. Do it again, and this time turn your hips.",
+      "That one I felt. You're learning from the wrong teacher."
+    ]
+  }
+}

@@ -1,5 +1,50 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-26: Milestone 4, Furfur Kemp (Claude); hero name Cain Vantre
+Duff tapped **Cain Vantre** for the hero (Nov 26). "Cain Mercer" was dropped because it echoes Alex
+Mercer of Prototype, a hero whose powers also come from eating enemies. It is in BUILD_SPEC, DESIGN,
+QUEUE and the contract sheet ("Bearer: Cain Vantre"). Then Duff said "Go" on M4.
+
+What M4 does (`furfur_rules.gd`, data `furfur.json` + `voices/furfur.json`, sliders in `lair_tuning.gd`):
+1. **Lost hunt**: GAME OVER in the Pews now offers **LIMP HOME** (first button). It writes a lair
+   arrival at half HP (`limp_hp_fraction`); a night passes like any arrival.
+2. **Home invasion**: on that arrival Furfur follows you in (profile `furfur` = "invading"). An intro
+   sheet, FIGHT (Back also means FIGHT, like the raid). He's one foe on the shared foe AI: 140 HP,
+   12 damage. **You can't lose**: drop and you're back up at 60% HP while he heals 15% ("win ugly").
+   Beat him, CHAIN HIM (Back also chains): +5 corruption, he's in the cage by the door for good.
+   Quitting mid-fight restarts the fight on CONTINUE.
+3. **Cage + talk menu** (station "FURFUR'S CAGE", only once he's caged): TALK = one lore leak a night
+   (6, in order: Price & Partners, the buyout, whose debt your kills pay, Mom walked in, the
+   unkillable hint). GIVE A MERCY ($10 each: a blanket, water, loosen the chain, a candle) = he reads
+   the next hidden clause of Price's contract. READ YOUR CONTRACT shows open clauses plus the ones
+   he's read (also from the cold room). He mocks you whenever you come home (worse after a loss).
+4. **VENT**: only with a real loss unvented (`failures_unvented`, +1 per death in a hunt). Each VENT
+   spends one loss, adds +5 corruption, and adds the next hit to the end of the light string:
+   L, L, L, ELBOW, HEADBUTT, HAMMER FIST (3 max, reusing the hook/heavy/launcher clips). Cain
+   actually hits him in the cage when you vent.
+
+Judgment calls for Duff (say the word and any of these change):
+- **When he comes**: after the first lost hunt, or on the 3rd arrival home if you never lose
+  (`after_hunts`), so nobody misses him. The spec only names the lost-hunt path.
+- **Raid vs Furfur**: if heat also calls a raid that night, Furfur comes first and the raid follows
+  once he's chained.
+- **Can't-lose fight**: dropping is never GAME OVER in his fight (DESIGN "you win ugly").
+- **VENT costs corruption** (+5), per BUILD_SPEC Corruption ("rises with venting on Furfur").
+- **All writing is placeholder**: his lines, the 6 lore leaks and the 4 hidden clauses. Placeholders
+  hint at locked story (Price's betrayal, Mom); rewrite freely.
+- Furfur's model is the shared skeleton with his own colour, like the raiders; real art waits on
+  his character design.
+
+**Browser build (same PR)**: Duff asked for the iPhone link the other games have. New "Web" export
+preset (threads off, so GitHub Pages needs no special headers) and a CI `web` job; on main it
+publishes https://duffpowell-commits.github.io/hunter/. Checked in Chromium at iPhone 13 size,
+upright and sideways (WebGL 2, Compatibility renderer, no errors): sideways plays with a wide view
+and smaller text. Autoplay timeout 480 -> 600 s for the Furfur checks.
+
+Tests: 65 (3 new, each seen failing by mutating the code). Autoplay: new FURFUR PASS lines with
+God mode off (lost hunt, limp home, invasion, win ugly, beaten, chain, talk, mercy, contract, vent,
+the longer string from real pad taps, cage on CONTINUE).
+
 ## 2026-11-25: Godot 4.7.x only, enforced in CI
 Duff, Nov 25: "Lets only build on 4.7." Hunter was already on 4.7.2. `build.yml` now fails if
 `godot --version` isn't 4.7.x or `config/features` isn't "4.7", and downloads retry

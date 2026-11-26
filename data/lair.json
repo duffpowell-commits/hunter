@@ -39,6 +39,11 @@
         0.0,
         0.0,
         -9.4
+      ],
+      "cage": [
+        2.2,
+        0.0,
+        3.0
       ]
     },
     "trap_spots": [
@@ -74,7 +79,8 @@
         0.0,
         6.6
       ]
-    ]
+    ],
+    "_why_cage": "M4 (Nov 26): Furfur's cage sits by the door on the right, across from the trophy wall. Its station is the cage front; it only answers once he's chained (BUILD_SPEC: the room unlocks after his intro)."
   },
   "interact_radius": 1.6,
   "inventory": {

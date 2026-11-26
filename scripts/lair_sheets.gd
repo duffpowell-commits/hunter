@@ -6,6 +6,7 @@ extends RefCounted
 const UI = preload("res://scripts/ui.gd")
 const GameData = preload("res://scripts/game_data.gd")
 const LairRules = preload("res://scripts/lair_rules.gd")
+const FurfurRules = preload("res://scripts/furfur_rules.gd")
 
 
 static func open(game: Control, id: String) -> VBoxContainer:
@@ -17,6 +18,7 @@ static func open(game: Control, id: String) -> VBoxContainer:
 		"cold_room": _cold_room(game, sh)
 		"voices": _voices(game, sh)
 		"map_room": _map(game, sh)
+		"cage": _cage(game, sh)
 	sh.add_child(UI.button("CLOSE", func(): UI.close_sheet(sh)))
 	return sh
 
@@ -124,6 +126,10 @@ static func _cold_room(game: Control, sh: VBoxContainer) -> void:
 	for id in p.inventory:
 		sh.add_child(UI.label("%s x%d" % [items.get(id, {}).get("name", str(id).to_upper()), int(p.inventory[id])], 18))
 	sh.add_child(UI.label("Nights %d   Raids won %d, lost %d" % [int(p.nights), int(p.raids_won), int(p.raids_lost)], 16, UI.DIM))
+	# Price's contract is always in your things (BUILD_SPEC: an inventory item).
+	var c := UI.button("PRICE'S CONTRACT", func(): contract(game), 80)
+	c.name = "Contract"
+	sh.add_child(c)
 
 
 # ---------------------------------------------------------------- voices
@@ -178,3 +184,87 @@ static func _map(game: Control, sh: VBoxContainer) -> void:
 		b.disabled = not open_ or pending
 		b.add_theme_font_size_override("font_size", UI.font_size(17))
 		sh.add_child(b)
+
+
+# ---------------------------------------------------------------- Furfur's cage (M4)
+
+## Talk (a lore leak a night), a mercy for a contract clause, VENT after a real loss.
+static func _cage(game: Control, sh: VBoxContainer) -> void:
+	var p := _p(game)
+	var cfg := GameData.load_json("furfur")
+	_title(sh, "FURFUR KEMP", "Chained. Unkillable. A known liar.")
+	sh.add_child(UI.label("CASH $%d   LORE %d/%d   CLAUSES %d/%d   STRING HITS %d/%d" % [int(p.cash),
+		int(p.furfur_lore), cfg.lore.size(), int(p.clauses_read), cfg.contract.hidden.size(),
+		int(p.vent_unlocks), cfg.vent.strings.size()], 15, UI.DIM))
+	var block := FurfurRules.talk_block(p, cfg)
+	var talk := UI.button("TALK" if block.is_empty() else block, func():
+		var line := FurfurRules.talk(p, cfg)
+		if not line.is_empty():
+			game.get_node("/root/Subs").cue("[Furfur leaks something]")
+			_changed(game, sh, "cage")
+			_said(game, line), 80)
+	talk.name = "Talk"
+	talk.disabled = not block.is_empty()
+	sh.add_child(talk)
+	block = FurfurRules.mercy_block(p, cfg)
+	var mercy := UI.button(("GIVE %s ($%d)" % [FurfurRules.next_mercy(p, cfg), int(cfg.cage.mercy_cost)]) if block.is_empty() else block, func():
+		var clause := FurfurRules.mercy(p, cfg)
+		if not clause.is_empty():
+			game.get_node("/root/Subs").cue("[Furfur reads your contract aloud]")
+			_changed(game, sh, "cage")
+			_said(game, "Clause %s Didn't read the small print, did you?" % clause), 80)
+	mercy.name = "Mercy"
+	mercy.disabled = not block.is_empty()
+	sh.add_child(mercy)
+	block = FurfurRules.vent_block(p, cfg)
+	var next_hit: String = str(cfg.vent.strings[mini(int(p.vent_unlocks), cfg.vent.strings.size() - 1)].name)
+	var vent := UI.button(("VENT: LEARN %s (+%d CORRUPTION)" % [next_hit, int(cfg.vent.corruption)]) if block.is_empty() else "VENT: " + block, func():
+		var hit := FurfurRules.vent(p, cfg)
+		if hit.is_empty():
+			return
+		game.get_node("/root/Profile").save()
+		UI.close_sheet(sh)
+		if game.arena != null and game.arena.has_method("vent_on_furfur"):
+			game.arena.call("vent_on_furfur", hit)
+			game.arena.call("apply_corruption", int(p.corruption))
+			game.arena.call("refresh")
+		game.call("furfur_says", "vent")
+		game.call("checkpoint"), 80)
+	vent.name = "Vent"
+	vent.disabled = not block.is_empty()
+	vent.add_theme_font_size_override("font_size", UI.font_size(17))
+	sh.add_child(vent)
+	var c := UI.button("READ YOUR CONTRACT", func(): contract(game), 80)
+	c.name = "Contract"
+	sh.add_child(c)
+	var heard := FurfurRules.heard(p, cfg)
+	if not heard.is_empty():
+		sh.add_child(UI.label("WHAT HE'S TOLD YOU", 18, UI.ACCENT))
+		for line in heard:
+			sh.add_child(UI.label(str(line), 15))
+
+
+static func _said(game: Control, line: String) -> void:
+	var old := game.get_node_or_null("VoiceBox")
+	if old != null:
+		old.free()
+	var box: Control = preload("res://scripts/voice_box.gd").make("furfur", line)
+	box.set_meta("kind", "furfur_talk")
+	game.add_child(box)
+	game.set("last_voice_kind", "furfur_talk")
+
+
+## Price's contract: the open clauses, plus the hidden ones Furfur has read to you.
+static func contract(game: Control) -> VBoxContainer:
+	var p := _p(game)
+	var cfg := GameData.load_json("furfur")
+	var sh := UI.sheet(game)
+	sh.get_meta("sheet").name = "Contract"
+	_title(sh, "PRICE & PARTNERS", "Soul contract. Bearer: Cain Vantre.")
+	for c: Array in FurfurRules.clauses(p, cfg):
+		if c[1]:
+			sh.add_child(UI.label(str(c[0]), 16))
+		else:
+			sh.add_child(UI.label("[ CLAUSE IN SMALL PRINT YOU CAN'T READ ]", 16, UI.DIM))
+	sh.add_child(UI.button("CLOSE", func(): UI.close_sheet(sh)))
+	return sh

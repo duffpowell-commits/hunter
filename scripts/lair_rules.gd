@@ -20,7 +20,9 @@ static func blank() -> Dictionary:
 		"voices": [], "equipped": [], "voice_levels": {},
 		"upgrades": {}, "traps": ["", "", ""],
 		"nights": 0, "hunts": 0, "raid_pending": false, "raids_won": 0, "raids_lost": 0,
-		"failures_unvented": 0}
+		"failures_unvented": 0,
+		# M4 (Nov 26): Furfur Kemp (furfur_rules.gd). Stage "none" | "invading" | "caged".
+		"furfur": "none", "furfur_lore": 0, "furfur_talk_night": -1, "clauses_read": 0, "vent_unlocks": 0}
 
 
 static func gain(p: Dictionary, delta: Dictionary) -> void:

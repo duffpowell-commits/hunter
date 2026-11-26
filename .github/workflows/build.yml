@@ -165,3 +165,53 @@ jobs:
           echo "{\"code\": ${{ github.run_number }}, \"sha\": \"${GITHUB_SHA::7}\"}" > version.json
           gh release upload dev version.json --clobber
           gh release edit dev --notes "Rebuilt on every push to main. Last: build ${{ github.run_number }} (${GITHUB_SHA::7})"
+
+  web:
+    # Browser build (Nov 26, Duff: "the same build" as Lethemoor/Rush): plays in iPhone Safari, upright
+    # or sideways. Every run exports it (a broken web export fails the PR); on main it goes live at
+    # https://duffpowell-commits.github.io/hunter/ by force-pushing build/web as the only commit on the
+    # gh-pages branch. Threads are off in the Web preset, so Pages needs no COOP/COEP headers.
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot + web export templates
+        run: |
+          curl -fsSL --retry 5 --retry-all-errors -o godot.zip https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
+          unzip -q godot.zip && sudo mv Godot_v${GODOT_VERSION}_linux.x86_64 /usr/local/bin/godot
+          godot --version | grep -q "^4\.7\." || { echo "Godot must be 4.7.x, got $(godot --version)"; exit 1; }
+          curl -fsSL --retry 5 --retry-all-errors -o tpl.tpz https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION/-/.}
+          unzip -q tpl.tpz 'templates/web*' 'templates/version.txt' -d /tmp/tpl
+          mv /tmp/tpl/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION/-/.}/
+      - name: Stamp build number and repo
+        run: |
+          echo "${GITHUB_SHA::7} $(date -u +%Y-%m-%d) #${{ github.run_number }}" > build.txt
+          echo "${{ github.run_number }}" > build_code.txt
+          echo "$GITHUB_REPOSITORY" > repo.txt
+      - name: Import
+        run: timeout 300 godot --headless --path . --import || true
+      - name: Export Web
+        run: |
+          mkdir -p build/web
+          godot --headless --path . --export-release "Web" build/web/index.html 2>&1 | tee web.log
+          test -f build/web/index.html && test -f build/web/index.pck && test -f build/web/index.wasm
+          ls -la build/web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: build/web
+      - name: Publish to GitHub Pages (main only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd build/web
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Web build ${GITHUB_SHA::7} (#${{ github.run_number }})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

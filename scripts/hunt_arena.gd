@@ -10,6 +10,7 @@ extends "res://scripts/arena.gd"
 ##   - tune_spec(): the training dummy's sliders are dropped here (they did nothing; M2 review).
 
 const LairRules = preload("res://scripts/lair_rules.gd")
+const FurfurRules = preload("res://scripts/furfur_rules.gd")
 
 signal voice_moment(kind: String)
 
@@ -81,6 +82,8 @@ func _apply_loadout() -> void:
 	# Our own copy: GameData caches moves.json, and the training arena must keep the base kit.
 	moves = GameData.load_json("moves").duplicate(true)
 	combat.moves = moves
+	# M4: every VENT on Furfur adds a hit to the end of the light string (L, L, L, then these).
+	moves.light.append_array(FurfurRules.light_extras(p, GameData.load_json("furfur")))
 	_equipped_dirs = LairRules.voice_slots(p)
 	for dir in _equipped_dirs:
 		var id: String = _equipped_dirs[dir]
