@@ -1204,3 +1204,148 @@ func test_lair_numbers_have_sliders() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load("res://export_presets.cfg")
 	check("data/voices/*.json" in str(cfg.get_value("preset.0", "include_filter", "")), "voices ship in the APK")
+
+
+# ---------------------------------------------------------------- M4: Furfur Kemp
+
+const FurfurRules = preload("res://scripts/furfur_rules.gd")
+
+
+func test_furfur_rules() -> void:
+	var cfg := GameData.load_json("furfur")
+	var p := LairRules.blank()
+	check(FurfurRules.stage(p) == "none" and not FurfurRules.arrive(p, false, cfg), "a good night home: no Furfur yet")
+	check(FurfurRules.arrive(p, true, cfg) and FurfurRules.stage(p) == "invading", "limping home from a lost hunt brings him")
+	var q := LairRules.blank()
+	q.hunts = int(cfg.trigger.after_hunts)
+	check(FurfurRules.arrive(q, false, cfg), "a hunter who never loses still meets him after %d arrivals" % int(cfg.trigger.after_hunts))
+	check(FurfurRules.talk(p, cfg).is_empty() and FurfurRules.vent(p, cfg).is_empty(), "no talk or VENT before he's caged")
+	check(FurfurRules.chain(p, cfg) and FurfurRules.caged(p) and int(p.corruption) == int(cfg.invasion.chain_corruption),
+		"CHAIN HIM cages him, corruption +%d" % int(cfg.invasion.chain_corruption))
+	check(not FurfurRules.chain(p, cfg), "he can only be chained once")
+	check(not FurfurRules.arrive(p, true, cfg) and FurfurRules.caged(p), "once caged, a lost hunt doesn't free him")
+	# Talk: one leak a night, in order.
+	p.nights = 4
+	var first := FurfurRules.talk(p, cfg)
+	check(first == str(cfg.lore[0]) and FurfurRules.talk(p, cfg).is_empty() and FurfurRules.talk_block(p, cfg) == "HE'S DONE TALKING TONIGHT",
+		"one lore leak a night")
+	p.nights = 5
+	check(FurfurRules.talk(p, cfg) == str(cfg.lore[1]) and FurfurRules.heard(p, cfg).size() == 2, "the next night, the next leak")
+	# Mercy: costs cash, reads the hidden clauses in order.
+	check(FurfurRules.mercy(p, cfg).is_empty() and FurfurRules.mercy_block(p, cfg).begins_with("NEED $"), "a mercy costs cash")
+	p.cash = int(cfg.cage.mercy_cost) + 3
+	var clause := FurfurRules.mercy(p, cfg)
+	var cl := FurfurRules.clauses(p, cfg)
+	check(clause == str(cfg.contract.hidden[0]) and int(p.cash) == 3 and int(p.clauses_read) == 1
+		and cl.size() == cfg.contract.open.size() + cfg.contract.hidden.size()
+		and cl[cfg.contract.open.size()][1] and not cl[cfg.contract.open.size() + 1][1],
+		"a mercy reads the next hidden clause into the contract; the rest stay hidden")
+	# VENT: only with a real failure unvented; one string hit per failure; can't be farmed.
+	check(FurfurRules.vent_block(p, cfg) == "ONLY AFTER A REAL LOSS" and FurfurRules.vent(p, cfg).is_empty(), "no VENT without a real loss")
+	p.failures_unvented = 1
+	var c0 := int(p.corruption)
+	var hit := FurfurRules.vent(p, cfg)
+	check(hit.get("id", "") == str(cfg.vent.strings[0].id) and int(p.vent_unlocks) == 1 and int(p.failures_unvented) == 0
+		and int(p.corruption) == c0 + int(cfg.vent.corruption), "VENT spends the failure: +1 string hit, +corruption")
+	check(FurfurRules.vent(p, cfg).is_empty() and int(p.vent_unlocks) == 1, "a second VENT on the same failure unlocks nothing")
+	p.failures_unvented = 99
+	for i in 10:
+		FurfurRules.vent(p, cfg)
+	check(int(p.vent_unlocks) == cfg.vent.strings.size() and FurfurRules.vent_block(p, cfg) == "NOTHING LEFT TO LEARN",
+		"the string tops out at %d extra hits" % cfg.vent.strings.size())
+	check(FurfurRules.light_extras(p, cfg).size() == cfg.vent.strings.size(), "every unlock is a light-string hit")
+	check(LairRules.blank().has("furfur") and LairRules.blank().has("vent_unlocks"), "the profile keeps Furfur's state")
+
+
+## The light string grows by one hit per VENT, in the hunt and in the lair; training keeps the base.
+func test_vent_grows_the_light_string() -> void:
+	var prof := _fresh_profile("test_prof_vent")
+	prof.data.vent_unlocks = 2
+	var a = preload("res://scripts/lair_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	var base: int = GameData.load_json("moves").light.size()
+	check(a.moves.light.size() == base + 2 and a.moves.light[base].id == "elbow" and a.moves.light[base + 1].id == "headbutt",
+		"two VENTs: L, L, L, ELBOW, HEADBUTT")
+	var ids: Array = []
+	for i in base + 2:
+		ids.append(a.combat.light().id)
+	check(ids[-1] == "headbutt" and a.combat.light().id == "jab", "the string walks every hit, then starts over: %s" % [ids])
+	check(GameData.load_json("moves").light.size() == base, "the shared moves data keeps the base string")
+	a.queue_free()
+	await process_frame
+	_restore_profile(prof)
+
+
+## The lost hunt: GAME OVER in the Pews -> LIMP HOME -> he follows you in -> win ugly -> CHAIN HIM.
+func test_furfur_lost_hunt_to_cage() -> void:
+	var save: Node = root.get_node("Save")
+	save.path = "user://test_furfur_run.json"
+	var prof := _fresh_profile("test_prof_furfur")
+	prof.data.heat = 80                      # a raid is due too: Furfur comes first, the raid waits
+	prof.save()
+	save.write({"where": "pews"})
+	var g: Node = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	g.game_over()
+	check(_button(g, "LIMP HOME") != null, "GAME OVER in a hunt offers LIMP HOME")
+	g.write_limp_save()
+	var d: Dictionary = save.read()
+	check(d.where == "lair" and bool(d.limped) and int(d.hp) < 100 and int(d.hp) > 0, "LIMP HOME saves a hurt arrival in the lair")
+	g.queue_free()
+	await process_frame
+	g = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	var a = g.arena
+	check(FurfurRules.stage(prof.data) == "invading" and g.find_child("FurfurIntro", true, false) != null
+		and g.find_child("RaidWarning", true, false) == null and bool(prof.data.raid_pending),
+		"he follows you home; the raid waits behind him")
+	g._go_back()
+	await process_frame
+	check(a.invasion_active and not a.furfur_foe().is_empty(), "Back on his intro means FIGHT")
+	# Quit mid-fight: CONTINUE starts the fight over (the stage is saved, not the fight).
+	g.save_for_quit()
+	g.queue_free()
+	await process_frame
+	g = load("res://scenes/game.tscn").instantiate()
+	root.add_child(g)
+	await process_frame
+	await process_frame
+	a = g.arena
+	check(g.find_child("FurfurIntro", true, false) != null and not a.invasion_active, "CONTINUE mid-fight: he's waiting again")
+	g._go_back()
+	await process_frame
+	# Drop: you get back up, he heals a little. Never GAME OVER.
+	var f: Dictionary = a.furfur_foe()
+	var i: int = a._foes.find(f)
+	a._foes[i].hp = 40.0
+	a.hp = 0
+	a.hero.die(Vector3.ZERO)
+	a.invasion_knockdown()
+	f = a.furfur_foe()
+	check(not g.over and not a.hero.dead and a.hp == int(a.max_hp * float(a.furfur_cfg.invasion.revive_hp_fraction))
+		and float(f.hp) > 40.0 and a.knockdowns == 1, "dropping in his fight: back up, he heals, no GAME OVER")
+	a.kill_foe(a._foes.find(f))
+	await process_frame
+	check(not a.invasion_active and g.find_child("FurfurBeaten", true, false) != null, "beat him: the CHAIN HIM sheet")
+	g._go_back()
+	await process_frame
+	check(FurfurRules.caged(prof.data) and a.caged_furfur != null and a.furfur_foe().is_empty()
+		and g.find_child("RaidWarning", true, false) != null, "chained: he's in the cage, then the raid comes")
+	check(a.STATION_NAMES.has("cage"), "the cage is a lair station")
+	g.queue_free()
+	await process_frame
+	save.clear()
+	save.path = "user://run.json"
+	_restore_profile(prof)
+
+
+func _button(n: Node, text: String) -> Button:
+	for b in n.find_children("*", "Button", true, false):
+		if b.text == text:
+			return b
+	return null

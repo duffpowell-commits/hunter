@@ -6,14 +6,19 @@ extends "res://scripts/hunt_arena.gd"
 ## Trap spots by the door take crafted traps. Heat at the raid line brings a LAIR RAID: waves of
 ## raiders come in through the portal and set traps fire on them. Losing costs stored parts, never
 ## the save. Corruption picks one of three looks for the room (light, floor, ink veins, candles).
-## Furfur's cage (BUILD_SPEC) is M4: the space is left for it, nothing is built yet.
+## M4 (Nov 26): Furfur Kemp. After a lost hunt (or a few nights home) he follows you through the
+## portal: a fight you can't lose, only win ugly (drop and you get back up, he heals a little). Beat
+## him and CHAIN HIM: he lives in the cage by the door from then on, watching you, and the cage
+## station opens his talk menu (lair_sheets.gd). Rules: furfur_rules.gd. Numbers: data/furfur.json.
 
 signal station_requested(id: String)
 signal raid_finished(won: bool, result: Dictionary)
 signal raid_started
+signal furfur_beaten
+signal furfur_line(kind: String)       # game.gd shows one of Furfur's lines (data/voices/furfur.json)
 
 const STATION_NAMES := {"trophy_wall": "TROPHY WALL", "workshop": "WORKSHOP", "cold_room": "COLD ROOM",
-	"voices": "VOICES", "map_room": "MAP ROOM"}
+	"voices": "VOICES", "map_room": "MAP ROOM", "cage": "FURFUR'S CAGE"}
 
 var cfg: Dictionary
 var band := 0
@@ -31,10 +36,15 @@ var _trap_nodes: Array[Node3D] = []
 var _wall: Node3D
 var _shrine: Node3D
 var _cold: Node3D
+var furfur_cfg: Dictionary
+var invasion_active := false
+var knockdowns := 0                    # times the hero dropped in the invasion (read by autoplay)
+var caged_furfur: Character3D          # Furfur in the cage once chained
 
 
 func _build_world() -> void:
 	cfg = GameData.load_json("lair")
+	furfur_cfg = GameData.load_json("furfur")
 	var low: bool = get_node("/root/Settings").get_value("low_graphics")
 	var we := WorldEnvironment.new()
 	_env = Environment.new()
@@ -66,6 +76,7 @@ func _build_world() -> void:
 	_build_cold_room(GameData.vec3(lay.stations.cold_room))
 	_build_shrine(GameData.vec3(lay.stations.voices))
 	_build_map_room(GameData.vec3(lay.stations.map_room))
+	_build_cage(GameData.vec3(lay.stations.cage))
 	for i in lay.trap_spots.size():
 		var plate := _ink_disc(GameData.vec3(lay.trap_spots[i]) + Vector3(0, 0.01, 0), 0.5, Color("2f2a2c"))
 		plate.name = "TrapSpot%d" % i
@@ -90,7 +101,7 @@ func _ready() -> void:
 
 
 func foe_rules() -> Dictionary:
-	return cfg.raid
+	return furfur_cfg.invasion if invasion_active else cfg.raid
 
 
 func _attack_target() -> Character3D:
@@ -114,6 +125,7 @@ func refresh() -> void:
 	_fill_wall(p)
 	_fill_cold_room(p)
 	_fill_shrine(p)
+	_fill_cage(p)
 	for i in _trap_nodes.size():
 		var spot := _trap_nodes[i]
 		for c in spot.get_children():
@@ -363,11 +375,15 @@ func _process(dt: float) -> void:
 	super._process(dt)
 	_near_station = ""
 	_near_trap = -1
-	if raid_active or hero.dead:
+	if raid_active or invasion_active or hero.dead:
 		return
 	var radius := float(cfg.interact_radius)
 	var best := radius
+	var prof_ := get_node_or_null("/root/Profile")
+	var is_caged := prof_ != null and FurfurRules.caged(prof_.data)
 	for id in cfg.layout.stations:
+		if id == "cage" and not is_caged:
+			continue
 		var d := hero.global_position.distance_to(GameData.vec3(cfg.layout.stations[id]))
 		if d < best:
 			best = d
@@ -412,6 +428,10 @@ func context_action() -> void:
 
 
 func status_text() -> String:
+	if invasion_active:
+		for foe in _foes:
+			if foe.kind == "Furfur" and not foe.dead:
+				return "FURFUR KEMP  %d/%d" % [ceili(float(foe.hp)), int(foe.max_hp)]
 	if raid_active:
 		var left := _foes.filter(func(f): return not f.dead).size()
 		return "RAID  WAVE %d/%d  %d LEFT" % [raid_wave, int(cfg.raid.waves), left]
@@ -453,6 +473,9 @@ func _check_hit() -> void:
 
 
 func _enemy(dt: float) -> void:
+	if invasion_active and not hero.dead:
+		_foe_ai(dt)
+		return
 	if not raid_active or hero.dead:
 		return
 	_foe_ai(dt)
@@ -469,6 +492,114 @@ func _enemy(dt: float) -> void:
 
 
 ## The run save's encounter blob (game.gd stores it under "pews" for every arena).
+# ---------------------------------------------------------------- Furfur (M4)
+
+func _build_cage(at: Vector3) -> void:
+	# Bars on three sides against the right-hand wall; the open side faces the aisle (its station).
+	var x0 := at.x + 0.6
+	var x1 := float(cfg.layout.half_width)
+	var z0 := at.z - 0.8
+	var z1 := at.z + 0.8
+	_box(Vector3(x0, 2.3, z0), Vector3(x1, 2.45, z1), Color("2b2622"), false)
+	for k in 7:
+		var z := lerpf(z0, z1, float(k) / 6.0)
+		_box(Vector3(x0 - 0.04, 0, z - 0.04), Vector3(x0 + 0.04, 2.3, z + 0.04), Color("4a443e"))
+	for k in 5:
+		var x := lerpf(x0, x1, float(k) / 4.0)
+		_box(Vector3(x - 0.04, 0, z0 - 0.04), Vector3(x + 0.04, 2.3, z0 + 0.04), Color("4a443e"))
+		_box(Vector3(x - 0.04, 0, z1 - 0.04), Vector3(x + 0.04, 2.3, z1 + 0.04), Color("4a443e"))
+	var floor_ := _ink_disc(Vector3((x0 + x1) / 2.0, 0.01, at.z), 0.7, Color("2a1414"))
+	floor_.name = "CageFloor"
+	_label("CAGE", Vector3((x0 + x1) / 2.0, 2.7, at.z))
+
+
+## Furfur stands in the cage once chained, his head following the hero.
+func _fill_cage(p: Dictionary) -> void:
+	if not FurfurRules.caged(p) or caged_furfur != null:
+		return
+	var clips: Dictionary = moves.clips.duplicate()
+	clips.erase("_why")
+	caged_furfur = Character3D.new()
+	caged_furfur.name = "CagedFurfur"
+	caged_furfur.tint = Color("c0502a")
+	caged_furfur.extra_actions = clips
+	caged_furfur.position = GameData.vec3(furfur_cfg.cage.furfur_at)
+	caged_furfur.look_target = hero
+	caged_furfur.can_climb = false
+	caged_furfur.can_vault = false
+	add_child(caged_furfur)
+	caged_furfur.heading = -PI / 2.0
+	caged_furfur.model.rotation.y = -PI / 2.0
+
+
+## He followed you home. One foe, the whole lair to fight in; the stations are shut until he's down.
+func start_invasion() -> void:
+	if invasion_active or raid_active:
+		return
+	invasion_active = true
+	knockdowns = 0
+	hero.position = GameData.vec3(cfg.layout.hero_spawn) + Vector3(0, 0, -2.0)
+	_spawn_foe("Furfur", GameData.vec3(furfur_cfg.invasion.spawn), Color("c0502a"), float(furfur_cfg.invasion.furfur_hp))
+	get_node("/root/Subs").cue("[FURFUR KEMP comes through the portal]")
+	get_node("/root/Audio").music_layers("music_loop", "music_combat")
+
+
+func furfur_foe() -> Dictionary:
+	for foe in _foes:
+		if foe.kind == "Furfur":
+			return foe
+	return {}
+
+
+## The hero dropped: not GAME OVER. Back up at revive_hp_fraction; Furfur heals regen_fraction.
+func invasion_knockdown() -> void:
+	if not invasion_active:
+		return
+	knockdowns += 1
+	var inv: Dictionary = furfur_cfg.invasion
+	hero.revive()
+	hp = maxi(1, int(float(max_hp) * float(inv.revive_hp_fraction)))
+	for i in _foes.size():
+		var foe: Dictionary = _foes[i]
+		if foe.kind == "Furfur" and not foe.dead:
+			foe.hp = minf(float(foe.max_hp), float(foe.hp) + float(foe.max_hp) * float(inv.regen_fraction))
+			foe.attack_cd = float(inv.first_attack_delay)
+			_foes[i] = foe
+	get_node("/root/Subs").cue("[you get back up. Furfur laughs]")
+	furfur_line.emit("knockdown")
+
+
+func _on_foe_killed(foe: Dictionary) -> void:
+	if foe.kind != "Furfur" or not invasion_active:
+		return
+	# He can't die: he goes down, and stays down long enough for the chains.
+	invasion_active = false
+	get_node("/root/Subs").cue("[Furfur goes down, still laughing]")
+	furfur_beaten.emit()
+
+
+## CHAIN HIM: the body on the floor goes, and he's in the cage.
+func chain_furfur() -> void:
+	for i in range(_foes.size() - 1, -1, -1):
+		if _foes[i].kind == "Furfur":
+			_drop(_foes[i].actor)
+			_foes.remove_at(i)
+	refresh()
+
+
+## VENT: the hero takes it out on him with the hit it just unlocked.
+func vent_on_furfur(hit: Dictionary) -> void:
+	if caged_furfur == null:
+		return
+	var to := caged_furfur.global_position - hero.global_position
+	hero.heading = atan2(to.x, to.z)
+	hero.model.rotation.y = hero.heading
+	hero.act(str(hit.get("action", "hook")))
+	caged_furfur.hit(hero.global_position + Vector3(0, 1.2, 0), float(hit.get("power", 0.5)))
+	get_node("/root/Feel").impact(caged_furfur.global_position + Vector3(0, 1.3, 0), 0.5, self)
+	get_node("/root/Subs").cue("[you take it out on Furfur: %s]" % str(hit.get("name", "")).to_lower())
+
+
 func save_state() -> Dictionary:
 	return {"raid_wave": raid_wave if raid_active else resume_wave}
 
@@ -533,4 +664,4 @@ func raid_failed() -> Dictionary:
 
 
 func bug_state() -> String:
-	return "lair: hp %d band %d raid %s wave %d near %s" % [hp, band, raid_active, raid_wave, _near_station]
+	return "lair: hp %d band %d raid %s wave %d invasion %s near %s" % [hp, band, raid_active, raid_wave, invasion_active, _near_station]

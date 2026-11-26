@@ -1,0 +1,96 @@
+{
+  "_why": "Hunter M4 (Nov 26): Furfur Kemp, the caged demon (DESIGN.md 'Furfur Kemp', BUILD_SPEC M4). Every number has a TUNE slider (lair_tuning.gd). Lines, lore and clauses are placeholders until Duff signs off the writing.",
+  "trigger": {
+    "_why": "DESIGN: an early hunt goes wrong, you limp home, and he follows you to finish you. A player who never loses still meets him: he comes on the arrival home that makes after_hunts.",
+    "after_hunts": 3,
+    "limp_hp_fraction": 0.5
+  },
+  "invasion": {
+    "_why": "The home-invasion fight. You can't lose it: when you drop you get back up at revive_hp_fraction and he heals regen_fraction of his HP (DESIGN: 'you win ugly'). Same chase/attack keys as the raid so hunt_arena's foe AI runs him.",
+    "furfur_hp": 140,
+    "furfur_damage": 12,
+    "attack_cooldown": 2.0,
+    "attack_windup": 0.7,
+    "first_attack_delay": 1.2,
+    "attack_range": 1.9,
+    "hit_range": 2.1,
+    "chase_min": 1.3,
+    "chase_max": 30.0,
+    "chase_speed": 0.85,
+    "choir_bonus_damage": 0,
+    "choir_buff_radius": 0,
+    "steer_probe": 0.8,
+    "steer_margin": 0.35,
+    "revive_hp_fraction": 0.6,
+    "revive_delay": 1.2,
+    "regen_fraction": 0.15,
+    "chain_corruption": 5,
+    "spawn": [0.0, 0.0, 6.4]
+  },
+  "cage": {
+    "furfur_at": [3.5, 0.0, 3.0],
+    "mercy_cost": 10
+  },
+  "lore": [
+    "I was a partner at Price & Partners. Corner office. Fourth circle. The view was people.",
+    "Every partner signs Price's contract. Every partner thinks he's the exception.",
+    "I tried to buy myself out. Price laughed so hard he billed me for the time.",
+    "Those 'targets' he sends you? Check whose debt goes down when you kill them. It isn't yours.",
+    "Your mother didn't lose. She walked into his office. Ask yourself why he'd let her leave.",
+    "I can't die, Cain. Not by knife, not by fire. There's only one way, and I'll never tell you. Probably."
+  ],
+  "contract": {
+    "_why": "Price's contract (BUILD_SPEC: an inventory item; hidden clauses revealed over time). Open clauses show from the start. Hidden ones are read out by Furfur, one per mercy, in order.",
+    "open": [
+      "1. The Bearer's life, spared at birth, is the consideration for this agreement.",
+      "2. The Bearer shall collect on accounts named by the Firm, at the Firm's discretion.",
+      "3. Upon settlement of the Balance, the Bearer and the Guarantor go free."
+    ],
+    "hidden": [
+      "4(b). 'The Balance' means the balance owed by the Firm's principal, not the Bearer.",
+      "7. The Guarantor's freedom is not a term of this agreement and never was.",
+      "9(c). Any collection made in the Firm's own office is void, and so is the collector's debt.",
+      "12. A partner of the Firm may be released only by the hand that holds his contract."
+    ],
+    "mercies": ["A BLANKET", "WATER", "LOOSEN THE CHAIN", "LIGHT HIM A CANDLE"]
+  },
+  "vent": {
+    "_why": "DESIGN: venting after a REAL failure unlocks a combo string, one per real failure (failures_unvented, can't be farmed). Each one adds a hit to the end of the light string (L, L, L, then these). Real clips only: they reuse the hook, heavy and launcher clips.",
+    "corruption": 5,
+    "strings": [
+      {
+        "id": "elbow",
+        "name": "ELBOW",
+        "action": "hook",
+        "armed_action": "slash_c",
+        "damage": 10,
+        "power": 0.4,
+        "reach": 1.5,
+        "hit_at": 0.2,
+        "recover": 0.4
+      },
+      {
+        "id": "headbutt",
+        "name": "HEADBUTT",
+        "action": "heavy",
+        "armed_action": "slash_a",
+        "damage": 12,
+        "power": 0.5,
+        "reach": 1.4,
+        "hit_at": 0.3,
+        "recover": 0.5
+      },
+      {
+        "id": "hammer",
+        "name": "HAMMER FIST",
+        "action": "launcher",
+        "armed_action": "slash_b",
+        "damage": 16,
+        "power": 0.9,
+        "reach": 1.6,
+        "hit_at": 0.3,
+        "recover": 0.55
+      }
+    ]
+  }
+}

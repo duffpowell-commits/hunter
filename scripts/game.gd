@@ -18,6 +18,7 @@ const Arena = preload("res://scripts/arena.gd")
 const PewsArena = preload("res://scripts/pews_arena.gd")
 const LairArena = preload("res://scripts/lair_arena.gd")
 const LairRules = preload("res://scripts/lair_rules.gd")
+const FurfurRules = preload("res://scripts/furfur_rules.gd")
 const LairSheets = preload("res://scripts/lair_sheets.gd")
 const VoiceBox = preload("res://scripts/voice_box.gd")
 const GameData = preload("res://scripts/game_data.gd")
@@ -35,6 +36,7 @@ var profile_label: Label     # cash, heat, parts, corruption (M3: the profile on
 var heal_btn: Button
 var where := "pews"          # "pews" or "lair" (Save v4); the training arena is autoplay-only
 var arrived := false         # came home through the portal this load (a night, or a raid)
+var limped := false          # M4: came home from a lost hunt (LIMP HOME): Furfur follows
 var combo_label: Label
 var weapon_label: Label
 var pause_btn: Button
@@ -64,6 +66,7 @@ func _ready() -> void:
 		_saved_hp = int(d.get("hp", -1))
 		where = str(d.get("where", "pews"))
 		arrived = bool(d.get("arrived", false))
+		limped = bool(d.get("limped", false))
 	# The 3D arena lives for the whole scene; _build() only rebuilds the 2D layer on top.
 	var autoplay := get_node_or_null("/root/Autoplay")
 	if autoplay != null and autoplay.training_arena:
@@ -90,6 +93,8 @@ func _ready() -> void:
 	if arena.has_signal("station_requested"):
 		arena.connect("station_requested", Callable(self, "_on_station"))
 		arena.connect("raid_finished", Callable(self, "_on_raid_finished"))
+		arena.connect("furfur_beaten", Callable(self, "_on_furfur_beaten"))
+		arena.connect("furfur_line", Callable(self, "furfur_says"))
 	if arena.has_method("restore_state"):
 		arena.call("restore_state", d.get("pews", {}))
 	_build()
@@ -372,6 +377,13 @@ func _on_ko(_count: int) -> void:
 
 
 func _on_hero_died() -> void:
+	if where == "lair" and bool(arena.get("invasion_active")):
+		# M4: you can't lose to Furfur, only win ugly. The hero gets back up; he heals a little.
+		var wait := float(GameData.load_json("furfur").invasion.revive_delay)
+		get_tree().create_timer(wait).timeout.connect(func():
+			if is_instance_valid(arena) and bool(arena.get("invasion_active")):
+				arena.call("invasion_knockdown"))
+		return
 	if where == "lair" and bool(arena.get("raid_active")):
 		# BUILD_SPEC: losing a raid costs stored parts, not the save. The hero gets back up.
 		var delay := float(GameData.load_json("lair").raid.revive_delay)
@@ -395,6 +407,10 @@ func _on_hero_died() -> void:
 func debug_skip_level() -> void:
 	if where == "pews" and arena.has_method("debug_defeat"):
 		arena.call("debug_defeat")
+	elif where == "lair" and bool(arena.get("invasion_active")):
+		var f: Dictionary = arena.call("furfur_foe")
+		if not f.is_empty():
+			arena.call("kill_foe", arena._foes.find(f))
 	elif where == "lair" and bool(arena.get("raid_active")):
 		arena.call("_end_raid", true)
 	elif where == "training":
@@ -410,17 +426,83 @@ func _enter_lair() -> void:
 	if arrived:
 		arrived = false
 		var r := LairRules.arrive_home(prof.data, lair, perk)
+		pass FurfurRules.arrive(prof.data, limped, GameData.load_json("furfur"))
+		limped = false
 		checkpoint()
 		prof.save()
 		if not r.raid:
 			get_node("/root/Subs").cue("[a night in the lair: heat -%d]" % int(r.heat_drop))
 	arena.call("refresh")
-	if bool(prof.data.raid_pending) and int(arena.get("resume_wave")) > 0:
+	if FurfurRules.stage(prof.data) == "invading":
+		_furfur_intro()           # he comes first; a pending raid waits until he's chained
+	elif bool(prof.data.raid_pending) and int(arena.get("resume_wave")) > 0:
 		arena.call("start_raid", int(arena.get("resume_wave")))     # mid-raid CONTINUE: no warning, same wave
 	elif bool(prof.data.raid_pending):
 		_raid_warning()
+	elif FurfurRules.caged(prof.data):
+		# He mocks you from the cage (DESIGN). Worse after a real loss you haven't vented.
+		furfur_says("after_fail" if int(prof.data.failures_unvented) > 0 else "home")
 	else:
 		speak("lair")
+
+
+# ---------------------------------------------------------------- Furfur (M4)
+
+## The lost-hunt intro's second half: he followed you home to finish you. FIGHT (or Back) starts it.
+func _furfur_intro() -> void:
+	var sh := UI.sheet(self)
+	sh.get_meta("sheet").name = "FurfurIntro"
+	sh.add_child(UI.label("FURFUR KEMP", 34, UI.key("bad")))
+	sh.add_child(UI.label("Price's old partner followed your blood trail home. He's here to finish the job.", 18))
+	sh.add_child(UI.label("He can't die. Put him down anyway.", 16, UI.DIM))
+	sh.add_child(UI.button("FIGHT", func():
+		UI.close_sheet(sh)
+		_start_invasion(), 88))
+
+
+func _start_invasion() -> void:
+	arena.call("start_invasion")
+	furfur_says("invade")
+
+
+func _on_furfur_beaten() -> void:
+	var sh := UI.sheet(self)
+	sh.get_meta("sheet").name = "FurfurBeaten"
+	sh.add_child(UI.label("FURFUR IS DOWN", 32, UI.ACCENT))
+	sh.add_child(UI.label("He's still laughing. He can't die, but he can be kept.", 18))
+	var cfg := GameData.load_json("furfur")
+	sh.add_child(UI.label("CHAIN HIM: he lives in the cage. +%d corruption." % int(cfg.invasion.chain_corruption), 15))
+	sh.add_child(UI.button("CHAIN HIM", func():
+		UI.close_sheet(sh)
+		chain_furfur(), 88))
+
+
+func chain_furfur() -> void:
+	var prof := get_node("/root/Profile")
+	if not FurfurRules.chain(prof.data, GameData.load_json("furfur")):
+		return
+	prof.save()
+	arena.call("chain_furfur")
+	arena.call("apply_corruption", int(prof.data.corruption))
+	checkpoint()
+	get_node("/root/Subs").cue("[chains lock: Furfur is caged]")
+	furfur_says("chained")
+	if bool(prof.data.raid_pending):
+		_raid_warning()
+
+
+## One of Furfur's lines in the dialogue box (he isn't an equipped voice; data/voices/furfur.json).
+func furfur_says(kind: String) -> void:
+	var lines: Array = GameData.load_json("voices/furfur").get("lines", {}).get(kind, [])
+	if lines.is_empty():
+		return
+	var old := get_node_or_null("VoiceBox")
+	if old != null:
+		old.free()
+	var box := VoiceBox.make("furfur", str(lines[randi() % lines.size()]))
+	box.set_meta("kind", "furfur_" + kind)
+	add_child(box)
+	last_voice_kind = "furfur_" + kind
 
 
 func _raid_warning() -> void:
@@ -532,10 +614,26 @@ func game_over() -> void:
 		var phase := int(arena.get("rules").boss_phase) if arena.get("rules") != null else 1
 		sheet_box.add_child(UI.label("You fell in The Pews. Vesper, phase %d." % phase, 22))
 		sheet_box.add_child(UI.label("What you earned is still yours.", 18, UI.DIM))
+		# M4: the lost hunt. You crawl home through the portal, and something follows the blood.
+		sheet_box.add_child(UI.button("LIMP HOME", limp_home, 88))
 	else:
 		sheet_box.add_child(UI.label("Round %d, %d knockouts" % [level, score], 24))
 	sheet_box.add_child(UI.button("TRY AGAIN", func(): get_tree().reload_current_scene(), 88))
 	sheet_box.add_child(UI.button("TITLE", quit_to_title))
+
+
+## GAME OVER in a hunt -> back to the lair at limp_hp_fraction of max HP (data/furfur.json). A night passes there like any arrival.
+func limp_home() -> void:
+	write_limp_save()
+	get_node("/root/Subs").cue("[you limp home through the portal]")
+	get_tree().change_scene_to_file("res://scenes/game.tscn")
+
+
+## What LIMP HOME writes (a rule test calls this without changing scene).
+func write_limp_save() -> void:
+	leaving = true
+	var hurt := maxi(1, int(float(arena.max_hp) * float(GameData.load_json("furfur").trigger.limp_hp_fraction)))
+	_save.write({"where": "lair", "arrived": true, "limped": true, "level": level, "score": score, "hp": hurt})
 
 
 func _notification(what: int) -> void:
@@ -551,7 +649,15 @@ func _notification(what: int) -> void:
 func _go_back() -> void:
 	var sheets := get_tree().get_nodes_in_group("sheet")
 	var base_sheet: Node = sheet_box.get_meta("sheet") if is_instance_valid(sheet_box) else null
-	if not sheets.is_empty() and sheets[-1].name == "RaidWarning":
+	if not sheets.is_empty() and sheets[-1].name == "FurfurIntro":
+		# Like the raid: Back can't dodge him. It means FIGHT.
+		sheets[-1].queue_free()
+		_start_invasion()
+	elif not sheets.is_empty() and sheets[-1].name == "FurfurBeaten":
+		# Back means CHAIN HIM: leaving him loose on the floor isn't a choice the game offers.
+		sheets[-1].queue_free()
+		chain_furfur()
+	elif not sheets.is_empty() and sheets[-1].name == "RaidWarning":
 		# Back can't dodge a raid (fresh-eyes on PR #23): it means FIGHT.
 		sheets[-1].queue_free()
 		arena.call("start_raid")
