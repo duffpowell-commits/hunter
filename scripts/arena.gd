@@ -176,6 +176,7 @@ func _ready() -> void:
 	_warn.visible = false
 	dummy.add_child(_warn)
 	rig = CameraRig.new()
+	rig.distance = default_camera_distance()
 	rig.pitch_deg = 50.0               # BUILD_SPEC: fixed high three-quarter, about 50 degrees down
 	rig.follow = hero
 	add_child(rig)
@@ -392,6 +393,9 @@ func _land_hit(target: Character3D) -> Dictionary:
 	if r.kind == "takedown" and not _is_boss(target):
 		r["damage"] = 99999.0
 	last_hit = r
+	if r.get("missed", false):
+		get_node("/root/Subs").cue("[Gus: Nothing!]")
+		return r
 	hits_landed += 1
 	var feel: Node = get_node("/root/Feel")
 	target.hit(hero.global_position + Vector3(0, 1.2, 0), float(r.power))
@@ -650,6 +654,9 @@ func pick_up() -> void:
 ## swing's reach but inside lunge_range, dash to it first and swing on arrival (_update_lunge).
 func _start(m: Dictionary, forced: Character3D = null) -> void:
 	if m.is_empty() or hero.dead:
+		return
+	if m.get("id", "") == "voice_gus_edge":
+		_begin(m)
 		return
 	var target := forced if forced != null else lunge_target()
 	if target == null:
@@ -964,3 +971,7 @@ func combo_count() -> int:
 
 func bug_state() -> String:
 	return "arena: hp %d dummy %.0f kos %d combo %d weapon %s/%d" % [hp, dummy_hp, kos, combat.combo, combat.weapon, combat.durability]
+
+
+func default_camera_distance() -> float:
+	return 7.5

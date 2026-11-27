@@ -16,6 +16,7 @@ const BugReport = preload("res://scripts/bug_report.gd")
 const ControlsLegend = preload("res://scripts/controls_legend.gd")
 const Arena = preload("res://scripts/arena.gd")
 const PewsArena = preload("res://scripts/pews_arena.gd")
+const CasinoArena = preload("res://scripts/casino_arena.gd")
 const FirstHunt = preload("res://scripts/first_hunt.gd")
 const Explainer = preload("res://scripts/explainer.gd")
 const Coach = preload("res://scripts/coach.gd")
@@ -85,6 +86,8 @@ func _ready() -> void:
 		arena = Arena.new()
 	elif where == "lair":
 		arena = LairArena.new()
+	elif where == "casino":
+		arena = CasinoArena.new()
 	else:
 		where = "pews"
 		arena = PewsArena.new()
@@ -438,7 +441,7 @@ func _on_finish_requested() -> void:
 	var outcomes: Dictionary = pews_rules.config.get("finishers", {}) if pews_rules != null else {}
 	var clean: Dictionary = outcomes.get("clean", {})
 	var brutal: Dictionary = outcomes.get("brutal", {})
-	sh.add_child(UI.label("VESPER IS BROKEN", 28, UI.ACCENT))
+	sh.add_child(UI.label("GUS IS BROKEN" if where == "casino" else "VESPER IS BROKEN", 28, UI.ACCENT))
 	sh.add_child(UI.label("Choose what remains of him.", 18))
 	sh.add_child(UI.label("CLEAN: intact trophy, %d parts, +%d corruption" % [int(clean.get("parts", 0)), int(clean.get("corruption", 0))], 15))
 	sh.add_child(UI.button("CLEAN", func(): _choose_finish(sh, "CLEAN"), 88))
@@ -477,10 +480,10 @@ func _on_portal_opened() -> void:
 
 ## Map room: a fresh hunt in that realm. The profile goes along; the run starts at full HP.
 func start_hunt(realm: String) -> void:
-	if realm != "pews" or bool(get_node("/root/Profile").data.raid_pending):
+	if not LairRules.realm_open(get_node("/root/Profile").data, realm) or bool(get_node("/root/Profile").data.raid_pending):
 		return
 	leaving = true
-	_save.write({"where": "pews"})
+	_save.write({"where": realm})
 	get_node("/root/Loader").go("res://scenes/game.tscn")
 
 
@@ -517,7 +520,7 @@ func _on_hero_died() -> void:
 	dying = true                     # from this moment nothing saves, and the run is over
 	_save.clear()
 	get_node("/root/Subs").clear()   # 8.5 pass: old fight captions don't trail into GAME OVER
-	if where == "pews":
+	if where in ["pews", "casino"]:
 		# A real failed hunt (BUILD_SPEC Furfur: VENT unlocks one combo per real failure, M4).
 		var prof := get_node("/root/Profile")
 		prof.data.failures_unvented = int(prof.data.failures_unvented) + 1
@@ -529,7 +532,7 @@ func _on_hero_died() -> void:
 
 ## SKIP LEVEL in the dev menu: the next round in training, Vesper down in the Pews, raid won in the lair.
 func debug_skip_level() -> void:
-	if where == "pews" and arena.has_method("debug_defeat"):
+	if where in ["pews", "casino"] and arena.has_method("debug_defeat"):
 		arena.call("debug_defeat")
 	elif where == "lair" and bool(arena.get("invasion_active")):
 		var f: Dictionary = arena.call("furfur_foe")
@@ -734,16 +737,19 @@ func game_over() -> void:
 	get_node("/root/Subs").cue("[game over sting]")
 	sheet_box = UI.sheet(self)
 	sheet_box.add_child(UI.label("GAME OVER", 40, UI.key("bad")))
-	if where == "pews":
+	if where in ["pews", "casino"]:
 		# Training-arena wording ("Round 1, 0 knockouts") left over in the church (M2 review).
 		var phase := int(arena.get("rules").boss_phase) if arena.get("rules") != null else 1
-		sheet_box.add_child(UI.label("You fell in The Pews. Vesper, phase %d." % phase, 22))
+		sheet_box.add_child(UI.label(("You fell in the Casino. Gus, phase %d." if where == "casino" else "You fell in The Pews. Vesper, phase %d.") % phase, 22))
 		sheet_box.add_child(UI.label("What you earned is still yours.", 18, UI.DIM))
 		# M4: the lost hunt. You crawl home through the portal, and something follows the blood.
 		sheet_box.add_child(UI.button("LIMP HOME", limp_home, 88))
 	else:
 		sheet_box.add_child(UI.label("Round %d, %d knockouts" % [level, score], 24))
-	sheet_box.add_child(UI.button("TRY AGAIN", func(): get_tree().reload_current_scene(), 88))
+	sheet_box.add_child(UI.button("TRY AGAIN", func():
+		if where == "casino":
+			_save.write({"where": "casino"})
+		get_tree().reload_current_scene(), 88))
 	sheet_box.add_child(UI.button("TITLE", quit_to_title))
 
 

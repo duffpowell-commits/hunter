@@ -12,7 +12,7 @@ extends Node
 const LairRules = preload("res://scripts/lair_rules.gd")
 
 ## 1 = Hunter M3 (Nov 23).
-const VERSION := 1
+const VERSION := 2
 var path := "user://profile.json"
 var data: Dictionary = {}
 

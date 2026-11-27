@@ -480,7 +480,7 @@ func test_save_migrates_v1() -> void:
 	f.store_string(JSON.stringify({"level": 3, "score": 7, "lives": 2, "_version": 1}))
 	f.close()
 	var d: Dictionary = save.read()
-	check(int(d.get("_version", 0)) == 4 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3 and d.get("pews") == {} and d.get("where") == "pews", "v1 -> v4")
+	check(int(d.get("_version", 0)) == 5 and int(d.get("hp", 0)) == 100 and not d.has("lives") and int(d.level) == 3 and d.get("pews") == {} and d.get("where") == "pews", "v1 -> v4")
 	save.clear()
 	save.path = "user://run.json"
 
@@ -489,11 +489,11 @@ func test_save_migrates_v2() -> void:
 	var save: Node = root.get_node("Save")
 	var base := {"level": 3, "score": 7, "hp": 48, "_version": 2}
 	var migrated: Dictionary = save._migrate(base.duplicate())
-	check(migrated._version == 4 and migrated.hp == 48 and migrated.level == 3
+	check(migrated._version == 5 and migrated.hp == 48 and migrated.level == 3
 		and migrated.score == 7 and migrated.get("pews") == {}, "v2 arena save keeps progress")
 	base["pews"] = {"phase": 2, "boss_hp": 39}
 	migrated = save._migrate(base.duplicate(true))
-	check(migrated._version == 4 and migrated.pews == base.pews, "v2 Pews preview keeps encounter")
+	check(migrated._version == 5 and migrated.pews == base.pews, "v2 Pews preview keeps encounter")
 
 
 ## The arena: ink look on every surface, the 50-degree camera, the hero's rim, tunable.
@@ -981,7 +981,7 @@ func test_save_v3_rewards_move_to_profile_once() -> void:
 	f.close()
 	var d: Dictionary = save.read()
 	check(d.pews.get("looted", []) == ["candle"], "the v3 run's looted props stay looted")
-	check(int(d._version) == 4 and d.where == "pews" and int(d.pews.phase) == 2 and not d.pews.has("cash"),
+	check(int(d._version) == 5 and d.where == "pews" and int(d.pews.phase) == 2 and not d.pews.has("cash"),
 		"v3 -> v4 keeps the encounter, drops the rewards from the run")
 	save.read()
 	check(int(prof.data.cash) == 10 and int(prof.data.parts) == 8 and int(prof.data.inventory.candle) == 1
@@ -1880,3 +1880,135 @@ func test_fox_pet_yip_and_lair_greet() -> void:
 	l.queue_free()
 	await process_frame
 	_restore_profile(prof)
+
+
+func test_casino_unlock_checkpoint() -> void:
+	var profile := preload("res://scripts/lair_rules.gd").blank()
+	var realms: Array = GameData.load_json("realms").realms
+	var casino: Dictionary = realms[1]
+	check(casino.id == "casino" and casino.get("requires_voice", "") == "vesper", "Casino requires eaten Vesper")
+	check(not preload("res://scripts/lair_rules.gd").realm_open(profile, "casino"), "fresh profile cannot enter Casino")
+	profile.voices.append("vesper")
+	check(preload("res://scripts/lair_rules.gd").realm_open(profile, "casino"), "Vesper unlocks Casino")
+	for realm in realms.slice(2):
+		check(not realm.open, "later realms remain locked")
+
+
+func test_casino_runtime() -> void:
+	var profile := _fresh_profile("test_prof_casino")
+	var casino = preload("res://scripts/casino_arena.gd").new()
+	root.add_child(casino)
+	await process_frame
+	check(casino.rules.config.boss.id == "gus" and casino._foes.size() == 2 and casino.fox != null, "Casino, minions and Vig instantiate")
+	casino.rng.seed = 42
+	casino._spin_slot()
+	var effect: String = casino._effect
+	casino.rng.seed = 42
+	casino._spin_slot()
+	check(casino._effect == effect and casino._effect_time > 0, "seeded slot effect")
+	check(casino._slots.size() == 2, "two optional slot machines")
+	casino.can_pick_up = true
+	casino.pick_up()
+	check(casino.combat.weapon == "roulette_duster", "Casino duster pickup")
+	casino.combat.weapon = ""
+	casino._break_weapon()
+	check(casino._pickup == null and casino.save_state().duster_taken, "broken duster does not respawn a pipe")
+	var dm: Node = root.get_node("DebugMenu")
+	var old_god: bool = dm.god_mode
+	dm.god_mode = false
+	casino.encounter_started = true
+	casino.rules.engaged = true
+	casino.hero.position = casino.dummy.position + Vector3(0,0,1)
+	casino._shield = 0
+	casino._iframes = 0
+	var hp0: int = casino.hp
+	casino._begin_boss_move()
+	check(casino._coin != null and casino._boss_telegraph >= 0.5, "coin toss tell")
+	casino._roll_double = true
+	casino._execute_boss_move()
+	check(casino.hp < hp0, "double strike damages Cain")
+	casino._begin_boss_move()
+	casino._execute_boss_move()
+	check(casino._dice.size() == 3, "loaded dice scatter into projectiles")
+	casino._begin_boss_move()
+	check(casino._counter_stance, "house edge stance")
+	var boss_hp0: float = casino.dummy_hp
+	casino._damage_dummy({"damage":5.0,"kind":"light"})
+	check(casino.dummy_hp == boss_hp0 and not casino._counter_stance, "house edge counters strike")
+	dm.god_mode = old_god
+	casino.debug_defeat()
+	check(casino.boss_defeated and casino.rules.boss_phase == 2, "Gus has two phases")
+	check(casino.choose_finisher("CLEAN").trophy_id == "gus", "Gus trophy")
+	check(casino.choose_finisher("CLEAN").is_empty(), "finisher only once")
+	casino.context_action()
+	check(profile.data.voices.has("gus"), "eat unlocks Gus once")
+	casino.queue_free()
+	await process_frame
+	_restore_profile(profile)
+
+
+func test_gus_debt_lock() -> void:
+	var rules = preload("res://scripts/lair_rules.gd")
+	var p: Dictionary = rules.blank()
+	rules.add_voice(p, "vesper")
+	rules.add_voice(p, "gus")
+	check(rules.voice_slots(p) == {"up": "vesper"}, "debt locks Gus specials")
+	p.gus_debt_paid = true
+	check(rules.voice_slots(p) == {"up": "vesper", "down": "gus"}, "debt paid unlocks Gus")
+	var voice := GameData.load_json("voices/gus")
+	check(voice.extra_specials.size() == 2 and voice.special.id == "voice_gus", "three Gus specials")
+
+
+func test_casino_profile_checkpoint_priority() -> void:
+	var prof := _fresh_profile("test_prof_casino_resume")
+	LairRules.add_voice(prof.data, "gus")
+	prof.data.gus_finisher = "CLEAN"
+	prof.data.gus_debt_paid = true
+	var casino = preload("res://scripts/casino_arena.gd").new()
+	root.add_child(casino)
+	await process_frame
+	casino.restore_state({"vault_run":true, "eaten":false, "boss_defeated":false})
+	check(casino.rules.eaten and casino.boss_defeated and casino.portal_ready and not casino._vault_run, "profile wins over stale checkpoint")
+	casino.queue_free()
+	await process_frame
+	_restore_profile(prof)
+
+
+func test_gus_voice_coin_outcomes() -> void:
+	var combat := Combat.new(GameData.load_json("moves").duplicate(true), GameData.load_json("weapons").duplicate(true))
+	var coin: Dictionary = GameData.load_json("voices/gus").special.duplicate(true)
+	coin.chance = 0.0
+	var miss := combat.land(coin)
+	check(miss.get("missed",false) and miss.damage == 0.0 and combat.combo == 0, "nothing whiffs without consuming a hit")
+	coin.chance = 1.0
+	var hit := combat.land(coin)
+	check(not hit.get("missed",false) and is_equal_approx(float(hit.damage),float(coin.damage)*float(coin.multiplier)) and combat.combo == 1, "double deals the configured multiplier")
+
+
+func test_gus_dice_minion_does_not_break_vesper_heal() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.rules.engaged = true
+	a.dummy.position = Vector3(0,0,-8)
+	var foe: Dictionary = a._foes[0]
+	foe.actor.position = Vector3(0,0,1)
+	a.hero.position = Vector3(0,0,2.1)
+	a.hero.heading = PI
+	a.hero.model.rotation.y = PI
+	a._boss_move_index = a.rules.config.boss.move_order.find("laying_of_hands")
+	a._begin_boss_move()
+	var move: Dictionary = GameData.load_json("voices/gus").extra_specials.toward.duplicate(true)
+	move.kind = "special"
+	var before: int = a.hits_landed
+	var old_hp: float = foe.hp
+	a._begin(move)
+	for i in 60:
+		await physics_frame
+		if a.hits_landed > before:
+			break
+	check(a.hits_landed > before and a._foes[0].hp < old_hp, "Loaded Dice hit only the nearby minion")
+	check(a._boss_move == "laying_of_hands" and a.heals_broken == 0, "a minion-only hit must not interrupt Vesper's prayer")
+	a.queue_free()
+	await process_frame

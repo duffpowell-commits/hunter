@@ -11,6 +11,7 @@ extends Node
 var shots := ""
 var clip := ""                          # --clip=DIR: save a gameplay clip's frames there
 const GameData = preload("res://scripts/game_data.gd")
+const LairRules = preload("res://scripts/lair_rules.gd")
 const FurfurRules = preload("res://scripts/furfur_rules.gd")
 const CLIP_SECS := 15.0                 # vertical 9:16 (the game is portrait), sized for Shorts/Reels/TikTok
 var failed := false
@@ -232,6 +233,7 @@ func _run() -> void:
 	if clip != "":
 		await _record_clip(get_tree().current_scene)
 	await _pews_checks()
+	await _casino_checks()
 
 	if not failed:
 		print("AUTOPLAY PASS")
@@ -302,7 +304,7 @@ func _pews_checks() -> void:
 		if fox_d <= arena.fox.follow_distance() + 1.5:
 			break
 		await _frames(1)
-	_check(fox_d <= arena.fox.follow_distance() + 1.5 and not arena._targets().has(arena.fox),
+	_check(fox_d <= arena.fox.follow_distance() + 1.5 and not Array(arena._targets()).any(func(target): return target == arena.fox),
 		"FOX FOLLOW PASS (the fox is at Cain's heels, %.1f m, and is never a target)" % fox_d)
 	await _shot("pews_demon_sight")
 	await _click("SIGHT")
@@ -691,8 +693,8 @@ func _lair_checks() -> void:
 	await _at_station(arena, "map_room")
 	await _shot("lair_map_room")
 	await _click("MAP ROOM")
-	_check(_find("HUNT THE PEWS") != null and _find("LOCKED: THE CASINO") == null and _has_any_disabled("LOCKED: THE CASINO"),
-		"LAIR MAP PASS (The Pews is open, the other realms are locked)")
+	_check(_find("HUNT THE PEWS") != null and _find("HUNT THE CELLAR CASINO") != null and _has_any_disabled("LOCKED: THE QUARRY") and _has_any_disabled("LOCKED: THE BALLROOM"),
+		"LAIR MAP PASS (Vesper unlocks the Cellar Casino; later realms locked)")
 	await _shot("lair_map_sheet")
 	await _click("CLOSE")
 
@@ -1989,3 +1991,171 @@ func _tap_at(p: Vector2) -> void:
 		e.global_position = w
 		Input.parse_input_event(e)
 		await _frames(2)
+
+
+func _casino_checks() -> void:
+	var profile: Node = get_node("/root/Profile")
+	profile.data.raid_pending = false
+	profile.data.heat = 0
+	LairRules.add_voice(profile.data, "vesper")
+	profile.save()
+	get_node("/root/Save").write({"where": "casino"})
+	await _click("CONTINUE")
+	await _wait_scene("Game")
+	var game := get_tree().current_scene
+	var arena = game.arena
+	await _frames(12)
+	_check(game.where == "casino" and arena.rules.config.boss.id == "gus" and arena.fox != null, "CASINO ENTRY PASS (Gus and Vig)")
+	await _shot("casino_entry")
+	get_node("/root/DebugMenu").god_mode = true
+	arena.rng.seed = 42
+	_place(arena.hero, Vector3(-5.0,0.05,3.0), PI)
+	await _frames(5)
+	await _click("SPIN SLOT")
+	await _frames(4)
+	_check(not arena._effect.is_empty() and arena._effect_time > 0, "CASINO SLOT PASS")
+	await _shot("casino_slot")
+	_place(arena.hero, Vector3(3,0.05,3), PI)
+	await _frames(5)
+	await _click("PICK UP")
+	_check(arena.combat.weapon == "roulette_duster", "CASINO DUSTER PASS")
+	await _casino_clear_foes(game)
+	_check(arena._foes.all(func(f): return f.dead), "CASINO FOES PASS (real pad taps)")
+	arena.encounter_started = true
+	arena.rules.engaged = true
+	arena._boss_cd = 0.0
+	await _frames(3)
+	_check(arena._boss_move == "double_or_nothing" and arena._warn.visible, "GUS TELEGRAPH PASS")
+	await _shot("casino_gus_tell")
+	arena._cancel_boss_attack()
+	arena._boss_cd = 999.0
+	await _fight_vesper_phase(game, 1)
+	_check(arena.rules.boss_phase == 2, "GUS ALL IN PASS (phase one defeated with pad holds)")
+	_place(arena.hero, arena.dummy.position + Vector3(0,0.05,3.5), PI)
+	var dice_before: int = arena.dice_spawned
+	var slots_before: int = arena.slot_rolls
+	arena._boss_cd = 0.0
+	await _frames(3)
+	_check(arena._boss_move == "loaded_dice" and arena._slot_warning, "GUS DICE TELL PASS (phase two warns of slot activation)")
+	var until := Time.get_ticks_msec()+5000
+	while arena._boss_telegraph > 0 and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+	_check(arena.dice_spawned == dice_before + 3 and arena.slot_rolls == slots_before + 1 and arena._effect_time > 0, "GUS DICE PASS (projectiles and slot effect)")
+	await _shot("casino_dice")
+	arena._boss_cd = 0.0
+	await _frames(3)
+	_check(arena._counter_stance, "GUS HOUSE EDGE TELL PASS")
+	await _face_dummy(arena)
+	var before: float = arena.dummy_hp
+	await _pad_tap(game)
+	_check(arena.dummy_hp == before, "GUS HOUSE EDGE PASS (strike countered)")
+	arena._cancel_boss_attack()
+	arena._boss_cd = 999.0
+	await _fight_vesper_phase(game, 2)
+	await _frames(4)
+	_check(arena.boss_defeated and arena.rules.boss_phase == 2, "GUS PHASE PASS")
+	await _click("FINISH")
+	await _click("CLEAN")
+	await _click("EAT")
+	await _click("CLOSE")
+	_check(profile.data.voices.has("gus") and profile.data.trophies.has("gus"), "GUS REWARDS PASS")
+	await _shot("casino_reward")
+	await _click("PAUSE")
+	await _click("QUIT TO TITLE")
+	await _wait_scene("Title")
+	_check(_find("CONTINUE  (THE CELLAR CASINO)") != null, "CASINO SAVE TITLE PASS")
+	await _click("CONTINUE")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	_check(arena.rules.eaten and arena.boss_defeated and profile.data.voices.has("gus"), "CASINO RESUME PASS")
+	await _click("RETURN HOME")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	_check(game.where == "lair", "CASINO RETURN PASS")
+	await _shot("casino_home")
+	game.start_hunt("casino")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	await _frames(8)
+	_check(arena._vault_run and not profile.data.gus_debt_paid, "GUS GRUDGE PASS")
+	await _casino_clear_foes(game)
+	_check(arena._foes.all(func(f): return f.dead), "GUS VAULT DEFENDERS PASS")
+	_place(arena.hero, Vector3(0,0.05,-6.5), PI)
+	await _frames(5)
+	await _click("ROB VAULT")
+	_check(profile.data.gus_debt_paid, "GUS VAULT PASS")
+	await _shot("casino_vault")
+	LairRules.equip_voice(profile.data, 1, "gus")
+	arena._apply_loadout()
+	_check(arena.moves.specials.down.id == "voice_gus" and arena.moves.specials.toward.id == "voice_gus_dice" and arena.moves.specials.away.id == "voice_gus_edge", "GUS VOICE MOVES PASS (all three available after debt)")
+	profile.save()
+	await _click("RETURN HOME")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	game.start_hunt("pews")
+	await _wait_scene("Game")
+	game = get_tree().current_scene
+	arena = game.arena
+	await _frames(6)
+	arena.encounter_started = true
+	arena.rules.engaged = true
+	arena._boss_cd = 999.0
+	await _casino_clear_foes(game)
+	# A horizontal target makes DOWN unambiguous, away/toward are target-relative.
+	_place(arena.hero, arena.dummy.position + Vector3(1.1,0.05,0), -PI/2)
+	arena.rig.snap()
+	await _frames(3)
+	await _gus_swipe(game,Vector2.DOWN)
+	_check(arena.last_special.get("id","") == "voice_gus", "GUS VOICE COIN PASS (real DOWN swipe)")
+	await _secs(0.7)
+	await _face_dummy(arena)
+	var hits_before: int = arena.hits_landed
+	await _gus_swipe(game,arena.target_screen_dir().normalized())
+	await _secs(0.7)
+	_check(arena.last_special.get("id","") == "voice_gus_dice" and arena.hits_landed > hits_before, "GUS VOICE DICE PASS (real toward swipe, hit landed)")
+	await _face_dummy(arena)
+	await _gus_swipe(game,-arena.target_screen_dir().normalized())
+	get_node("/root/DebugMenu").god_mode = false
+	arena._iframes = 0.0
+	var hp_before: int = arena.hp
+	var boss_before: float = arena.dummy_hp
+	arena._damage_hero(10,arena.dummy.global_position)
+	_check(arena.last_special.get("id","") == "voice_gus_edge" and arena.hp == hp_before and arena.dummy_hp < boss_before, "GUS VOICE EDGE PASS (real away swipe counters incoming damage)")
+	await _shot("gus_voice_edge")
+
+
+func _casino_clear_foes(game: Node) -> void:
+	var arena = game.arena
+	for i in arena._foes.size():
+		var foe: Dictionary = arena._foes[i]
+		if foe.dead:
+			continue
+		# Stage health, then use the real strike pad and combat pipeline.
+		foe.hp = 1.0
+		var actor: Node3D = foe.actor
+		for attempt in 5:
+			if foe.dead:
+				break
+			var until := Time.get_ticks_msec() + 2500
+			while not arena._free() and Time.get_ticks_msec() < until:
+				await get_tree().process_frame
+			_place(arena.hero,actor.position + Vector3(0,0.05,0.9),PI)
+			arena.rig.snap()
+			await _frames(3)
+			await _pad_tap(game)
+			foe = arena._foes[i]
+
+
+func _gus_swipe(game: Node, direction: Vector2) -> void:
+	var arena = game.arena
+	var until := Time.get_ticks_msec() + 3000
+	while not arena._free() and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+	var point := _pad_point(game)
+	var end := point + direction * 120.0
+	_mouse(point,true)
+	_mouse(end,null)
+	_mouse(end,false)
+	await _frames(2)

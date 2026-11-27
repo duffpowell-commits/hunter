@@ -82,7 +82,7 @@ func _build() -> void:
 	if save.exists():
 		var d: Dictionary = save.read()
 		# M3: the run save says where you are (Save v4 "where").
-		var at := "THE LAIR" if str(d.get("where", "pews")) == "lair" else "THE PEWS"
+		var at := {"lair": "THE LAIR", "casino": "THE CELLAR CASINO"}.get(str(d.get("where", "pews")), "THE PEWS") as String
 		col.add_child(UI.button("CONTINUE  (%s)" % at, func(): _play(true), 88))
 	col.add_child(UI.button("NEW GAME", func(): _play(false), 88 if not save.exists() else UI.MIN_TOUCH))
 	col.add_child(UI.button("SETTINGS", func(): SettingsSheet.open(self)))
