@@ -1,0 +1,5 @@
+# Studio checkpoint — 2026-11-27
+
+Milestone 5 Cellar Casino (PR #39) merged at fab6895; published build 110 signed Android and browser. 91 tests, full autoplay, exact-head review, rule-lock and CI passed as reported in PR; actual physical phone verification and non-God-mode Casino retry/death are outstanding. Existing placeholder rigs are not final art. No new milestone approved.
+
+New studio library includes CC0 Kenney Furniture, Modular Dungeon and Casino Audio (55 OGG files). Consider selective decorative geometry and foley only if matching the established rotten-luxury art and existing audio mix; retain original approved characters and progression. Keep source archives outside game, add license and source credit for each used asset, no paid assets. Do not expand until scope approved. CrazyGames held pending browser readiness and content review.
