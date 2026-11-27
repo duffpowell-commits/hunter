@@ -52,7 +52,7 @@ func _run() -> void:
 	# Nov 26 (8.5 pass): the cold open is the game's own story, ending on the first goal.
 	var intro: Node = get_tree().current_scene
 	var cards: Array = intro.CARDS
-	_check(cards.size() == 4 and str(cards[0][0]).begins_with("You were born") and "VESPER" in str(cards[-1][0])
+	_check(cards.size() == 4 and str(cards[0][0]).begins_with("Cain Vantre") and "VESPER" in str(cards[-1][0])
 		and str(intro.text.text) == str(cards[0][0]), "COLD OPEN PASS (%d cards, ends on the goal: Brother Vesper)" % cards.size())
 	intro.i = cards.size() - 1
 	intro._show()
@@ -614,6 +614,16 @@ func _lair_checks() -> void:
 	_check(arena.fox.greeted and arena.fox.global_position.distance_to(arena.hero.global_position) < 2.0,
 		"FOX GREET PASS (the fox runs from the lair door to greet Cain)")
 	await _shot("lair_fox_greet")
+	_check(arena.has_node("VigSanctuary"), "VIG SANCTUARY PASS (decorative corner in existing lair)")
+	game.pause()
+	await _frames(3)
+	await _click("DEBT LEDGER")
+	await _frames(3)
+	_check(game.has_node("DebtLedger"), "DEBT LEDGER PASS (journal opens from pause)")
+	await _shot("debt_ledger")
+	await _click("CLOSE")
+	await _frames(3)
+	await _click("RESUME")
 	var Ex = preload("res://scripts/explainer.gd")
 	var explained: Array = Ex.LINES.keys().filter(func(id): return Ex.seen(id))
 	_check(explained.size() >= 2, "EXPLAINER PASS (first changes explained once: %s)" % [explained])

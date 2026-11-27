@@ -8,10 +8,10 @@ extends Control
 const UI = preload("res://scripts/ui.gd")
 ## [line, small line under it]
 const CARDS := [
-	["You were born dying.", "Your mother made a deal to keep you breathing."],
-	["The deal was with Samael Price.\nPrice & Partners. Demons, all of them.", "That's why you're half one."],
-	["Now you collect for him.\nYou hunt demons. He takes the debt.", "Every kill pays down what you owe. That's what he says."],
-	["First name on the list:\nBROTHER VESPER.", "A preacher in the Pews. Study him unseen, then strike."],
+	["Cain Vantre.\nA life borrowed.", "Your mother made a deal to keep you breathing."],
+	["Samael Price.\nPrice & Partners.", "The Firm spared your life. You are half demon."],
+	["A debt without a balance.", "Price promises freedom for you and your mother when the account is settled."],
+	["First name on the list:\nBROTHER VESPER.", "Your first obligation awaits in the Pews. Read the Debt Ledger from Pause."],
 ]
 
 var i := 0
@@ -40,8 +40,8 @@ func _ready() -> void:
 	sub.set_anchors_preset(Control.PRESET_CENTER)
 	sub.custom_minimum_size = Vector2(440, 0)
 	sub.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	sub.offset_top = 110
-	sub.offset_bottom = 170
+	sub.offset_top = 140
+	sub.offset_bottom = 240
 	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sub)
 	dots = UI.label("", 18, UI.DIM)

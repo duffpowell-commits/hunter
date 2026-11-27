@@ -1880,3 +1880,19 @@ func test_fox_pet_yip_and_lair_greet() -> void:
 	l.queue_free()
 	await process_frame
 	_restore_profile(prof)
+
+
+func test_debt_ledger_read_only() -> void:
+	var ledger = preload("res://scripts/debt_ledger.gd")
+	var p := preload("res://scripts/lair_rules.gd").blank()
+	var cfg := GameData.load_json("furfur")
+	var before := p.duplicate(true)
+	var fresh: Array[String] = ledger.entries(p, cfg)
+	check(p == before, "journal never writes profile")
+	check(not "\n".join(fresh).contains(cfg.contract.hidden[0]), "unread clause stays hidden")
+	p.clauses_read = 1
+	p.furfur_lore = 1
+	p.trophies.append("vesper")
+	var later := "\n".join(ledger.entries(p, cfg))
+	check(later.contains(cfg.contract.hidden[0]) and later.contains(cfg.lore[0]), "discovered lore appears")
+	check(later.contains("Vesper's collar recovered"), "existing milestone appears")

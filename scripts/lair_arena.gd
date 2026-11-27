@@ -73,6 +73,7 @@ func _build_world() -> void:
 	_box(Vector3(w, 0, n), Vector3(w + 0.5, 2.6, s + 2.0), Color("26252b"))
 	_box(Vector3(-w, 0, n - 0.5), Vector3(w, 2.6, n), Color("26252b"))
 	_build_portal(GameData.vec3(lay.portal_at))
+	_build_vig_corner()
 	_build_trophy_wall(GameData.vec3(lay.stations.trophy_wall))
 	_build_workshop(GameData.vec3(lay.stations.workshop))
 	_build_cold_room(GameData.vec3(lay.stations.cold_room))
@@ -87,6 +88,16 @@ func _build_world() -> void:
 		var plate := _ink_disc(GameData.vec3(lay.trap_spots[i]) + Vector3(0, 0.01, 0), 0.5, Color("2f2a2c"))
 		plate.name = "TrapSpot%d" % i
 		_trap_nodes.append(plate)
+
+
+## Decorative only: no collision, station, interaction or save state.
+func _build_vig_corner() -> void:
+	var mat := _ink_disc(Vector3(-3.05, 0.035, 5.65), 0.88, Color("79613e"))
+	mat.name = "VigSanctuary"
+	_ink_disc(Vector3(-3.05, 0.075, 5.65), 0.72, Color("59434b"))
+	_box(Vector3(-3.63, 0.09, 5.92), Vector3(-2.49, 0.24, 6.26), Color("9a8565"), false)
+	_ink_disc(Vector3(-2.02, 0.06, 6.18), 0.2, Color("a38a55"))
+	_label("VIG", Vector3(-3.05, 0.22, 5.15))
 
 
 func _ready() -> void:

@@ -92,8 +92,8 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	var hc := UI.contrast()
 	# Nov 26 free-flow pass: the pad is STRIKE; COUNTER and DODGE are their own buttons.
-	draw_string(font, c + Vector2(-90, 40), "STRIKE", HORIZONTAL_ALIGNMENT_CENTER, 180, UI.font_size(20), Color(1, 1, 1, 1.0 if hc else 0.7))
-	draw_string(font, c + Vector2(-180, 100), "TAP  ·  HOLD  ·  SWIPE", HORIZONTAL_ALIGNMENT_CENTER, 360, UI.font_size(15), Color(1, 1, 1, 0.9 if hc else 0.45))
+	draw_string(font, c + Vector2(-90, 40), "STRIKE", HORIZONTAL_ALIGNMENT_CENTER, 180, UI.font_size(20), Color(1, 1, 1, 1.0 if hc else 0.9))
+	draw_string(font, c + Vector2(-180, 100), "TAP  ·  HOLD  ·  SWIPE", HORIZONTAL_ALIGNMENT_CENTER, 360, UI.font_size(15), Color(1, 1, 1, 1.0 if hc else 0.85))
 	if _finger != -1:
 		var held := (Time.get_ticks_msec() - _t0) / 1000.0
 		draw_arc(_start, 50, -PI / 2, -PI / 2 + TAU * clampf(held / hold_time, 0.0, 1.0), 40, Color(1, 1, 1, 0.5), 6.0)
