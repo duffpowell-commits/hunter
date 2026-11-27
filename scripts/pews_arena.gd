@@ -185,13 +185,13 @@ func _add_candles(church: Node3D) -> void:
 func _ready() -> void:
 	super._ready()
 	name = "PewsArena"
-	rules = PewsRules.new()
-	add_child(preload("res://scripts/pews_tuning.gd").new(rules.config))
+	rules = PewsRules.new(realm_config())
+	add_realm_tuning()
 	rules.boss_hp = float(rules.config.boss.phase_hp[0])
-	dummy.name = "Vesper"
+	dummy.name = boss_short()
 	# Why re-apply (Nov 23 review): Character3D reads `tint` only while it sets up, so setting it on
 	# a dummy already in the tree left Vesper the training dummy's orange.
-	dummy.tint = Color("8b718f")
+	dummy.tint = boss_tint()
 	dummy._mats = Character3D.apply_toon(dummy.model, dummy.tint, dummy.rim, dummy.outline_px)
 	_boss_cd = float(rules.config.boss.first_cooldown)
 	dummy.position = _v3(rules.config.boss.spawn)
@@ -204,8 +204,7 @@ func _ready() -> void:
 	hero.model.rotation.y = PI
 	fox.place_behind()
 	# Zealot spawn moved off the pew collider (was z -1.0, inside it; Nov 23 review).
-	_spawn_foe("Zealot", _v3(rules.config.minions.zealot_spawn), Color("a84c42"), float(rules.config.minions.zealot_hp))
-	_spawn_foe("Choir", _v3(rules.config.minions.choir_spawn), Color("b5a0d0"), float(rules.config.minions.choir_hp))
+	spawn_realm_foes()
 	_spawn_realm_props()
 	_build_occult_halo()
 	_boss_bar = hp_bar(dummy, 2.15, 1.3)
@@ -350,7 +349,7 @@ func _enemy(dt: float) -> void:
 		if rules.engaged:
 			encounter_started = true
 			spotted = true
-			get_node("/root/Subs").cue("[Vesper spots you]")
+			get_node("/root/Subs").cue("[%s spots you]" % boss_short())
 			voice_moment.emit("fight")
 		else:
 			return
@@ -470,7 +469,7 @@ func _execute_boss_move() -> void:
 func _check_hit() -> void:
 	var before := hits_landed
 	# Until the hunt starts, defensive attacks can hit minions only.
-	if encounter_started:
+	if encounter_started or _move.get("id", "") == "voice_gus_dice":
 		super._check_hit()
 	# Arena subtracts nonlethal damage from dummy_hp. Keep the boss rules,
 	# HUD and checkpoint in sync before returning from this hit.
@@ -495,7 +494,7 @@ func _ko(_result: Dictionary) -> void:
 		dummy.position = _v3(rules.config.boss.spawn)
 		dummy.heading = PI
 		dummy.model.rotation.y = PI
-		get_node("/root/Subs").cue("[Vesper reveals his second form]")
+		get_node("/root/Subs").cue("[%s reveals his second form]" % boss_short())
 		phase_changed.emit()
 	elif state.defeated:
 		_cancel_boss_attack()
@@ -506,7 +505,7 @@ func _ko(_result: Dictionary) -> void:
 			foe.warn.visible = false
 		dummy.move_input = Vector2.ZERO
 		dummy.die(Vector3(0, 1.2, 2.0))
-		get_node("/root/Subs").cue("[Vesper collapses]")
+		get_node("/root/Subs").cue("[%s collapses]" % boss_short())
 		voice_moment.emit("kill")
 		ko.emit(kos + 1)
 
@@ -603,7 +602,7 @@ func _attack_target() -> Character3D:
 
 
 func _input_move(q: Dictionary) -> void:
-	if boss_defeated or (not encounter_started and lunge_target() == null):
+	if not realm_combat_active() or (not encounter_started and lunge_target() == null):
 		return
 	var previous_special := last_special
 	super._input_move(q)
@@ -662,7 +661,7 @@ func _cancel_threat(t: Character3D) -> void:
 
 
 func _damage_dummy(r: Dictionary) -> void:
-	if not encounter_started or boss_defeated:
+	if not encounter_started or boss_defeated or r.get("missed", false):
 		return
 	super._damage_dummy(r)
 	if not boss_defeated and dummy_hp > 0.0:
@@ -731,7 +730,7 @@ func context_action() -> void:
 		encounter_started = true
 		_ambush_free_special = bool(result.get("free_first_special", false))
 		dummy.act("hit_chest")
-		get_node("/root/Subs").cue("[AMBUSH: Vesper is staggered]")
+		get_node("/root/Subs").cue("[AMBUSH: %s is staggered]" % boss_short())
 		voice_moment.emit("fight")
 	elif boss_defeated and rules.finisher.is_empty():
 		finish_requested.emit()
@@ -833,3 +832,28 @@ func restore_state(state: Dictionary) -> void:
 		if rules.inventory.has(str(prop.get_meta("loot_id"))):
 			prop.queue_free()
 			_loot_nodes.erase(prop)
+
+
+func realm_config() -> Dictionary:
+	return GameData.load_json("pews")
+
+
+func boss_short() -> String:
+	return "Vesper"
+
+
+func boss_tint() -> Color:
+	return Color("8b718f")
+
+
+func add_realm_tuning() -> void:
+	add_child(preload("res://scripts/pews_tuning.gd").new(rules.config))
+
+
+func spawn_realm_foes() -> void:
+	_spawn_foe("Zealot", _v3(rules.config.minions.zealot_spawn), Color("a84c42"), float(rules.config.minions.zealot_hp))
+	_spawn_foe("Choir", _v3(rules.config.minions.choir_spawn), Color("b5a0d0"), float(rules.config.minions.choir_hp))
+
+
+func realm_combat_active() -> bool:
+	return not boss_defeated

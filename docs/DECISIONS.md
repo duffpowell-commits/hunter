@@ -1,5 +1,16 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-27 — Cellar Casino (M5): Duff's seven-item approval
+
+- Vesper must be eaten before Casino opens; no later realm unlocks yet.
+- The Casino is rotten luxury: crimson neon, black ink, gold inlay, roulette floor and vault. Use existing rigs and free geometry, no paid assets.
+- Loan Sharks are slow heavy collectors; Dealers are slippery, ranged card users and reposition around tables.
+- Optional cursed slots grant a temporary supernatural blessing or curse; no actual money or purchases. Gus charges them in phase two.
+- Gus is a crooked showman at first, desperate debtor in phase two (All In). His named powers are Double or Nothing, Loaded Dice, House Edge.
+- CLEAN grants Lucky Coin; BRUTAL grants voice level, EAT grants voice. Chips, wire, slot glass and roulette duster are Casino loot.
+- Debt grudge locks Gus's powers until the optional Casino vault return visit. Keep Cain, Vig, existing saves and all approved art. No blind player review or paid assets.
+- Implementation judgment calls: use the two equal HP pools (150 each), slot effects last 10 seconds by default, Gus uses his equipped slot plus toward/away swipes, and the vault is defended by the two existing Casino archetypes. Balance remains tunable.
+
 ## 2026-11-26: Cain's pet fox (Claude)
 - Duff (via the project chat): "we'll make the mascot the main character's pet". He tapped
   "B: upright third eye" on the art card (`docs/art/fox-pet/fox_pet_B_approved.png`).

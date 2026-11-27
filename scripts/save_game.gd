@@ -12,7 +12,7 @@ extends Node
 ## 4 = Hunter M3 (Nov 23): "where" ("pews" or "lair") says which scene CONTINUE opens; the rewards
 ##     (cash, heat, parts, corruption, inventory, trophies, voices, BRUTAL slots) moved out of the run
 ##     into Profile (user://profile.json), which NEW GAME and GAME OVER never clear.
-const VERSION := 4
+const VERSION := 5
 ## The reward keys a v3 run kept inside "pews"; v4 hands them to Profile once.
 const CARRY := ["cash", "heat", "parts", "corruption", "inventory", "trophies", "unlocked_voices", "extra_special_slots"]
 var path := "user://run.json"
@@ -88,4 +88,6 @@ func _migrate(d: Dictionary) -> Dictionary:
 			d["carry"] = carry
 		d["where"] = "pews"
 		d["_version"] = 4
+	if int(d.get("_version", 1)) < 5:
+		d["_version"] = 5
 	return d

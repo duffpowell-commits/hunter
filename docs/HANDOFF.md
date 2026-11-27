@@ -27,6 +27,26 @@ in every PR**, not only at the end: the log at the bottom is the running record.
     as of Nov 26).
 - Open PRs: only #12 (art generation guide, Grok's, waits on Duff). #21 and #22 merged Nov 24.
 
+## Milestone 5 implementation checkpoint (2026-11-27)
+
+- Branch `codex/m5-cellar-casino` from `8b3a02c`; AI-nexus task T-020 (registration PR #11, lease held by Codex).
+- Duff approved the seven-item card in conversation: Vesper unlocks the Casino; rotten-luxury crimson casino;
+  Loan Sharks and Dealers; optional cursed slots (Hot Streak, Bad Beat, Lucky Break, Cold Streak, Jackpot,
+  House Tax); Gus the crooked showman turned desperate debtor (two phases, Double or Nothing, Loaded Dice,
+  House Edge); Lucky Coin/trophy, loot, roulette duster and Gus voice; debt vault return quest and Vig.
+- Code: `scripts/casino_arena.gd` extends the Pews lifecycle without changing the Pews' map; content is
+  `data/casino.json`, `data/voices/gus.json`, plus realm/trophy/weapon data. `casino_tuning.gd`,
+  `gus_tuning.gd`, `duster_tuning.gd` and the existing lair/camera tuners expose balance data. Gus uses existing humanoid rigs and clips; no purchased or replaced art.
+- Save v5 adds Casino as a location and Casino encounter fields (slot state, RNG, vault flag, weapon wear).
+  Profile v2 backfills `gus_finisher` and `gus_debt_paid`. The profile is authoritative for rewards/debt.
+  Eaten Gus is not resurrected on reload; vault defenders use actual combat, and paid debt unlocks the three
+  specials (slot swipe = Double or Nothing, toward = Loaded Dice, away = House Edge).
+- Status: local Godot 4.7.2 checks finished: `ALL PASS (90)`, `TESTS PASS`, `AUTOPLAY PASS` and both
+  Android (unsigned) and web exports succeeded. Exact PR-head fresh-eyes, rule-lock and CI remain
+  merge gates. No blind-player review; Duff cancelled that gate.
+- Local Android verification uses unsigned export only because the encrypted studio signing key is not unlocked
+  in the sandbox. CI must produce the signed installable dev APK; never generate another key.
+
 ## The 8.5 rule (Duff, Nov 26)
 Before building another round on a game: get a **blind first-time-player review** (a fresh AI that
 plays with no code/docs), write an "8.5 plan" (what it takes to score 8.5/10), get Duff's OK on one
@@ -89,6 +109,7 @@ score against 8.5. No one-fix-per-PR loops.
   `_damage_dummy` override. New damage paths should use those, not subtract HP by hand.
 
 ## Log (newest first; one line per chunk of work)
+- 2026-11-27 Codex: M5 seven-item design approved by Duff, implemented on `codex/m5-cellar-casino`; fresh-context preflight found and prompted fixes in vault combat, save reconciliation, atomic finisher reward, voice counters and test coverage. Final local checks: 90 rule tests, full autoplay, unsigned Android and web exports passed.
 - 2026-11-26 19:45 Claude: handoff refresh: free-flow (#32) and Vig (#34-35) marked merged, Pages live, #21/#22 shown merged, next steps reordered.
 - 2026-11-26 18:05 Claude: fox pet merged (PR #34); Duff named it Vig (captions + credit use it).
 - 2026-11-26 18:30 Claude: the fox pet (look B) on `claude/hunter-fox-pet`: follows Cain, eye = Demon Sight, lair greet, yip; tests 85 pass (2 new), autoplay FOX SIGHT/FOLLOW/EYE CLOSE/GREET.

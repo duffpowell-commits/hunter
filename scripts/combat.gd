@@ -109,6 +109,10 @@ func reach(m: Dictionary) -> float:
 ## The move hit. Returns {"damage", "power", "broke"}.
 func land(m: Dictionary) -> Dictionary:
 	var dmg := float(m.get("damage", 0)) * damage_scale
+	if m.get("id", "") == "voice_gus":
+		if randf() >= float(m.get("chance", 0.5)):
+			return {"damage": 0.0, "power": 0.0, "broke": false, "missed": true}
+		dmg *= float(m.get("multiplier", 2.0))
 	var power := float(m.get("power", 0.3))
 	var broke := false
 	if weapon != "":

@@ -60,6 +60,7 @@ func foe_rules() -> Dictionary:
 func _ready() -> void:
 	super._ready()
 	add_child(preload("res://scripts/lair_tuning.gd").new())
+	add_child(preload("res://scripts/gus_tuning.gd").new(GameData.load_json("voices/gus")))
 	fox = preload("res://scripts/fox_pet.gd").new()
 	fox.setup(self, hero)
 	add_child(fox)
@@ -95,6 +96,10 @@ func _apply_loadout() -> void:
 		var m := LairRules.voice_move(GameData.load_json("voices/" + id), int(p.voice_levels.get(id, 0)))
 		if not m.is_empty():
 			moves.specials[dir] = m
+			if id == "gus":
+				var extra: Dictionary = GameData.load_json("voices/gus").get("extra_specials", {})
+				for other in extra:
+					moves.specials[other] = LairRules.voice_move({"special": extra[other]}, int(p.voice_levels.get(id, 0)))
 	for dir in moves.specials:
 		var s: Dictionary = moves.specials[dir]
 		s.damage = float(s.damage) * (1.0 + float(perk.special_damage))
@@ -300,14 +305,14 @@ func _foe_ai(dt: float) -> void:
 				actor.move_input = Vector2.ZERO
 				_foes[i] = foe
 				continue
-		if d > float(minions.chase_min) and d < float(minions.chase_max):
+		if d > float(minions.get(key + "_chase_min", minions.chase_min)) and d < float(minions.chase_max):
 			var way: Array = steer(actor.global_position, to / d, float(foe.get("side", 0.0)),
 				float(minions.get("steer_probe", 0.8)), float(minions.get("steer_margin", 0.35)))
 			var heading: Vector3 = way[0]
 			foe.side = way[1]
 			actor.heading = atan2(heading.x, heading.z)
 			actor.model.rotation.y = actor.heading
-			actor.move_input = Vector2(heading.x, heading.z) * float(minions.chase_speed)
+			actor.move_input = Vector2(heading.x, heading.z) * float(minions.get(key + "_chase_speed", minions.chase_speed))
 		else:
 			actor.move_input = Vector2.ZERO
 		if foe.windup > 0.0:
@@ -316,15 +321,15 @@ func _foe_ai(dt: float) -> void:
 				actor.act("enemy_swing")
 				foe.warn.visible = false
 				var boosted: bool = foe.kind == "Zealot" and choir_alive and choir_pos.distance_to(actor.global_position) < float(minions.choir_buff_radius)
-				if hero.global_position.distance_to(actor.global_position) < float(minions.hit_range):
+				if hero.global_position.distance_to(actor.global_position) < float(minions.get(key + "_hit_range", minions.hit_range)):
 					var damage := int(minions[key + "_damage"]) + (int(minions.choir_bonus_damage) if boosted else 0)
 					if _damage_hero(damage, actor.global_position):
 						_on_minion_hit(damage)
 				foe.attack_cd = float(minions.attack_cooldown)
 		else:
 			foe.attack_cd -= dt
-			if d < float(minions.attack_range) and foe.attack_cd <= 0.0:
-				foe.windup = float(minions.attack_windup)
+			if d < float(minions.get(key + "_attack_range", minions.attack_range)) and foe.attack_cd <= 0.0:
+				foe.windup = float(minions.get(key + "_attack_windup", minions.attack_windup))
 				foe.warn.visible = true
 				get_node("/root/Subs").cue(_windup_cue(foe.kind))
 		_foes[i] = foe
@@ -344,7 +349,7 @@ func _on_foe_killed(_foe: Dictionary) -> void:
 
 ## The swing in progress lands on the first foe in reach and in front (once per swing).
 func _check_foe_hits() -> void:
-	if _move.is_empty() or _landed or hero.dead:
+	if _move.is_empty() or _landed or hero.dead or _move.get("id", "") == "voice_gus_edge":
 		return
 	if not hero.is_acting(_move.action) or _move_age < float(_move.get("hit_at", 0.0)):
 		return
@@ -491,6 +496,18 @@ func kill_foe(i: int) -> void:
 func _damage_hero(amount: int, from_pos: Vector3, power := 0.5) -> bool:
 	if amount <= 0 or _iframes > 0.0 or hero.dead or get_node("/root/DebugMenu").god_mode:
 		return false
+	if _move.get("id", "") == "voice_gus_edge" and _move_age < float(_move.get("recover", 0.0)) and not _landed:
+		var attacker: Character3D
+		var nearest := float(_move.get("counter_range", 1.0))
+		for target in _targets():
+			var distance := target.global_position.distance_to(from_pos)
+			if distance < nearest and hero.global_position.distance_to(target.global_position) <= float(_move.get("reach",2.5)):
+				nearest = distance
+				attacker = target
+		if is_instance_valid(attacker):
+			_apply_damage(attacker, _land_hit(attacker))
+			get_node("/root/Subs").cue("[House Edge counter]")
+			return false
 	hp = maxi(0, hp - amount)
 	hero_hits_taken += 1
 	combat.drop_combo()
@@ -512,3 +529,43 @@ func heal(amount: int) -> int:
 	if hp > before:
 		low_hp_said = float(hp) <= float(max_hp) * low_hp_at
 	return hp - before
+
+
+func _check_hit() -> void:
+	if _move.get("id", "") == "voice_gus_edge":
+		return
+	if _move.get("id", "") != "voice_gus_dice":
+		super._check_hit()
+		return
+	if _landed or hero.dead or not hero.is_acting(_move.action) or _move_age < float(_move.get("hit_at", 0.0)):
+		return
+	var forward := Vector3(sin(hero.heading), 0, cos(hero.heading))
+	var reach := combat.reach(_move)
+	var targets: Array[Character3D] = []
+	for target in _targets():
+		var delta := target.position - hero.position
+		delta.y = 0
+		if delta.length() <= reach and forward.dot(delta.normalized()) >= cos(deg_to_rad(float(_move.arc)/2.0)):
+			targets.append(target)
+	if not targets.is_empty():
+		var hit := _land_hit(targets[0])
+		_dice_shot_fx(forward, reach)
+		for target in targets:
+			if target != targets[0]:
+				target.hit(hero.global_position + Vector3(0,1.2,0),float(hit.power))
+			_apply_damage(target, hit)
+
+
+func _dice_shot_fx(forward: Vector3, reach: float) -> void:
+	for offset in [-1.0,0.0,1.0]:
+		var die := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.18,0.18,0.18)
+		die.mesh = mesh
+		die.material_override = _toon(Color("f2d6b1"))
+		add_child(die)
+		die.position = hero.position + Vector3(0,0.8,0)
+		var direction := forward.rotated(Vector3.UP, deg_to_rad(float(_move.arc)*0.4)*offset)
+		var tween := create_tween()
+		tween.tween_property(die,"position",die.position + direction*reach,float(_move.get("recover",0.5)))
+		tween.tween_callback(die.queue_free)

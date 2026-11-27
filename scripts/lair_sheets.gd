@@ -143,10 +143,18 @@ static func _voices(game: Control, sh: VBoxContainer) -> void:
 		var b := UI.button(text, func(): _pick_voice(game, sh, slot), 88)
 		b.name = "VoiceSlot%d" % slot
 		b.add_theme_font_size_override("font_size", UI.font_size(17))
+		if id == "gus" and not p.get("gus_debt_paid",false):
+			b.modulate = Color(0.7,0.7,0.7)
 		sh.add_child(b)
+	if p.voices.has("gus"):
+		sh.add_child(UI.label("Gus: debt settled. Equip him to use his powers." if p.get("gus_debt_paid",false) else "Gus debt: return to the Casino and rob its vault.", 16))
+		if p.get("gus_debt_paid",false):
+			sh.add_child(UI.label("Slot swipe: Double or Nothing • Toward: Loaded Dice • Away: House Edge", 16))
 
 
 static func _voice_label(p: Dictionary, id: String) -> String:
+	if id == "gus" and not p.get("gus_debt_paid", false):
+		return "🔒 GUS LOCKED — ROB VAULT"
 	var v := GameData.load_json("voices/" + id)
 	var m := LairRules.voice_move(v, int(p.voice_levels.get(id, 0)))
 	return "%s: %s %d" % [str(v.get("short", id)).to_upper(), m.get("name", ""), int(m.get("damage", 0))]
@@ -159,10 +167,13 @@ static func _pick_voice(game: Control, sh: VBoxContainer, slot: int) -> void:
 	if p.voices.is_empty():
 		pick.add_child(UI.label("No voices yet. EAT a boss.", 18))
 	for id in p.voices:
-		pick.add_child(UI.button(_voice_label(p, str(id)), func():
+		var choice := UI.button(_voice_label(p, str(id)), func():
 			LairRules.equip_voice(p, slot, str(id))
 			UI.close_sheet(pick)
-			_changed(game, sh, "voices"), 88))
+			_changed(game, sh, "voices"), 88)
+		if id == "gus" and not p.get("gus_debt_paid",false):
+			choice.modulate = Color(0.7,0.7,0.7)
+		pick.add_child(choice)
 	pick.add_child(UI.button("EMPTY THIS SLOT", func():
 		LairRules.equip_voice(p, slot, "")
 		UI.close_sheet(pick)
@@ -176,7 +187,7 @@ static func _map(game: Control, sh: VBoxContainer) -> void:
 	var pending := bool(_p(game).raid_pending)
 	_title(sh, "MAP ROOM", "Hold the lair first: a raid is coming." if pending else "Pick a realm and a target.")
 	for r: Dictionary in GameData.load_json("realms").realms:
-		var open_: bool = bool(r.open)
+		var open_: bool = LairRules.realm_open(_p(game), str(r.id))
 		var b := UI.button(("HUNT %s: %s" % [r.name, r.target]) if open_ else ("LOCKED: %s" % r.name), func():
 			UI.close_sheet(sh)
 			game.call("start_hunt", str(r.id)), 80)

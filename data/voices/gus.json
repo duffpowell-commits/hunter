@@ -1,0 +1,67 @@
+{
+  "id": "gus",
+  "name": "GUS MALLOY",
+  "short": "GUS",
+  "color": "bd294c",
+  "special": {
+    "id": "voice_gus",
+    "name": "DOUBLE OR NOTHING",
+    "action": "spin",
+    "damage": 24,
+    "per_level": 6,
+    "power": 0.7,
+    "reach": 2.6,
+    "arc": 360,
+    "cooldown": 4.0,
+    "hit_at": 0.25,
+    "recover": 0.5,
+    "chance": 0.5,
+    "multiplier": 2.0
+  },
+  "lines": {
+    "lair": [
+      "Nice joint. Needs a bar."
+    ],
+    "fight": [
+      "My money's on you. Don't make me look stupid."
+    ],
+    "low_hp": [
+      "That's coming out of your winnings."
+    ],
+    "combo": [
+      "Hot streak!"
+    ],
+    "kill": [
+      "The house takes its cut."
+    ]
+  },
+  "extra_specials": {
+    "toward": {
+      "id": "voice_gus_dice",
+      "name": "LOADED DICE",
+      "action": "spin",
+      "damage": 18,
+      "per_level": 5,
+      "power": 0.7,
+      "reach": 4,
+      "arc": 100,
+      "cooldown": 5,
+      "hit_at": 0.25,
+      "recover": 0.5
+    },
+    "away": {
+      "id": "voice_gus_edge",
+      "name": "HOUSE EDGE",
+      "action": "spin",
+      "damage": 16,
+      "per_level": 4,
+      "power": 0.7,
+      "reach": 2.5,
+      "arc": 360,
+      "cooldown": 6,
+      "hit_at": 0.25,
+      "recover": 0.5,
+      "counter_range": 1.0
+    }
+  }
+}

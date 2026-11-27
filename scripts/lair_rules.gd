@@ -17,7 +17,7 @@ const GameData = preload("res://scripts/game_data.gd")
 static func blank() -> Dictionary:
 	return {"cash": 0, "heat": 0, "parts": 0, "corruption": 0, "inventory": {},
 		"trophies": [], "wall": ["", "", "", "", "", ""],
-		"voices": [], "equipped": [], "voice_levels": {},
+		"voices": [], "equipped": [], "voice_levels": {}, "gus_debt_paid": false, "gus_finisher": "",
 		"upgrades": {}, "traps": ["", "", ""],
 		"nights": 0, "hunts": 0, "raid_pending": false, "raids_won": 0, "raids_lost": 0,
 		"failures_unvented": 0,
@@ -208,7 +208,7 @@ static func voice_slots(p: Dictionary) -> Dictionary:
 	var out := {}
 	var dirs := ["up", "down"]
 	for i in mini(p.equipped.size(), 2):
-		if not str(p.equipped[i]).is_empty():
+		if not str(p.equipped[i]).is_empty() and (p.equipped[i] != "gus" or p.get("gus_debt_paid", false)):
 			out[dirs[i]] = str(p.equipped[i])
 	return out
 
@@ -282,3 +282,10 @@ static func set_trap(p: Dictionary, spot: int, item: String) -> bool:
 static func spend_trap(p: Dictionary, spot: int) -> void:
 	if spot >= 0 and spot < p.traps.size():
 		p.traps[spot] = ""
+
+
+static func realm_open(p: Dictionary, id: String) -> bool:
+	for realm in GameData.load_json("realms").realms:
+		if realm.id == id:
+			return bool(realm.open) or p.voices.has(realm.get("requires_voice", ""))
+	return false
