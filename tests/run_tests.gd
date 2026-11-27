@@ -1983,3 +1983,32 @@ func test_gus_voice_coin_outcomes() -> void:
 	coin.chance = 1.0
 	var hit := combat.land(coin)
 	check(not hit.get("missed",false) and is_equal_approx(float(hit.damage),float(coin.damage)*float(coin.multiplier)) and combat.combo == 1, "double deals the configured multiplier")
+
+
+func test_gus_dice_minion_does_not_break_vesper_heal() -> void:
+	var a = preload("res://scripts/pews_arena.gd").new()
+	root.add_child(a)
+	await process_frame
+	a.encounter_started = true
+	a.rules.engaged = true
+	a.dummy.position = Vector3(0,0,-8)
+	var foe: Dictionary = a._foes[0]
+	foe.actor.position = Vector3(0,0,1)
+	a.hero.position = Vector3(0,0,2.1)
+	a.hero.heading = PI
+	a.hero.model.rotation.y = PI
+	a._boss_move_index = a.rules.config.boss.move_order.find("laying_of_hands")
+	a._begin_boss_move()
+	var move: Dictionary = GameData.load_json("voices/gus").extra_specials.toward.duplicate(true)
+	move.kind = "special"
+	var before: int = a.hits_landed
+	var old_hp: float = foe.hp
+	a._begin(move)
+	for i in 60:
+		await physics_frame
+		if a.hits_landed > before:
+			break
+	check(a.hits_landed > before and a._foes[0].hp < old_hp, "Loaded Dice hit only the nearby minion")
+	check(a._boss_move == "laying_of_hands" and a.heals_broken == 0, "a minion-only hit must not interrupt Vesper's prayer")
+	a.queue_free()
+	await process_frame

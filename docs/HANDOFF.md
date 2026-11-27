@@ -41,7 +41,7 @@ in every PR**, not only at the end: the log at the bottom is the running record.
   Profile v2 backfills `gus_finisher` and `gus_debt_paid`. The profile is authoritative for rewards/debt.
   Eaten Gus is not resurrected on reload; vault defenders use actual combat, and paid debt unlocks the three
   specials (slot swipe = Double or Nothing, toward = Loaded Dice, away = House Edge).
-- Status: local Godot 4.7.2 checks finished: `ALL PASS (90)`, `TESTS PASS`, `AUTOPLAY PASS` and both
+- Status: local Godot 4.7.2 checks finished: `ALL PASS (91)`, `TESTS PASS`, `AUTOPLAY PASS` and both
   Android (unsigned) and web exports succeeded. Exact PR-head fresh-eyes, rule-lock and CI remain
   merge gates. No blind-player review; Duff cancelled that gate.
 - Local Android verification uses unsigned export only because the encrypted studio signing key is not unlocked
@@ -109,7 +109,7 @@ score against 8.5. No one-fix-per-PR loops.
   `_damage_dummy` override. New damage paths should use those, not subtract HP by hand.
 
 ## Log (newest first; one line per chunk of work)
-- 2026-11-27 Codex: M5 seven-item design approved by Duff, implemented on `codex/m5-cellar-casino`; fresh-context preflight found and prompted fixes in vault combat, save reconciliation, atomic finisher reward, voice counters and test coverage. Final local checks: 90 rule tests, full autoplay, unsigned Android and web exports passed.
+- 2026-11-27 Codex: M5 seven-item design approved by Duff, implemented on `codex/m5-cellar-casino`; fresh-context preflight found and prompted fixes in vault combat, save reconciliation, atomic finisher reward, voice counters and test coverage. Final local checks: 91 rule tests, full autoplay, unsigned Android and web exports passed. Exact-head reviewer found a Pews healing regression on minion-only Loaded Dice; added red-first regression test and fixed the redundant interrupt.
 - 2026-11-26 19:45 Claude: handoff refresh: free-flow (#32) and Vig (#34-35) marked merged, Pages live, #21/#22 shown merged, next steps reordered.
 - 2026-11-26 18:05 Claude: fox pet merged (PR #34); Duff named it Vig (captions + credit use it).
 - 2026-11-26 18:30 Claude: the fox pet (look B) on `claude/hunter-fox-pet`: follows Cain, eye = Demon Sight, lair greet, yip; tests 85 pass (2 new), autoplay FOX SIGHT/FOLLOW/EYE CLOSE/GREET.

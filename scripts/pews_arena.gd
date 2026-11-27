@@ -475,8 +475,7 @@ func _check_hit() -> void:
 	# HUD and checkpoint in sync before returning from this hit.
 	if hits_landed != before and not boss_defeated and dummy_hp > 0.0:
 		rules.boss_hp = dummy_hp
-	if hits_landed != before:
-		break_heal()
+	# _damage_dummy breaks a prayer only on a boss hit; a Gus dice hit on a minion must not.
 	if hits_landed != before:
 		return
 	_check_foe_hits()
