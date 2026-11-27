@@ -1,5 +1,11 @@
 # Decisions log (catch-up file for Claude, Grok and any agent)
 
+## 2026-11-27: Debt Ledger and presentation (Codex)
+- The ledger is a read-only Pause sheet, paginated and scrollable for the 720×1280 portrait canvas. It uses the existing Profile trophies, hunt count, Furfur state, contract and revealed lore rather than introducing a debt balance or quest system. No save migration is needed.
+- Intro copy names Cain, the existing bargain and Price's stated promise, without exposing Furfur's hidden clauses. The journal's first page puts the current account first. The camera is slightly wider (48° FOV, previously 45°), retains the existing fixed pitch, and captions no longer cover the idle touch labels. Existing left-handed mirroring is unchanged.
+- Vig's sanctuary uses a collision-free rug, cushion and bowl near the existing lair portal. The approved model is unchanged. Its real Survey, Walk and Run clips are the only available compatible clips; sit/sleep and an additional dedicated greeting clip remain open. No paid assets, new locations or Cellar Casino work.
+- Duff requested one PR, no merge/public release and no new blind review. Physical phone checks remain pending.
+
 ## 2026-11-26: Cain's pet fox (Claude)
 - Duff (via the project chat): "we'll make the mascot the main character's pet". He tapped
   "B: upright third eye" on the art card (`docs/art/fox-pet/fox_pet_B_approved.png`).

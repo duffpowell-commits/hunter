@@ -17,7 +17,7 @@ extends Node3D
 @export var frame_max := 6.0          # never pull back more than this (m)
 @export var wall_mask := 1            # what the camera may not pass through
 @export var wall_margin := 0.35
-@export var fov := 45.0
+@export var fov := 48.0               # slightly wider portrait framing; pitch and controls unchanged
 @export var max_pitch := 82.0         # how far it may tilt up to see over a wall
 @export var min_distance := 4.0       # never closer to the hero than this, even behind a wall
 ## Live sliders in DEV MENU -> TUNE (scripts/tune_panel.gd).

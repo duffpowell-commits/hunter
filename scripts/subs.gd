@@ -24,12 +24,15 @@ func _ready() -> void:
 	_bg = PanelContainer.new()
 	_bg.anchor_left = 0.05
 	_bg.anchor_right = 0.95
-	_bg.anchor_top = 0.78
-	_bg.anchor_bottom = 0.78
+	## Keep captions above the thumb rings instead of covering MOVE / STRIKE.
+	_bg.anchor_top = 0.60
+	_bg.anchor_bottom = 0.60
 	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0.75)
+	sb.bg_color = Color(0, 0, 0, 0.92)
 	sb.set_corner_radius_all(10)
+	sb.set_border_width_all(1)
+	sb.border_color = Color("a38a55")
 	sb.content_margin_left = 14
 	sb.content_margin_right = 14
 	sb.content_margin_top = 8

@@ -703,6 +703,7 @@ func pause() -> void:
 	sheet_box = UI.sheet(self)
 	sheet_box.add_child(UI.label("PAUSED", 30, UI.ACCENT))
 	sheet_box.add_child(UI.button("RESUME", resume, 88))
+	sheet_box.add_child(UI.button("DEBT LEDGER", func(): preload("res://scripts/debt_ledger.gd").open(self)))
 	sheet_box.add_child(UI.button("SETTINGS", func(): SettingsSheet.open(self)))
 	sheet_box.add_child(UI.button("REPORT A BUG", func(): BugReport.open(self)))
 	sheet_box.add_child(UI.button("QUIT TO TITLE", quit_to_title))
